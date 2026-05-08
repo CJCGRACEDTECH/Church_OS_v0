@@ -1,7 +1,6 @@
 import React, { createContext, useContext, ReactNode } from "react";
-import { useGetMe, useLogout } from "@workspace/api-client-react";
+import { useGetMe, useLogout, type AuthUser } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
-import { AuthUser } from "@workspace/api-client-react/src/generated/api.schemas";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface AuthContextType {
