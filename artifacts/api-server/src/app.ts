@@ -11,6 +11,10 @@ const PgSession = connectPgSimple(session);
 
 const app: Express = express();
 
+// Trust the first proxy hop (Replit's reverse proxy) so that
+// req.secure is correct and session cookies work properly.
+app.set("trust proxy", 1);
+
 app.use(
   pinoHttp({
     logger,

@@ -2,9 +2,10 @@ import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useLogin } from "@workspace/api-client-react";
+import { useLogin, getGetMeQueryKey } from "@workspace/api-client-react";
 import { useAuth } from "@/components/auth-context";
 import { useLocation } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 import { Building } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ export default function Login() {
   const { user, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const loginMutation = useLogin();
+  const queryClient = useQueryClient();
   const [error, setError] = React.useState<string | null>(null);
 
   const form = useForm<LoginFormValues>({
@@ -52,8 +54,12 @@ export default function Login() {
     loginMutation.mutate(
       { data },
       {
-        onSuccess: (user) => {
-          setLocation(user.role === "admin" ? "/admin" : "/member");
+        onSuccess: (loggedInUser) => {
+          // Update the cached /auth/me result immediately so AuthProvider
+          // and ProtectedRoute see the authenticated user without an extra
+          // network round-trip.
+          queryClient.setQueryData(getGetMeQueryKey(), loggedInUser);
+          setLocation(loggedInUser.role === "admin" ? "/admin" : "/member");
         },
         onError: (err) => {
           setError(err.data?.error || "Invalid credentials. Please try again.");
