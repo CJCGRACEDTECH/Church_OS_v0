@@ -1,6 +1,4 @@
-# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
-
-# compiled output
+# Compiled output
 dist
 tmp
 out-tsc
@@ -8,38 +6,8 @@ out-tsc
 .expo
 .expo-shared
 
-# dependencies
+# Dependencies
 node_modules
-
-# IDEs and editors
-/.idea
-.project
-.classpath
-.c9/
-*.launch
-.settings/
-*.sublime-workspace
-
-# IDE - VSCode
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-
-# misc
-/.sass-cache
-/connect.lock
-/coverage
-/libpeerconnection.log
-npm-debug.log
-yarn-error.log
-testem.log
-/typings
-
-# System Files
-.DS_Store
-Thumbs.db
 
 # Environment — never commit real secrets
 .env
@@ -49,10 +17,29 @@ Thumbs.db
 # Logs
 logs/
 *.log
+npm-debug.log
+yarn-error.log
 
-.cursor/rules/nx-rules.mdc
-.github/instructions/nx.instructions.md
+# Test coverage
+/coverage
 
-# Replit
+# Build artifacts
+/.sass-cache
+
+# System files
+.DS_Store
+Thumbs.db
+
+# IDEs and editors
+/.idea
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.sublime-workspace
+
+# Replit internals — not project code
 .cache/
 .local/
+attached_assets/
