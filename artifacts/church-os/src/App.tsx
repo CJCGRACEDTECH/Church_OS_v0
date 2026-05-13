@@ -136,29 +136,59 @@ function HomeRedirect() {
   return <Redirect to="/member" />;
 }
 
+function AuthPageShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex min-h-[100dvh] flex-col" style={{ background: "#eef0f8" }}>
+      <nav style={{ background: "#181d2e" }} className="flex items-center justify-between px-6 py-3">
+        <div className="flex items-center gap-3">
+          <img src={`${basePath}/logo.svg`} alt="CJC International" className="h-9 w-9 rounded-full" />
+          <span className="text-white font-semibold text-base tracking-tight">CJC International</span>
+        </div>
+        <div className="hidden md:flex items-center gap-6">
+          {["Home", "About", "Sermons", "Events", "Connect"].map((item) => (
+            <a key={item} href="#" className="text-gray-400 text-sm hover:text-white transition-colors">{item}</a>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <button className="text-white text-sm border border-white/20 rounded-md px-4 py-1.5 hover:bg-white/10 transition-colors">Login</button>
+          <button className="bg-indigo-600 text-white text-sm rounded-md px-4 py-1.5 hover:bg-indigo-700 transition-colors font-medium">Give</button>
+        </div>
+      </nav>
+
+      <div className="flex flex-1 items-center justify-center px-4 py-12">
+        {children}
+      </div>
+
+      <footer className="py-4 text-center text-xs text-gray-400">
+        Church OS &middot; Internal Platform &middot; CJC International
+      </footer>
+    </div>
+  );
+}
+
 function SignInPage() {
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50 px-4">
+    <AuthPageShell>
       <SignIn
         routing="path"
         path={`${basePath}/sign-in`}
         signUpUrl={`${basePath}/sign-up`}
         fallbackRedirectUrl={basePath || "/"}
       />
-    </div>
+    </AuthPageShell>
   );
 }
 
 function SignUpPage() {
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50 px-4">
+    <AuthPageShell>
       <SignUp
         routing="path"
         path={`${basePath}/sign-up`}
         signInUrl={`${basePath}/sign-in`}
         fallbackRedirectUrl={basePath || "/"}
       />
-    </div>
+    </AuthPageShell>
   );
 }
 
@@ -221,14 +251,14 @@ function ClerkProviderWithRoutes() {
       localization={{
         signIn: {
           start: {
-            title: "Welcome back",
-            subtitle: "Sign in to CJC International",
+            title: "CJC International",
+            subtitle: "Sign in to your staff or member account",
           },
         },
         signUp: {
           start: {
-            title: "Join CJC International",
-            subtitle: "Create your account to get started",
+            title: "CJC International",
+            subtitle: "Create your staff or member account",
           },
         },
       }}
