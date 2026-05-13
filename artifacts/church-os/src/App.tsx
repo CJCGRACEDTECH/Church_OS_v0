@@ -166,15 +166,36 @@ function AuthPageShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+function AuthCard({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col items-center">
+      <div
+        className="rounded-2xl overflow-hidden shadow-md flex items-center justify-center"
+        style={{ background: "#181d2e", width: 112, height: 76, marginBottom: -20, position: "relative", zIndex: 10 }}
+      >
+        <img
+          src={`${basePath}/cjc-logo.webp`}
+          alt="CJC International"
+          className="h-full w-auto"
+          style={{ mixBlendMode: "screen", objectFit: "contain" }}
+        />
+      </div>
+      {children}
+    </div>
+  );
+}
+
 function SignInPage() {
   return (
     <AuthPageShell>
-      <SignIn
-        routing="path"
-        path={`${basePath}/sign-in`}
-        signUpUrl={`${basePath}/sign-up`}
-        fallbackRedirectUrl={basePath || "/"}
-      />
+      <AuthCard>
+        <SignIn
+          routing="path"
+          path={`${basePath}/sign-in`}
+          signUpUrl={`${basePath}/sign-up`}
+          fallbackRedirectUrl={basePath || "/"}
+        />
+      </AuthCard>
     </AuthPageShell>
   );
 }
@@ -182,12 +203,14 @@ function SignInPage() {
 function SignUpPage() {
   return (
     <AuthPageShell>
-      <SignUp
-        routing="path"
-        path={`${basePath}/sign-up`}
-        signInUrl={`${basePath}/sign-in`}
-        fallbackRedirectUrl={basePath || "/"}
-      />
+      <AuthCard>
+        <SignUp
+          routing="path"
+          path={`${basePath}/sign-up`}
+          signInUrl={`${basePath}/sign-in`}
+          fallbackRedirectUrl={basePath || "/"}
+        />
+      </AuthCard>
     </AuthPageShell>
   );
 }
