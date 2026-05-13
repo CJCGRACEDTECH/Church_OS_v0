@@ -54,7 +54,7 @@ const clerkAppearance = {
   theme: shadcn,
   cssLayerName: "clerk",
   options: {
-    logoPlacement: "inside" as const,
+    logoPlacement: "none" as const,
     logoLinkUrl: basePath || "/",
     logoImageUrl: `${window.location.origin}${basePath}/cjc-logo.png`,
     socialButtonsPlacement: "top" as const,
