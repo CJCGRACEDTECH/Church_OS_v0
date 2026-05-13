@@ -1,11 +1,9 @@
-import { useState } from "react";
-import { useLocation, useRoute } from "wouter";
+import { useLocation, useRoute, Link } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useUser } from "@clerk/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
 type InviteDetails = {
@@ -33,7 +31,8 @@ export default function AdminInviteAccept() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const token = params?.token ?? "";
-  const [password, setPassword] = useState("");
+
+  const { isLoaded: clerkLoaded, isSignedIn, user: clerkUser } = useUser();
 
   const inviteQuery = useQuery({
     queryKey: ["admin-invite", token],
@@ -42,16 +41,27 @@ export default function AdminInviteAccept() {
   });
 
   const acceptInvite = useMutation({
-    mutationFn: () => apiJson<{ redirectTo: string }>(`/admin/invitations/accept/${token}`, {
-      method: "POST",
-      body: JSON.stringify({ password }),
-    }),
+    mutationFn: () =>
+      apiJson<{ redirectTo: string }>(`/admin/invitations/accept/${token}`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      }),
     onSuccess: (data) => {
-      toast({ title: "Admin account ready" });
+      toast({ title: "Admin account activated" });
       setLocation(data.redirectTo);
     },
-    onError: (error) => toast({ title: "Invite could not be accepted", description: error.message, variant: "destructive" }),
+    onError: (error) =>
+      toast({ title: "Invite could not be accepted", description: error.message, variant: "destructive" }),
   });
+
+  const invitedEmail = inviteQuery.data?.email;
+  const clerkEmail = clerkUser?.primaryEmailAddress?.emailAddress;
+  const emailMismatch =
+    clerkLoaded && isSignedIn && invitedEmail && clerkEmail &&
+    clerkEmail.toLowerCase() !== invitedEmail.toLowerCase();
+  const emailMatch =
+    clerkLoaded && isSignedIn && invitedEmail && clerkEmail &&
+    clerkEmail.toLowerCase() === invitedEmail.toLowerCase();
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
@@ -64,7 +74,9 @@ export default function AdminInviteAccept() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
-          {inviteQuery.isLoading && <p className="text-sm text-muted-foreground">Loading invite...</p>}
+          {inviteQuery.isLoading && (
+            <p className="text-sm text-muted-foreground">Loading invite...</p>
+          )}
           {inviteQuery.error && (
             <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
               {inviteQuery.error.message}
@@ -79,28 +91,43 @@ export default function AdminInviteAccept() {
                 <Info label="Ministry / Department" value={inviteQuery.data.assignedMinistry ?? "Not assigned"} />
                 <Info label="Expires" value={new Date(inviteQuery.data.expiresAt).toLocaleString()} />
               </div>
-              <form
-                className="space-y-4"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  acceptInvite.mutate();
-                }}
-              >
-                <div className="space-y-2">
-                  <Label htmlFor="password">Create Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    minLength={8}
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    required
-                  />
+
+              {!clerkLoaded && (
+                <p className="text-sm text-muted-foreground">Checking sign-in status...</p>
+              )}
+
+              {clerkLoaded && !isSignedIn && (
+                <div className="rounded-md border border-blue-200 bg-blue-50 p-4 space-y-3">
+                  <p className="text-sm font-medium text-blue-900">Sign in first to accept this invite</p>
+                  <p className="text-sm text-blue-700">
+                    You must be signed into Church OS with{" "}
+                    <span className="font-semibold">{inviteQuery.data.email}</span> before you can accept this invitation.
+                  </p>
+                  <Link href={`/sign-in?redirect_url=${encodeURIComponent(window.location.pathname)}`}>
+                    <Button className="w-full">Sign in or create an account</Button>
+                  </Link>
                 </div>
-                <Button className="w-full" type="submit" disabled={acceptInvite.isPending}>
-                  Accept Invite
+              )}
+
+              {emailMismatch && (
+                <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4 space-y-2">
+                  <p className="text-sm font-medium text-destructive">Wrong account signed in</p>
+                  <p className="text-sm text-destructive/80">
+                    You're signed in as <span className="font-semibold">{clerkEmail}</span>, but this invite is for{" "}
+                    <span className="font-semibold">{invitedEmail}</span>. Please sign out and sign in with the invited email address.
+                  </p>
+                </div>
+              )}
+
+              {emailMatch && (
+                <Button
+                  className="w-full"
+                  onClick={() => acceptInvite.mutate()}
+                  disabled={acceptInvite.isPending}
+                >
+                  {acceptInvite.isPending ? "Accepting..." : "Accept Invite"}
                 </Button>
-              </form>
+              )}
             </>
           )}
         </CardContent>
