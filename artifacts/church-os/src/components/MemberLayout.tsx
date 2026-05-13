@@ -31,14 +31,14 @@ function SidebarNav() {
 
   return (
     <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground">
-      <div className="px-4 pt-5 pb-3">
+      <div className="px-4 pt-5 pb-3 flex flex-col items-center">
         <img
           src="/cjc-logo.webp"
           alt="CJC International"
-          className="h-12 w-auto"
+          className="h-16 w-auto"
           style={{ mixBlendMode: "screen" }}
         />
-        <div className="text-sidebar-foreground/60 text-[11px] mt-1 font-medium tracking-wide uppercase">
+        <div className="text-white font-bold text-sm mt-1 text-center">
           {user?.churchName ?? "CJC International"}
         </div>
       </div>
