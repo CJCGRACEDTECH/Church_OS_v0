@@ -54,9 +54,9 @@ const clerkAppearance = {
   theme: shadcn,
   cssLayerName: "clerk",
   options: {
-    logoPlacement: "none" as const,
+    logoPlacement: "inside" as const,
     logoLinkUrl: basePath || "/",
-    logoImageUrl: `${window.location.origin}${basePath}/cjc-logo.webp`,
+    logoImageUrl: `${window.location.origin}${basePath}/cjc-logo.png`,
     socialButtonsPlacement: "top" as const,
     socialButtonsVariant: "blockButton" as const,
   },
@@ -87,8 +87,8 @@ const clerkAppearance = {
     identityPreviewEditButton: "text-indigo-600",
     formFieldSuccessText: "text-green-600",
     alertText: "text-gray-700",
-    logoBox: "flex justify-center py-2",
-    logoImage: "h-8 w-auto",
+    logoBox: "flex justify-center pt-6 pb-1",
+    logoImage: "h-16 w-auto",
     socialButtonsBlockButton: "border border-gray-200 hover:bg-gray-50 transition-colors",
     formButtonPrimary: "bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition-colors",
     formFieldInput: "border-gray-200 bg-gray-50 text-gray-900 focus:border-indigo-400 focus:ring-indigo-400",
@@ -166,36 +166,15 @@ function AuthPageShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function AuthCard({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col items-center">
-      <div
-        className="rounded-2xl overflow-hidden shadow-md flex items-center justify-center"
-        style={{ background: "#181d2e", width: 112, height: 76, marginBottom: -20, position: "relative", zIndex: 10 }}
-      >
-        <img
-          src={`${basePath}/cjc-logo.webp`}
-          alt="CJC International"
-          className="h-full w-auto"
-          style={{ mixBlendMode: "screen", objectFit: "contain" }}
-        />
-      </div>
-      {children}
-    </div>
-  );
-}
-
 function SignInPage() {
   return (
     <AuthPageShell>
-      <AuthCard>
-        <SignIn
-          routing="path"
-          path={`${basePath}/sign-in`}
-          signUpUrl={`${basePath}/sign-up`}
-          fallbackRedirectUrl={basePath || "/"}
-        />
-      </AuthCard>
+      <SignIn
+        routing="path"
+        path={`${basePath}/sign-in`}
+        signUpUrl={`${basePath}/sign-up`}
+        fallbackRedirectUrl={basePath || "/"}
+      />
     </AuthPageShell>
   );
 }
@@ -203,14 +182,12 @@ function SignInPage() {
 function SignUpPage() {
   return (
     <AuthPageShell>
-      <AuthCard>
-        <SignUp
-          routing="path"
-          path={`${basePath}/sign-up`}
-          signInUrl={`${basePath}/sign-in`}
-          fallbackRedirectUrl={basePath || "/"}
-        />
-      </AuthCard>
+      <SignUp
+        routing="path"
+        path={`${basePath}/sign-up`}
+        signInUrl={`${basePath}/sign-in`}
+        fallbackRedirectUrl={basePath || "/"}
+      />
     </AuthPageShell>
   );
 }
