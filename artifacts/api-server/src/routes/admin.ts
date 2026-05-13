@@ -219,7 +219,7 @@ router.patch("/admin/users/:id/permissions", requireSuperAdmin, async (req, res)
   await replaceAdminPermissions({
     userId: target.id,
     permissions,
-    grantedByUserId: req.session.userId!,
+    grantedByUserId: req.localUserId,
   });
 
   res.json({ message: "Permissions updated.", permissions });
@@ -246,7 +246,7 @@ router.post("/admin/invitations", requireSuperAdmin, async (req, res): Promise<v
       lastName: usersTable.lastName,
     })
     .from(usersTable)
-    .where(eq(usersTable.id, req.session.userId!));
+    .where(eq(usersTable.id, req.localUserId));
 
   if (!requester) {
     res.status(401).json({ error: "Requester not found." });
@@ -391,49 +391,23 @@ router.post("/admin/invitations/accept/:token", async (req, res): Promise<void> 
     .from(usersTable)
     .where(eq(usersTable.email, invite.email));
 
-  let userId = existingUser?.id;
-
-  if (existingUser && req.session?.userId !== existingUser.id) {
-    res.status(409).json({ error: "An account already exists for this email. Sign in to that account before accepting the invite." });
+  if (!existingUser) {
+    res.status(404).json({ error: "No account found for this invite email. Sign in or sign up with the invited email address first." });
     return;
   }
 
-  if (!userId) {
-    const password = typeof req.body?.password === "string" ? req.body.password : "";
-    if (password.length < 8) {
-      res.status(400).json({ error: "Use a password with at least 8 characters." });
-      return;
-    }
+  const userId = existingUser.id;
 
-    const [createdUser] = await db
-      .insert(usersTable)
-      .values({
-        churchId: invite.churchId,
-        email: invite.email,
-        passwordHash: await hashPassword(password),
-        firstName: invite.firstName,
-        lastName: invite.lastName,
-        role: "admin",
-        adminLevel: invite.assignedRole,
-        assignedMinistry: invite.assignedMinistry,
-        accountStatus: "active",
-        createdByUserId: invite.invitedByUserId,
-      })
-      .returning({ id: usersTable.id });
-
-    userId = createdUser.id;
-  } else {
-    await db
-      .update(usersTable)
-      .set({
-        role: "admin",
-        adminLevel: invite.assignedRole,
-        assignedMinistry: invite.assignedMinistry,
-        accountStatus: "active",
-        createdByUserId: invite.invitedByUserId,
-      })
-      .where(eq(usersTable.id, userId));
-  }
+  await db
+    .update(usersTable)
+    .set({
+      role: "admin",
+      adminLevel: invite.assignedRole,
+      assignedMinistry: invite.assignedMinistry,
+      accountStatus: "active",
+      createdByUserId: invite.invitedByUserId,
+    })
+    .where(eq(usersTable.id, userId));
 
   await ensureAdminPermissionRows({
     userId,
@@ -451,11 +425,9 @@ router.post("/admin/invitations/accept/:token", async (req, res): Promise<void> 
     })
     .where(eq(adminInvitationsTable.id, invite.id));
 
-  req.session.userId = userId;
-  req.session.role = "admin";
   await db.update(usersTable).set({ lastLoginAt: new Date() }).where(eq(usersTable.id, userId));
 
-  res.json({ message: "Admin invite accepted.", redirectTo: "/admin/profile" });
+  res.json({ message: "Admin invite accepted.", redirectTo: "/admin" });
 });
 
 router.get("/admin/permissions/giving-records", requireAdminPermission(ADMIN_PERMISSIONS.GIVING_DETAILS), (_req, res) => {

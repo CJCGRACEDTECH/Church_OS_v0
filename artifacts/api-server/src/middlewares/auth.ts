@@ -1,4 +1,5 @@
 import { type Request, type Response, type NextFunction } from "express";
+import { getAuth } from "@clerk/express";
 import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import {
@@ -8,56 +9,82 @@ import {
   type AdminPermission,
 } from "../lib/admin-permissions";
 
-declare module "express-session" {
-  interface SessionData {
-    userId: number;
-    role: string;
-    oauthState?: string;
-    oauthNonce?: string;
-    oauthProvider?: "google" | "apple";
+declare global {
+  namespace Express {
+    interface Request {
+      localUserId: number;
+      localUserRole: "admin" | "member";
+    }
   }
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
-  if (!req.session?.userId) {
+async function resolveLocalUser(req: Request): Promise<{ id: number; role: "admin" | "member" } | null> {
+  const auth = getAuth(req);
+  if (!auth?.userId) return null;
+
+  const [user] = await db
+    .select({
+      id: usersTable.id,
+      role: usersTable.role,
+      isActive: usersTable.isActive,
+      accountStatus: usersTable.accountStatus,
+    })
+    .from(usersTable)
+    .where(eq(usersTable.clerkUserId, auth.userId));
+
+  if (!user || !user.isActive || user.accountStatus !== "active") return null;
+  return { id: user.id, role: user.role };
+}
+
+export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const localUser = await resolveLocalUser(req);
+  if (!localUser) {
     res.status(401).json({ error: "Not authenticated" });
     return;
   }
+  req.localUserId = localUser.id;
+  req.localUserRole = localUser.role;
   next();
 }
 
 export function requireRole(role: string) {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    if (!req.session?.userId) {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const localUser = await resolveLocalUser(req);
+    if (!localUser) {
       res.status(401).json({ error: "Not authenticated" });
       return;
     }
-    if (req.session.role !== role) {
+    if (localUser.role !== role) {
       res.status(403).json({ error: "Forbidden" });
       return;
     }
+    req.localUserId = localUser.id;
+    req.localUserRole = localUser.role;
     next();
   };
 }
 
-export function requireSuperAdmin(req: Request, res: Response, next: NextFunction): void {
-  if (!req.session?.userId) {
+export async function requireSuperAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const localUser = await resolveLocalUser(req);
+  if (!localUser) {
     res.status(401).json({ error: "Not authenticated" });
     return;
   }
 
-  void isActiveSuperAdmin(req.session.userId).then((allowed) => {
-    if (!allowed) {
-      res.status(403).json({ error: "Super Admin access required" });
-      return;
-    }
-    next();
-  }).catch(next);
+  const allowed = await isActiveSuperAdmin(localUser.id);
+  if (!allowed) {
+    res.status(403).json({ error: "Super Admin access required" });
+    return;
+  }
+  req.localUserId = localUser.id;
+  req.localUserRole = localUser.role;
+  next();
 }
 
 export function requireAdminPermission(permission: AdminPermission) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    if (!req.session?.userId) {
+    const localUser = await resolveLocalUser(req);
+    if (!localUser) {
       res.status(401).json({ error: "Not authenticated" });
       return;
     }
@@ -70,7 +97,7 @@ export function requireAdminPermission(permission: AdminPermission) {
         isActive: usersTable.isActive,
       })
       .from(usersTable)
-      .where(eq(usersTable.id, req.session.userId));
+      .where(eq(usersTable.id, localUser.id));
 
     if (!user || user.role !== "admin" || !user.isActive || user.accountStatus !== "active") {
       res.status(403).json({ error: "Forbidden" });
@@ -78,13 +105,15 @@ export function requireAdminPermission(permission: AdminPermission) {
     }
 
     const adminLevel = isAdminLevel(user.adminLevel) ? user.adminLevel : "pastor";
-    const permissions = await getStoredAdminPermissions(req.session.userId, adminLevel);
+    const permissions = await getStoredAdminPermissions(localUser.id, adminLevel);
 
     if (!permissions.includes(permission)) {
       res.status(403).json({ error: "Forbidden" });
       return;
     }
 
+    req.localUserId = localUser.id;
+    req.localUserRole = localUser.role;
     next();
   };
 }

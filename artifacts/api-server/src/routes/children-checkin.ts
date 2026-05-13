@@ -100,7 +100,7 @@ function calculateAge(dateOfBirth: string | null): number | null {
 }
 
 router.get("/admin/checkin/children", requireCheckInAccess, async (req, res): Promise<void> => {
-  const churchId = await getRequesterChurchId(req.session.userId!);
+  const churchId = await getRequesterChurchId(req.localUserId);
   if (!churchId) {
     res.status(401).json({ error: "User church not found." });
     return;
@@ -116,7 +116,7 @@ router.get("/admin/checkin/children", requireCheckInAccess, async (req, res): Pr
 });
 
 router.get("/admin/checkin/history", requireCheckInAccess, async (req, res): Promise<void> => {
-  const churchId = await getRequesterChurchId(req.session.userId!);
+  const churchId = await getRequesterChurchId(req.localUserId);
   if (!churchId) {
     res.status(401).json({ error: "User church not found." });
     return;
@@ -160,7 +160,7 @@ router.get("/admin/checkin/history", requireCheckInAccess, async (req, res): Pro
 });
 
 router.post("/admin/checkin/children", requireCheckInAccess, async (req, res): Promise<void> => {
-  const churchId = await getRequesterChurchId(req.session.userId!);
+  const churchId = await getRequesterChurchId(req.localUserId);
   if (!churchId) {
     res.status(401).json({ error: "User church not found." });
     return;
@@ -207,7 +207,7 @@ router.post("/admin/checkin/children", requireCheckInAccess, async (req, res): P
 
 router.patch("/admin/checkin/children/:childId", requireCheckInAccess, async (req, res): Promise<void> => {
   const childId = Number(req.params.childId);
-  const churchId = await getRequesterChurchId(req.session.userId!);
+  const churchId = await getRequesterChurchId(req.localUserId);
   if (!Number.isInteger(childId) || !churchId) {
     res.status(400).json({ error: "Invalid child." });
     return;
@@ -246,7 +246,7 @@ router.patch("/admin/checkin/children/:childId", requireCheckInAccess, async (re
 
 router.post("/admin/checkin/children/:childId/guardians", requireCheckInAccess, async (req, res): Promise<void> => {
   const childId = Number(req.params.childId);
-  const churchId = await getRequesterChurchId(req.session.userId!);
+  const churchId = await getRequesterChurchId(req.localUserId);
   if (!Number.isInteger(childId) || !churchId) {
     res.status(400).json({ error: "Invalid child." });
     return;
@@ -282,7 +282,7 @@ router.post("/admin/checkin/children/:childId/guardians", requireCheckInAccess, 
 
 router.post("/admin/checkin/children/:childId/check-in", requireCheckInAccess, async (req, res): Promise<void> => {
   const childId = Number(req.params.childId);
-  const churchId = await getRequesterChurchId(req.session.userId!);
+  const churchId = await getRequesterChurchId(req.localUserId);
   if (!Number.isInteger(childId) || !churchId) {
     res.status(400).json({ error: "Invalid child." });
     return;
@@ -306,7 +306,7 @@ router.post("/admin/checkin/children/:childId/check-in", requireCheckInAccess, a
   const classroom = textOrNull(req.body?.classroom) ?? child.classroom;
   await db.insert(checkinRecordsTable).values({
     childId,
-    checkedInByUserId: req.session.userId!,
+    checkedInByUserId: req.localUserId,
     classroom,
     pickupCode: pickupCode(),
     status: "active",
@@ -324,7 +324,7 @@ router.post("/admin/checkin/children/:childId/check-in", requireCheckInAccess, a
 router.post("/admin/checkin/children/:childId/check-out", requireCheckInAccess, async (req, res): Promise<void> => {
   const childId = Number(req.params.childId);
   const guardianId = Number(req.body?.guardianId);
-  const churchId = await getRequesterChurchId(req.session.userId!);
+  const churchId = await getRequesterChurchId(req.localUserId);
   if (!Number.isInteger(childId) || !Number.isInteger(guardianId) || !churchId) {
     res.status(400).json({ error: "Child and pickup person are required." });
     return;
@@ -364,7 +364,7 @@ router.post("/admin/checkin/children/:childId/check-out", requireCheckInAccess, 
   await db
     .update(checkinRecordsTable)
     .set({
-      checkedOutByUserId: req.session.userId!,
+      checkedOutByUserId: req.localUserId,
       pickedUpByGuardianId: guardianId,
       checkoutTime: new Date(),
       status: "checked_out",

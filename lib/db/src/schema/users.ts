@@ -31,6 +31,7 @@ export const usersTable = pgTable("users", {
   assignedMinistry: text("assigned_ministry"),
   accountStatus: text("account_status", { enum: ["active", "pending", "disabled"] }).notNull().default("active"),
   createdByUserId: integer("created_by_user_id"),
+  clerkUserId: text("clerk_user_id").unique(),
   isActive: boolean("is_active").notNull().default(true),
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

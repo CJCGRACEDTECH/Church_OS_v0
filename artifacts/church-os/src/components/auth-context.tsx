@@ -1,10 +1,47 @@
 import React, { createContext, useContext, ReactNode } from "react";
-import { useGetMe, useLogout, type AuthUser } from "@workspace/api-client-react";
+import { useClerk, useUser } from "@clerk/react";
+import { useGetMe } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 
+type LocalUser = {
+  id: number;
+  email: string;
+  firstName: string;
+  lastName: string;
+  preferredName: string | null;
+  phoneNumber: string | null;
+  profilePhotoUrl: string | null;
+  dateOfBirth: string | null;
+  gender: string | null;
+  maritalStatus: string | null;
+  occupation: string | null;
+  preferredLanguage: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhoneNumber: string | null;
+  streetAddress: string | null;
+  apartmentUnit: string | null;
+  city: string | null;
+  state: string | null;
+  zipCode: string | null;
+  country: string | null;
+  role: "admin" | "member";
+  adminLevel: string | null;
+  adminTitle: string | null;
+  adminPermissions: string[];
+  assignedMinistry: string | null;
+  accountStatus: string;
+  createdByUserId: number | null;
+  churchId: number;
+  churchName: string;
+  createdAt: string;
+  lastLoginAt: string | null;
+  authProviders: string[];
+  hasPassword: boolean;
+};
+
 interface AuthContextType {
-  user: AuthUser | null;
+  user: LocalUser | null;
   isLoading: boolean;
   logout: () => void;
 }
@@ -12,22 +49,27 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { data: user, isLoading } = useGetMe();
-  const logoutMutation = useLogout();
+  const { isSignedIn, isLoaded: clerkLoaded } = useUser();
+  const { data: localUser, isLoading: localLoading } = useGetMe();
+  const { signOut } = useClerk();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
 
+  const isLoading = !clerkLoaded || (!!isSignedIn && localLoading);
+
   const logout = () => {
-    logoutMutation.mutate(undefined, {
-      onSuccess: () => {
-        queryClient.clear();
-        setLocation("/");
-      },
+    void signOut().then(() => {
+      queryClient.clear();
+      setLocation("/");
     });
   };
 
+  const user = (clerkLoaded && isSignedIn && localUser)
+    ? (localUser as LocalUser)
+    : null;
+
   return (
-    <AuthContext.Provider value={{ user: user || null, isLoading, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, logout }}>
       {children}
     </AuthContext.Provider>
   );
@@ -53,7 +95,7 @@ export function ProtectedRoute({
 
   React.useEffect(() => {
     if (!isLoading && !user) {
-      setLocation("/");
+      setLocation("/sign-in");
     } else if (!isLoading && user && allowedRoles && !allowedRoles.includes(user.role)) {
       setLocation(user.role === "admin" ? "/admin" : "/member");
     }
@@ -68,7 +110,7 @@ export function ProtectedRoute({
   }
 
   if (!user || (allowedRoles && !allowedRoles.includes(user.role))) {
-    return null; // Will redirect in useEffect
+    return null;
   }
 
   return <Component />;
