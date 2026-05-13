@@ -35,7 +35,7 @@ function SidebarNav() {
         <img
           src="/cjc-logo.webp"
           alt="CJC International"
-          className="h-24 w-auto"
+          className="w-full max-h-20 object-contain"
           style={{ mixBlendMode: "screen" }}
         />
         <div className="text-white font-bold text-lg mt-2 text-center">

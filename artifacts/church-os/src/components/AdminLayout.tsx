@@ -28,7 +28,7 @@ const NAV_ITEMS = [
   { label: "Households", icon: Home, href: ADMIN_ROUTES.HOUSEHOLDS, comingSoon: true, permission: PERMISSIONS.MEMBER_PROFILES },
   { label: "Services", icon: CalendarDays, href: ADMIN_ROUTES.SERVICES, comingSoon: true, permission: PERMISSIONS.EVENT_MANAGEMENT },
   { label: "Attendance", icon: BarChart3, href: ADMIN_ROUTES.ATTENDANCE, comingSoon: true, permission: PERMISSIONS.ATTENDANCE_CHECKIN },
-  { label: "Children Ministry", icon: CheckSquare, href: ADMIN_ROUTES.CHECK_IN, comingSoon: true, permission: PERMISSIONS.ATTENDANCE_CHECKIN },
+  { label: "Children Ministry", icon: CheckSquare, href: ADMIN_ROUTES.CHECK_IN, permission: PERMISSIONS.ATTENDANCE_CHECKIN },
   { label: "Giving", icon: BadgeDollarSign, href: ADMIN_ROUTES.GIVING, comingSoon: true, permission: PERMISSIONS.GIVING_DETAILS },
   { label: "Reports", icon: BarChart3, href: ADMIN_ROUTES.REPORTS, comingSoon: true, permission: PERMISSIONS.REPORTS },
   { label: "Admin Management", icon: UserCog, href: ADMIN_ROUTES.ADMIN_MANAGEMENT, permission: PERMISSIONS.ADMIN_MANAGEMENT },
@@ -51,7 +51,7 @@ function SidebarNav() {
         <img
           src="/cjc-logo.webp"
           alt="CJC International"
-          className="h-24 w-auto"
+          className="w-full max-h-20 object-contain"
           style={{ mixBlendMode: "screen" }}
         />
         <div className="text-white font-bold text-lg mt-2 text-center">
