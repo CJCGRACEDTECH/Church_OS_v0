@@ -5,6 +5,7 @@ export const AUTH_ROUTES = {
 
 export const ADMIN_ROUTES = {
   DASHBOARD: "/admin",
+  PROFILE: "/admin/profile",
   MEMBERS: "/admin/members",
   HOUSEHOLDS: "/admin/households",
   SERVICES: "/admin/services",
@@ -13,6 +14,7 @@ export const ADMIN_ROUTES = {
   GIVING: "/admin/giving",
   REPORTS: "/admin/reports",
   SETTINGS: "/admin/settings",
+  ADMIN_MANAGEMENT: "/admin/admins",
 } as const;
 
 export const MEMBER_ROUTES = {

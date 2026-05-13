@@ -53,6 +53,32 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /auth/signup:
+    post:
+      operationId: signup
+      tags: [auth]
+      summary: Signup
+      description: Create a new member account and begin a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignupRequest"
+      responses:
+        "201":
+          description: Signup successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "409":
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /auth/me:
     get:
       operationId: getMe
@@ -73,6 +99,64 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /auth/profile:
+    patch:
+      operationId: updateProfile
+      tags: [auth]
+      summary: Update member profile
+      description: Update the authenticated user's profile details
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/change-password:
+    post:
+      operationId: changePassword
+      tags: [auth]
+      summary: Change password
+      description: Change the authenticated user's password when password auth is enabled
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "200":
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Password auth unavailable or invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated or current password invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /auth/logout:
     post:
       operationId: logout
@@ -86,6 +170,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SuccessResponse"
+
+  /auth/oauth/config:
+    get:
+      operationId: getOAuthConfig
+      tags: [auth]
+      summary: Get OAuth provider availability
+      responses:
+        "200":
+          description: OAuth config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthConfig"
 
 components:
   schemas:
@@ -108,6 +205,25 @@ components:
         - email
         - password
 
+    SignupRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        phoneNumber:
+          type: string
+      required:
+        - firstName
+        - lastName
+        - email
+        - password
+
     AuthUser:
       type: object
       properties:
@@ -119,20 +235,244 @@ components:
           type: string
         lastName:
           type: string
+        preferredName:
+          type:
+            - string
+            - "null"
+        phoneNumber:
+          type:
+            - string
+            - "null"
+        profilePhotoUrl:
+          type:
+            - string
+            - "null"
+        dateOfBirth:
+          type:
+            - string
+            - "null"
+        gender:
+          type:
+            - string
+            - "null"
+        maritalStatus:
+          type:
+            - string
+            - "null"
+        occupation:
+          type:
+            - string
+            - "null"
+        preferredLanguage:
+          type:
+            - string
+            - "null"
+        emergencyContactName:
+          type:
+            - string
+            - "null"
+        emergencyContactPhoneNumber:
+          type:
+            - string
+            - "null"
+        streetAddress:
+          type:
+            - string
+            - "null"
+        apartmentUnit:
+          type:
+            - string
+            - "null"
+        city:
+          type:
+            - string
+            - "null"
+        state:
+          type:
+            - string
+            - "null"
+        zipCode:
+          type:
+            - string
+            - "null"
+        country:
+          type:
+            - string
+            - "null"
         role:
           type: string
+        adminLevel:
+          type:
+            - string
+            - "null"
+        adminTitle:
+          type:
+            - string
+            - "null"
+        assignedMinistry:
+          type:
+            - string
+            - "null"
+        accountStatus:
+          type: string
+        createdByUserId:
+          type:
+            - integer
+            - "null"
         churchId:
           type: integer
         churchName:
           type: string
+        createdAt:
+          type: string
+        lastLoginAt:
+          type:
+            - string
+            - "null"
+        authProviders:
+          type: array
+          items:
+            type: string
+        hasPassword:
+          type: boolean
+        adminPermissions:
+          type: array
+          items:
+            type: string
       required:
         - id
         - email
         - firstName
         - lastName
+        - preferredName
+        - phoneNumber
+        - profilePhotoUrl
+        - dateOfBirth
+        - gender
+        - maritalStatus
+        - occupation
+        - preferredLanguage
+        - emergencyContactName
+        - emergencyContactPhoneNumber
+        - streetAddress
+        - apartmentUnit
+        - city
+        - state
+        - zipCode
+        - country
         - role
+        - adminLevel
+        - adminTitle
+        - assignedMinistry
+        - accountStatus
+        - createdByUserId
         - churchId
         - churchName
+        - createdAt
+        - lastLoginAt
+        - authProviders
+        - hasPassword
+        - adminPermissions
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        preferredName:
+          type:
+            - string
+            - "null"
+        email:
+          type: string
+        phoneNumber:
+          type:
+            - string
+            - "null"
+        profilePhotoUrl:
+          type:
+            - string
+            - "null"
+        dateOfBirth:
+          type:
+            - string
+            - "null"
+        gender:
+          type:
+            - string
+            - "null"
+        maritalStatus:
+          type:
+            - string
+            - "null"
+        occupation:
+          type:
+            - string
+            - "null"
+        preferredLanguage:
+          type:
+            - string
+            - "null"
+        emergencyContactName:
+          type:
+            - string
+            - "null"
+        emergencyContactPhoneNumber:
+          type:
+            - string
+            - "null"
+        streetAddress:
+          type:
+            - string
+            - "null"
+        apartmentUnit:
+          type:
+            - string
+            - "null"
+        city:
+          type:
+            - string
+            - "null"
+        state:
+          type:
+            - string
+            - "null"
+        zipCode:
+          type:
+            - string
+            - "null"
+        country:
+          type:
+            - string
+            - "null"
+      required:
+        - firstName
+        - lastName
+        - email
+
+    ChangePasswordRequest:
+      type: object
+      properties:
+        currentPassword:
+          type: string
+        newPassword:
+          type: string
+      required:
+        - currentPassword
+        - newPassword
+
+    OAuthConfig:
+      type: object
+      properties:
+        google:
+          type: boolean
+        apple:
+          type: boolean
+      required:
+        - google
+        - apple
 
     ErrorResponse:
       type: object

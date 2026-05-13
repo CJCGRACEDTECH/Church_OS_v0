@@ -9,6 +9,7 @@ import Unauthorized from "@/pages/unauthorized";
 import NotFound from "@/pages/not-found";
 
 import AdminDashboard from "@/pages/admin-dashboard";
+import AdminProfile from "@/pages/admin/profile";
 import AdminMembers from "@/pages/admin/members";
 import AdminHouseholds from "@/pages/admin/households";
 import AdminServices from "@/pages/admin/services";
@@ -17,6 +18,8 @@ import AdminCheckIn from "@/pages/admin/check-in";
 import AdminGiving from "@/pages/admin/giving";
 import AdminReports from "@/pages/admin/reports";
 import AdminSettings from "@/pages/admin/settings";
+import AdminManagement from "@/pages/admin/admin-management";
+import AdminInviteAccept from "@/pages/admin/invite-accept";
 
 import MemberDashboard from "@/pages/member-dashboard";
 import MemberProfile from "@/pages/member/profile";
@@ -47,9 +50,11 @@ function Router() {
     <Switch>
       <Route path="/" component={Login} />
       <Route path="/unauthorized" component={Unauthorized} />
+      <Route path="/admin/invite/:token" component={AdminInviteAccept} />
 
       {/* Admin routes */}
       <Route path="/admin">{() => <AdminRoute component={AdminDashboard} />}</Route>
+      <Route path="/admin/profile">{() => <AdminRoute component={AdminProfile} />}</Route>
       <Route path="/admin/members">{() => <AdminRoute component={AdminMembers} />}</Route>
       <Route path="/admin/households">{() => <AdminRoute component={AdminHouseholds} />}</Route>
       <Route path="/admin/services">{() => <AdminRoute component={AdminServices} />}</Route>
@@ -58,6 +63,7 @@ function Router() {
       <Route path="/admin/giving">{() => <AdminRoute component={AdminGiving} />}</Route>
       <Route path="/admin/reports">{() => <AdminRoute component={AdminReports} />}</Route>
       <Route path="/admin/settings">{() => <AdminRoute component={AdminSettings} />}</Route>
+      <Route path="/admin/admins">{() => <AdminRoute component={AdminManagement} />}</Route>
 
       {/* Member routes */}
       <Route path="/member">{() => <MemberRoute component={MemberDashboard} />}</Route>

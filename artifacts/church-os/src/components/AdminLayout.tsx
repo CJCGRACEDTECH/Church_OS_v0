@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useAuth } from "@/components/auth-context";
 import {
   LayoutDashboard,
+  CircleUserRound,
   Users,
   Home,
   CalendarDays,
@@ -13,23 +14,33 @@ import {
   LogOut,
   Building,
   Menu,
+  UserCog,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ADMIN_ROUTES } from "@/lib/routes";
+import { hasPermission, PERMISSIONS, type Permission } from "@/lib/permissions";
 
 const NAV_ITEMS = [
   { label: "Dashboard", icon: LayoutDashboard, href: ADMIN_ROUTES.DASHBOARD },
-  { label: "Members", icon: Users, href: ADMIN_ROUTES.MEMBERS, comingSoon: true },
-  { label: "Households", icon: Home, href: ADMIN_ROUTES.HOUSEHOLDS, comingSoon: true },
-  { label: "Services", icon: CalendarDays, href: ADMIN_ROUTES.SERVICES, comingSoon: true },
-  { label: "Attendance", icon: BarChart3, href: ADMIN_ROUTES.ATTENDANCE, comingSoon: true },
-  { label: "Sunday Check-In", icon: CheckSquare, href: ADMIN_ROUTES.CHECK_IN, comingSoon: true },
-  { label: "Giving", icon: BadgeDollarSign, href: ADMIN_ROUTES.GIVING, comingSoon: true },
-  { label: "Reports", icon: BarChart3, href: ADMIN_ROUTES.REPORTS, comingSoon: true },
-  { label: "Settings", icon: Settings, href: ADMIN_ROUTES.SETTINGS, comingSoon: true },
-];
+  { label: "Profile", icon: CircleUserRound, href: ADMIN_ROUTES.PROFILE },
+  { label: "Members", icon: Users, href: ADMIN_ROUTES.MEMBERS, comingSoon: true, permission: PERMISSIONS.MEMBER_DIRECTORY },
+  { label: "Households", icon: Home, href: ADMIN_ROUTES.HOUSEHOLDS, comingSoon: true, permission: PERMISSIONS.MEMBER_PROFILES },
+  { label: "Services", icon: CalendarDays, href: ADMIN_ROUTES.SERVICES, comingSoon: true, permission: PERMISSIONS.EVENT_MANAGEMENT },
+  { label: "Attendance", icon: BarChart3, href: ADMIN_ROUTES.ATTENDANCE, comingSoon: true, permission: PERMISSIONS.ATTENDANCE_CHECKIN },
+  { label: "Children Ministry", icon: CheckSquare, href: ADMIN_ROUTES.CHECK_IN, comingSoon: true, permission: PERMISSIONS.ATTENDANCE_CHECKIN },
+  { label: "Giving", icon: BadgeDollarSign, href: ADMIN_ROUTES.GIVING, comingSoon: true, permission: PERMISSIONS.GIVING_DETAILS },
+  { label: "Reports", icon: BarChart3, href: ADMIN_ROUTES.REPORTS, comingSoon: true, permission: PERMISSIONS.REPORTS },
+  { label: "Admin Management", icon: UserCog, href: ADMIN_ROUTES.ADMIN_MANAGEMENT, permission: PERMISSIONS.ADMIN_MANAGEMENT },
+  { label: "Settings", icon: Settings, href: ADMIN_ROUTES.SETTINGS, comingSoon: true, permission: PERMISSIONS.SYSTEM_SETTINGS },
+] satisfies Array<{
+  label: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  href: string;
+  comingSoon?: boolean;
+  permission?: Permission;
+}>;
 
 function SidebarNav() {
   const { user, logout } = useAuth();
@@ -51,7 +62,10 @@ function SidebarNav() {
 
       <div className="flex-1 overflow-y-auto py-4">
         <nav className="space-y-1 px-3">
-          {NAV_ITEMS.map((item) => {
+          {NAV_ITEMS.filter((item) => {
+            if (!item.permission) return true;
+            return hasPermission("admin", item.permission, user?.adminPermissions);
+          }).map((item) => {
             const isActive = location === item.href;
             return (
               <Link
@@ -93,6 +107,11 @@ function SidebarNav() {
               {user?.firstName} {user?.lastName}
             </p>
             <p className="text-xs text-sidebar-foreground/70 truncate">{user?.email}</p>
+            {user?.role === "admin" && (
+              <p className="text-[11px] capitalize text-sidebar-foreground/50 truncate">
+                {(user.adminLevel ?? "pastor").replace("_", " ")}
+              </p>
+            )}
           </div>
         </div>
         <Button

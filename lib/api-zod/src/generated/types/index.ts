@@ -7,7 +7,11 @@
  */
 
 export * from "./authUser";
+export * from "./changePasswordRequest";
 export * from "./errorResponse";
 export * from "./healthStatus";
 export * from "./loginRequest";
+export * from "./oAuthConfig";
+export * from "./signupRequest";
 export * from "./successResponse";
+export * from "./updateProfileRequest";

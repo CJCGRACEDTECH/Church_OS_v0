@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 const METRIC_CARDS = [
   { label: "Total Members", value: "247", trend: "+4 this week" },
   { label: "Avg Attendance", value: "189", trend: "+12% vs last month" },
-  { label: "Children Check-In", value: "43", trend: "Last Sunday" },
+  { label: "Children Ministry", value: "43", trend: "Last Sunday" },
   { label: "Giving YTD", value: "$12,450", trend: "On track" },
 ];
 

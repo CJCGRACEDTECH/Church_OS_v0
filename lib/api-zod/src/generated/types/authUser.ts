@@ -11,7 +11,54 @@ export interface AuthUser {
   email: string;
   firstName: string;
   lastName: string;
+  /** @nullable */
+  preferredName: string | null;
+  /** @nullable */
+  phoneNumber: string | null;
+  /** @nullable */
+  profilePhotoUrl: string | null;
+  /** @nullable */
+  dateOfBirth: string | null;
+  /** @nullable */
+  gender: string | null;
+  /** @nullable */
+  maritalStatus: string | null;
+  /** @nullable */
+  occupation: string | null;
+  /** @nullable */
+  preferredLanguage: string | null;
+  /** @nullable */
+  emergencyContactName: string | null;
+  /** @nullable */
+  emergencyContactPhoneNumber: string | null;
+  /** @nullable */
+  streetAddress: string | null;
+  /** @nullable */
+  apartmentUnit: string | null;
+  /** @nullable */
+  city: string | null;
+  /** @nullable */
+  state: string | null;
+  /** @nullable */
+  zipCode: string | null;
+  /** @nullable */
+  country: string | null;
   role: string;
+  /** @nullable */
+  adminLevel: string | null;
+  /** @nullable */
+  adminTitle: string | null;
+  /** @nullable */
+  assignedMinistry: string | null;
+  accountStatus: string;
+  /** @nullable */
+  createdByUserId: number | null;
   churchId: number;
   churchName: string;
+  createdAt: string;
+  /** @nullable */
+  lastLoginAt: string | null;
+  authProviders: string[];
+  hasPassword: boolean;
+  adminPermissions: string[];
 }

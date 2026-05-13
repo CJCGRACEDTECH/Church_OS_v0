@@ -29,9 +29,47 @@ export const LoginResponse = zod.object({
   email: zod.string(),
   firstName: zod.string(),
   lastName: zod.string(),
+  preferredName: zod.string().nullable(),
+  phoneNumber: zod.string().nullable(),
+  profilePhotoUrl: zod.string().nullable(),
+  dateOfBirth: zod.string().nullable(),
+  gender: zod.string().nullable(),
+  maritalStatus: zod.string().nullable(),
+  occupation: zod.string().nullable(),
+  preferredLanguage: zod.string().nullable(),
+  emergencyContactName: zod.string().nullable(),
+  emergencyContactPhoneNumber: zod.string().nullable(),
+  streetAddress: zod.string().nullable(),
+  apartmentUnit: zod.string().nullable(),
+  city: zod.string().nullable(),
+  state: zod.string().nullable(),
+  zipCode: zod.string().nullable(),
+  country: zod.string().nullable(),
   role: zod.string(),
+  adminLevel: zod.string().nullable(),
+  adminTitle: zod.string().nullable(),
+  assignedMinistry: zod.string().nullable(),
+  accountStatus: zod.string(),
+  createdByUserId: zod.number().nullable(),
   churchId: zod.number(),
   churchName: zod.string(),
+  createdAt: zod.string(),
+  lastLoginAt: zod.string().nullable(),
+  authProviders: zod.array(zod.string()),
+  hasPassword: zod.boolean(),
+  adminPermissions: zod.array(zod.string()),
+});
+
+/**
+ * Create a new member account and begin a session
+ * @summary Signup
+ */
+export const SignupBody = zod.object({
+  firstName: zod.string(),
+  lastName: zod.string(),
+  email: zod.string(),
+  password: zod.string(),
+  phoneNumber: zod.string().optional(),
 });
 
 /**
@@ -43,9 +81,110 @@ export const GetMeResponse = zod.object({
   email: zod.string(),
   firstName: zod.string(),
   lastName: zod.string(),
+  preferredName: zod.string().nullable(),
+  phoneNumber: zod.string().nullable(),
+  profilePhotoUrl: zod.string().nullable(),
+  dateOfBirth: zod.string().nullable(),
+  gender: zod.string().nullable(),
+  maritalStatus: zod.string().nullable(),
+  occupation: zod.string().nullable(),
+  preferredLanguage: zod.string().nullable(),
+  emergencyContactName: zod.string().nullable(),
+  emergencyContactPhoneNumber: zod.string().nullable(),
+  streetAddress: zod.string().nullable(),
+  apartmentUnit: zod.string().nullable(),
+  city: zod.string().nullable(),
+  state: zod.string().nullable(),
+  zipCode: zod.string().nullable(),
+  country: zod.string().nullable(),
   role: zod.string(),
+  adminLevel: zod.string().nullable(),
+  adminTitle: zod.string().nullable(),
+  assignedMinistry: zod.string().nullable(),
+  accountStatus: zod.string(),
+  createdByUserId: zod.number().nullable(),
   churchId: zod.number(),
   churchName: zod.string(),
+  createdAt: zod.string(),
+  lastLoginAt: zod.string().nullable(),
+  authProviders: zod.array(zod.string()),
+  hasPassword: zod.boolean(),
+  adminPermissions: zod.array(zod.string()),
+});
+
+/**
+ * Update the authenticated user's profile details
+ * @summary Update member profile
+ */
+export const UpdateProfileBody = zod.object({
+  firstName: zod.string(),
+  lastName: zod.string(),
+  preferredName: zod.string().nullish(),
+  email: zod.string(),
+  phoneNumber: zod.string().nullish(),
+  profilePhotoUrl: zod.string().nullish(),
+  dateOfBirth: zod.string().nullish(),
+  gender: zod.string().nullish(),
+  maritalStatus: zod.string().nullish(),
+  occupation: zod.string().nullish(),
+  preferredLanguage: zod.string().nullish(),
+  emergencyContactName: zod.string().nullish(),
+  emergencyContactPhoneNumber: zod.string().nullish(),
+  streetAddress: zod.string().nullish(),
+  apartmentUnit: zod.string().nullish(),
+  city: zod.string().nullish(),
+  state: zod.string().nullish(),
+  zipCode: zod.string().nullish(),
+  country: zod.string().nullish(),
+});
+
+export const UpdateProfileResponse = zod.object({
+  id: zod.number(),
+  email: zod.string(),
+  firstName: zod.string(),
+  lastName: zod.string(),
+  preferredName: zod.string().nullable(),
+  phoneNumber: zod.string().nullable(),
+  profilePhotoUrl: zod.string().nullable(),
+  dateOfBirth: zod.string().nullable(),
+  gender: zod.string().nullable(),
+  maritalStatus: zod.string().nullable(),
+  occupation: zod.string().nullable(),
+  preferredLanguage: zod.string().nullable(),
+  emergencyContactName: zod.string().nullable(),
+  emergencyContactPhoneNumber: zod.string().nullable(),
+  streetAddress: zod.string().nullable(),
+  apartmentUnit: zod.string().nullable(),
+  city: zod.string().nullable(),
+  state: zod.string().nullable(),
+  zipCode: zod.string().nullable(),
+  country: zod.string().nullable(),
+  role: zod.string(),
+  adminLevel: zod.string().nullable(),
+  adminTitle: zod.string().nullable(),
+  assignedMinistry: zod.string().nullable(),
+  accountStatus: zod.string(),
+  createdByUserId: zod.number().nullable(),
+  churchId: zod.number(),
+  churchName: zod.string(),
+  createdAt: zod.string(),
+  lastLoginAt: zod.string().nullable(),
+  authProviders: zod.array(zod.string()),
+  hasPassword: zod.boolean(),
+  adminPermissions: zod.array(zod.string()),
+});
+
+/**
+ * Change the authenticated user's password when password auth is enabled
+ * @summary Change password
+ */
+export const ChangePasswordBody = zod.object({
+  currentPassword: zod.string(),
+  newPassword: zod.string(),
+});
+
+export const ChangePasswordResponse = zod.object({
+  message: zod.string(),
 });
 
 /**
@@ -54,4 +193,12 @@ export const GetMeResponse = zod.object({
  */
 export const LogoutResponse = zod.object({
   message: zod.string(),
+});
+
+/**
+ * @summary Get OAuth provider availability
+ */
+export const GetOAuthConfigResponse = zod.object({
+  google: zod.boolean(),
+  apple: zod.boolean(),
 });

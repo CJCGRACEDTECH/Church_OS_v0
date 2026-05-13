@@ -19,7 +19,7 @@ import { MEMBER_ROUTES } from "@/lib/routes";
 
 const NAV_ITEMS = [
   { label: "Home", icon: Home, href: MEMBER_ROUTES.DASHBOARD },
-  { label: "Profile", icon: User, href: MEMBER_ROUTES.PROFILE, comingSoon: true },
+  { label: "Profile", icon: User, href: MEMBER_ROUTES.PROFILE },
   { label: "Household", icon: Users, href: MEMBER_ROUTES.HOUSEHOLD, comingSoon: true },
   { label: "Give", icon: BadgeDollarSign, href: MEMBER_ROUTES.GIVE, comingSoon: true },
   { label: "Services", icon: CalendarDays, href: MEMBER_ROUTES.SERVICES, comingSoon: true },
