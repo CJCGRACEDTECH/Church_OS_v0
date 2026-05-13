@@ -51,10 +51,10 @@ function SidebarNav() {
         <img
           src="/cjc-logo.webp"
           alt="CJC International"
-          className="h-16 w-auto"
+          className="h-24 w-auto"
           style={{ mixBlendMode: "screen" }}
         />
-        <div className="text-white font-bold text-sm mt-1 text-center">
+        <div className="text-white font-bold text-base mt-2 text-center">
           {user?.churchName ?? "CJC International"}
         </div>
       </div>
