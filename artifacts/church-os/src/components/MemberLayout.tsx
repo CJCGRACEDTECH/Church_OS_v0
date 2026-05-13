@@ -9,7 +9,6 @@ import {
   CalendarDays,
   Settings,
   LogOut,
-  Building,
   Menu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,14 +31,14 @@ function SidebarNav() {
 
   return (
     <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground">
-      <div className="p-6">
-        <div className="flex items-center gap-3 font-semibold text-xl text-white">
-          <div className="h-8 w-8 bg-primary rounded flex items-center justify-center">
-            <Building size={18} className="text-white" />
-          </div>
-          Church OS
-        </div>
-        <div className="text-sidebar-foreground/70 text-sm mt-1 ml-11">
+      <div className="px-4 pt-5 pb-3">
+        <img
+          src="/cjc-logo.webp"
+          alt="CJC International"
+          className="h-12 w-auto"
+          style={{ mixBlendMode: "screen" }}
+        />
+        <div className="text-sidebar-foreground/60 text-[11px] mt-1 font-medium tracking-wide uppercase">
           {user?.churchName ?? "CJC International"}
         </div>
       </div>
@@ -99,6 +98,9 @@ function SidebarNav() {
           <LogOut size={16} className="mr-2" />
           Sign out
         </Button>
+        <p className="text-center text-[10px] text-sidebar-foreground/30 mt-3">
+          powered by Church OS
+        </p>
       </div>
     </div>
   );
@@ -113,10 +115,7 @@ export default function MemberLayout({ children }: { children: ReactNode }) {
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="md:hidden flex items-center justify-between p-4 border-b bg-card">
-          <div className="flex items-center gap-2 font-semibold">
-            <Building size={20} className="text-primary" />
-            Church OS
-          </div>
+          <img src="/cjc-logo.webp" alt="CJC International" className="h-8 w-auto" style={{ mixBlendMode: "multiply" }} />
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="-mr-2">
