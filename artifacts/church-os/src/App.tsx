@@ -56,7 +56,7 @@ const clerkAppearance = {
   options: {
     logoPlacement: "inside" as const,
     logoLinkUrl: basePath || "/",
-    logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
+    logoImageUrl: `${window.location.origin}${basePath}/cjc-logo.png`,
     socialButtonsPlacement: "top" as const,
     socialButtonsVariant: "blockButton" as const,
   },
@@ -141,7 +141,7 @@ function AuthPageShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-[100dvh] flex-col" style={{ background: "#eef0f8" }}>
       <nav style={{ background: "#181d2e" }} className="flex items-center justify-between px-6 py-3">
         <div className="flex items-center gap-3">
-          <img src={`${basePath}/logo.svg`} alt="CJC International" className="h-9 w-9 rounded-full" />
+          <img src={`${basePath}/cjc-logo.png`} alt="CJC International" className="h-10 w-auto" />
           <span className="text-white font-semibold text-base tracking-tight">CJC International</span>
         </div>
         <div className="hidden md:flex items-center gap-6">
