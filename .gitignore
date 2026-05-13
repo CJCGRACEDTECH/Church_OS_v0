@@ -1,45 +1,9 @@
-# Compiled output
-dist
-tmp
-out-tsc
-*.tsbuildinfo
-.expo
-.expo-shared
-
-# Dependencies
 node_modules
-
-# Environment — never commit real secrets
 .env
 .env.local
-.env.*.local
-
-# Logs
-logs/
-*.log
-npm-debug.log
-yarn-error.log
-
-# Test coverage
-/coverage
-
-# Build artifacts
-/.sass-cache
-
-# System files
 .DS_Store
-Thumbs.db
-
-# IDEs and editors
-/.idea
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-*.sublime-workspace
-
-# Replit internals — not project code
-.cache/
-.local/
-attached_assets/
+dist
+build
+coverage
+logs
+*.log
