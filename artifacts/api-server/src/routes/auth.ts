@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { and, eq, or } from "drizzle-orm";
+import jwt from "jsonwebtoken";
 import {
   db,
   usersTable,
@@ -303,6 +304,54 @@ router.patch("/auth/profile", requireAuth, async (req, res): Promise<void> => {
   }
 
   res.json(serializeUser(profile));
+});
+
+const DEMO_EMAILS: Record<string, string> = {
+  admin: "admin@churchos.test",
+  member: "member@churchos.test",
+};
+
+router.post("/auth/demo-session", async (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+
+  const role = typeof req.body?.role === "string" ? req.body.role : "";
+  const email = DEMO_EMAILS[role];
+  if (!email) {
+    res.status(400).json({ error: "role must be 'admin' or 'member'" });
+    return;
+  }
+
+  const [user] = await db
+    .select({ id: usersTable.id, role: usersTable.role, accountStatus: usersTable.accountStatus })
+    .from(usersTable)
+    .where(eq(usersTable.email, email));
+
+  if (!user || user.accountStatus !== "active") {
+    res.status(404).json({
+      error: "Demo user not found. Run `pnpm --filter @workspace/scripts run seed` first.",
+    });
+    return;
+  }
+
+  const secret = process.env.SESSION_SECRET ?? "dev-demo-secret";
+  const token = jwt.sign({ sub: String(user.id), role: user.role }, secret, { expiresIn: "24h" });
+
+  res.cookie("demo_session", token, {
+    httpOnly: true,
+    sameSite: "lax",
+    maxAge: 86_400_000,
+    path: "/",
+  });
+
+  res.json({ ok: true, role: user.role });
+});
+
+router.delete("/auth/demo-session", (req, res) => {
+  res.clearCookie("demo_session", { path: "/" });
+  res.json({ ok: true });
 });
 
 export default router;

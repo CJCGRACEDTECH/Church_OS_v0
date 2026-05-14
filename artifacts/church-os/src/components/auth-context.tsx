@@ -1,4 +1,4 @@
-import React, { createContext, useContext, ReactNode } from "react";
+import React, { createContext, useContext, useState, ReactNode } from "react";
 import { useClerk, useUser } from "@clerk/react";
 import { useGetMe } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
@@ -43,6 +43,7 @@ type LocalUser = {
 interface AuthContextType {
   user: LocalUser | null;
   isLoading: boolean;
+  isDemoMode: boolean;
   logout: () => void;
 }
 
@@ -55,21 +56,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
 
-  const isLoading = !clerkLoaded || (!!isSignedIn && localLoading);
+  const [isDemoMode, setIsDemoMode] = useState(
+    () => sessionStorage.getItem("demo_mode") === "true",
+  );
+
+  const isLoading = isDemoMode
+    ? localLoading
+    : !clerkLoaded || (!!isSignedIn && localLoading);
+
+  const isAuthed = isDemoMode || (clerkLoaded && !!isSignedIn);
+  const user = isAuthed && localUser ? (localUser as LocalUser) : null;
 
   const logout = () => {
+    if (isDemoMode) {
+      sessionStorage.removeItem("demo_mode");
+      setIsDemoMode(false);
+      void fetch("/api/auth/demo-session", { method: "DELETE", credentials: "include" });
+      queryClient.clear();
+      setLocation("/sign-in");
+      return;
+    }
     void signOut().then(() => {
       queryClient.clear();
       setLocation("/");
     });
   };
 
-  const user = (clerkLoaded && isSignedIn && localUser)
-    ? (localUser as LocalUser)
-    : null;
-
   return (
-    <AuthContext.Provider value={{ user, isLoading, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, isDemoMode, logout }}>
       {children}
     </AuthContext.Provider>
   );

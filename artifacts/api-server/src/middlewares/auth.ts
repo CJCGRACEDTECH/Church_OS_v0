@@ -1,6 +1,7 @@
 import { type Request, type Response, type NextFunction } from "express";
 import { getAuth } from "@clerk/express";
 import { eq } from "drizzle-orm";
+import jwt from "jsonwebtoken";
 import { db, usersTable } from "@workspace/db";
 import {
   getStoredAdminPermissions,
@@ -18,7 +19,30 @@ declare global {
   }
 }
 
+async function resolveDemoUser(req: Request): Promise<{ id: number; role: "admin" | "member" } | null> {
+  if (process.env.NODE_ENV === "production") return null;
+  const token = req.cookies?.demo_session as string | undefined;
+  if (!token) return null;
+  try {
+    const secret = process.env.SESSION_SECRET ?? "dev-demo-secret";
+    const payload = jwt.verify(token, secret) as { sub: string; role: string };
+    const userId = parseInt(payload.sub, 10);
+    if (isNaN(userId)) return null;
+    const [user] = await db
+      .select({ id: usersTable.id, role: usersTable.role, isActive: usersTable.isActive, accountStatus: usersTable.accountStatus })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId));
+    if (!user || !user.isActive || user.accountStatus !== "active") return null;
+    return { id: user.id, role: user.role as "admin" | "member" };
+  } catch {
+    return null;
+  }
+}
+
 async function resolveLocalUser(req: Request): Promise<{ id: number; role: "admin" | "member" } | null> {
+  const demoUser = await resolveDemoUser(req);
+  if (demoUser) return demoUser;
+
   const auth = getAuth(req);
   if (!auth?.userId) return null;
 

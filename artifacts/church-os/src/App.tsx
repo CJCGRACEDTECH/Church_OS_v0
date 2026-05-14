@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/reac
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth, ProtectedRoute } from "@/components/auth-context";
-import { ClerkProvider, SignIn, SignUp, useClerk, useSignIn } from "@clerk/react";
+import { ClerkProvider, SignIn, SignUp, useClerk } from "@clerk/react";
 import { shadcn } from "@clerk/themes";
 
 import Unauthorized from "@/pages/unauthorized";
@@ -167,25 +167,33 @@ function AuthPageShell({ children }: { children: React.ReactNode }) {
 }
 
 const DEMO_ACCOUNTS = [
-  { label: "Demo Admin", email: "admin@churchos.test", password: "Admin123!", color: "bg-indigo-600 hover:bg-indigo-700" },
-  { label: "Demo Member", email: "member@churchos.test", password: "Member123!", color: "bg-slate-600 hover:bg-slate-700" },
+  { label: "Demo Admin", role: "admin", color: "bg-indigo-600 hover:bg-indigo-700" },
+  { label: "Demo Member", role: "member", color: "bg-slate-600 hover:bg-slate-700" },
 ];
 
 function DemoLoginButtons() {
-  const { signIn } = useSignIn();
+  const [, setLocation] = useLocation();
   const [loadingIdx, setLoadingIdx] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function handleDemo(idx: number) {
-    if (!signIn) return;
-    const { email, password } = DEMO_ACCOUNTS[idx];
     setLoadingIdx(idx);
     setError(null);
     try {
-      const { error } = await signIn.create({ identifier: email, password });
-      if (error) {
-        setError(error.message ?? "Demo login failed — check that the account exists in Clerk.");
+      const res = await fetch("/api/auth/demo-session", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ role: DEMO_ACCOUNTS[idx].role }),
+        credentials: "include",
+      });
+      const data = await res.json() as { ok?: boolean; role?: string; error?: string };
+      if (!res.ok || !data.ok) {
+        setError(data.error ?? "Demo login failed.");
+        return;
       }
+      sessionStorage.setItem("demo_mode", "true");
+      setLocation(data.role === "admin" ? "/admin" : "/member");
+      window.location.reload();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Demo login failed.";
       setError(msg);
@@ -201,7 +209,7 @@ function DemoLoginButtons() {
         <div className="flex gap-3">
           {DEMO_ACCOUNTS.map((acct, idx) => (
             <button
-              key={acct.email}
+              key={acct.role}
               onClick={() => handleDemo(idx)}
               disabled={loadingIdx !== null}
               className={`flex-1 ${acct.color} text-white text-sm font-medium rounded-lg py-2 px-3 transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5`}
