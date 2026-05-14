@@ -1,10 +1,10 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Switch, Route, Redirect, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth, ProtectedRoute } from "@/components/auth-context";
-import { ClerkProvider, SignIn, SignUp, useClerk } from "@clerk/react";
+import { ClerkProvider, SignIn, SignUp, useClerk, useSignIn } from "@clerk/react";
 import { shadcn } from "@clerk/themes";
 
 import Unauthorized from "@/pages/unauthorized";
@@ -166,15 +166,71 @@ function AuthPageShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+const DEMO_ACCOUNTS = [
+  { label: "Demo Admin", email: "admin@churchos.test", password: "Admin123!", color: "bg-indigo-600 hover:bg-indigo-700" },
+  { label: "Demo Member", email: "member@churchos.test", password: "Member123!", color: "bg-slate-600 hover:bg-slate-700" },
+];
+
+function DemoLoginButtons() {
+  const { signIn } = useSignIn();
+  const [loadingIdx, setLoadingIdx] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleDemo(idx: number) {
+    if (!signIn) return;
+    const { email, password } = DEMO_ACCOUNTS[idx];
+    setLoadingIdx(idx);
+    setError(null);
+    try {
+      const { error } = await signIn.create({ identifier: email, password });
+      if (error) {
+        setError(error.message ?? "Demo login failed — check that the account exists in Clerk.");
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Demo login failed.";
+      setError(msg);
+    } finally {
+      setLoadingIdx(null);
+    }
+  }
+
+  return (
+    <div className="w-[440px] max-w-full mt-3">
+      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 px-6 py-4">
+        <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-3">Quick Demo Access</p>
+        <div className="flex gap-3">
+          {DEMO_ACCOUNTS.map((acct, idx) => (
+            <button
+              key={acct.email}
+              onClick={() => handleDemo(idx)}
+              disabled={loadingIdx !== null}
+              className={`flex-1 ${acct.color} text-white text-sm font-medium rounded-lg py-2 px-3 transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5`}
+            >
+              {loadingIdx === idx ? (
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent inline-block" />
+              ) : null}
+              {acct.label}
+            </button>
+          ))}
+        </div>
+        {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
+      </div>
+    </div>
+  );
+}
+
 function SignInPage() {
   return (
     <AuthPageShell>
-      <SignIn
-        routing="path"
-        path={`${basePath}/sign-in`}
-        signUpUrl={`${basePath}/sign-up`}
-        fallbackRedirectUrl={basePath || "/"}
-      />
+      <div className="flex flex-col items-center">
+        <SignIn
+          routing="path"
+          path={`${basePath}/sign-in`}
+          signUpUrl={`${basePath}/sign-up`}
+          fallbackRedirectUrl={basePath || "/"}
+        />
+        <DemoLoginButtons />
+      </div>
     </AuthPageShell>
   );
 }
