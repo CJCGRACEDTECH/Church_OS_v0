@@ -186,12 +186,13 @@ function DemoLoginButtons() {
         body: JSON.stringify({ role: DEMO_ACCOUNTS[idx].role }),
         credentials: "include",
       });
-      const data = await res.json() as { ok?: boolean; role?: string; error?: string };
+      const data = await res.json() as { ok?: boolean; role?: string; token?: string; error?: string };
       if (!res.ok || !data.ok) {
         setError(data.error ?? "Demo login failed.");
         return;
       }
       sessionStorage.setItem("demo_mode", "true");
+      sessionStorage.setItem("demo_token", data.token ?? "");
       setLocation(data.role === "admin" ? "/admin" : "/member");
       window.location.reload();
     } catch (e: unknown) {

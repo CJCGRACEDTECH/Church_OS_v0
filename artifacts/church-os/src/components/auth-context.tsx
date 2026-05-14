@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useClerk, useUser } from "@clerk/react";
-import { useGetMe } from "@workspace/api-client-react";
+import { useGetMe, setAuthTokenGetter } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -59,6 +59,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isDemoMode, setIsDemoMode] = useState(
     () => sessionStorage.getItem("demo_mode") === "true",
   );
+
+  useEffect(() => {
+    if (isDemoMode) {
+      const token = sessionStorage.getItem("demo_token");
+      setAuthTokenGetter(token ? () => token : null);
+    } else {
+      setAuthTokenGetter(null);
+    }
+    return () => { setAuthTokenGetter(null); };
+  }, [isDemoMode]);
 
   const isLoading = isDemoMode
     ? localLoading

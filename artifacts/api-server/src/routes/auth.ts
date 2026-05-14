@@ -170,6 +170,39 @@ async function findAuthProfileByUserId(userId: number): Promise<AuthProfile | nu
 }
 
 router.get("/auth/me", async (req, res): Promise<void> => {
+  // Dev-only: allow demo sessions via Bearer token (proxy-safe) or cookie
+  if (process.env.NODE_ENV !== "production") {
+    const secret = process.env.SESSION_SECRET ?? "dev-demo-secret";
+    let demoToken: string | undefined;
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith("Bearer ")) {
+      const candidate = authHeader.slice(7);
+      try {
+        const p = jwt.verify(candidate, secret) as { sub?: string };
+        if (p.sub && /^\d+$/.test(p.sub)) demoToken = candidate;
+      } catch { /* not a demo token */ }
+    }
+    if (!demoToken) demoToken = req.cookies?.demo_session as string | undefined;
+
+    if (demoToken) {
+      try {
+        const payload = jwt.verify(demoToken, secret) as { sub: string };
+        const userId = parseInt(payload.sub, 10);
+        const [demoUser] = await db
+          .select({ id: usersTable.id, isActive: usersTable.isActive, accountStatus: usersTable.accountStatus })
+          .from(usersTable)
+          .where(eq(usersTable.id, userId));
+        if (demoUser?.isActive && demoUser.accountStatus === "active") {
+          await db.update(usersTable).set({ lastLoginAt: new Date() }).where(eq(usersTable.id, demoUser.id));
+          const profile = await findAuthProfileByUserId(demoUser.id);
+          if (!profile) { res.status(500).json({ error: "Failed to load profile." }); return; }
+          res.json(serializeUser(profile));
+          return;
+        }
+      } catch { /* fall through to Clerk */ }
+    }
+  }
+
   const auth = getAuth(req);
   if (!auth?.userId) {
     res.status(401).json({ error: "Not authenticated" });
@@ -339,14 +372,7 @@ router.post("/auth/demo-session", async (req, res) => {
   const secret = process.env.SESSION_SECRET ?? "dev-demo-secret";
   const token = jwt.sign({ sub: String(user.id), role: user.role }, secret, { expiresIn: "24h" });
 
-  res.cookie("demo_session", token, {
-    httpOnly: true,
-    sameSite: "lax",
-    maxAge: 86_400_000,
-    path: "/",
-  });
-
-  res.json({ ok: true, role: user.role });
+  res.json({ ok: true, role: user.role, token });
 });
 
 router.delete("/auth/demo-session", (req, res) => {

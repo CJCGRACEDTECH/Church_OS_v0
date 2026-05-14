@@ -21,11 +21,24 @@ declare global {
 
 async function resolveDemoUser(req: Request): Promise<{ id: number; role: "admin" | "member" } | null> {
   if (process.env.NODE_ENV === "production") return null;
-  const token = req.cookies?.demo_session as string | undefined;
-  if (!token) return null;
+
+  const secret = process.env.SESSION_SECRET ?? "dev-demo-secret";
+
+  // Prefer Authorization bearer (proxy-safe), fall back to cookie
+  let rawToken: string | undefined;
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith("Bearer ")) {
+    const candidate = authHeader.slice(7);
+    try {
+      const p = jwt.verify(candidate, secret) as { sub?: string };
+      if (p.sub && /^\d+$/.test(p.sub)) rawToken = candidate;
+    } catch { /* not a demo token — Clerk will handle it */ }
+  }
+  if (!rawToken) rawToken = req.cookies?.demo_session as string | undefined;
+  if (!rawToken) return null;
+
   try {
-    const secret = process.env.SESSION_SECRET ?? "dev-demo-secret";
-    const payload = jwt.verify(token, secret) as { sub: string; role: string };
+    const payload = jwt.verify(rawToken, secret) as { sub: string; role: string };
     const userId = parseInt(payload.sub, 10);
     if (isNaN(userId)) return null;
     const [user] = await db
