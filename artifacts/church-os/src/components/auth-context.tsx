@@ -56,19 +56,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
 
-  const [isDemoMode, setIsDemoMode] = useState(
-    () => sessionStorage.getItem("demo_mode") === "true",
-  );
-
-  useEffect(() => {
-    if (isDemoMode) {
+  const [isDemoMode, setIsDemoMode] = useState(() => {
+    const demo = sessionStorage.getItem("demo_mode") === "true";
+    if (demo) {
       const token = sessionStorage.getItem("demo_token");
       setAuthTokenGetter(token ? () => token : null);
-    } else {
-      setAuthTokenGetter(null);
     }
-    return () => { setAuthTokenGetter(null); };
-  }, [isDemoMode]);
+    return demo;
+  });
 
   const isLoading = isDemoMode
     ? localLoading
