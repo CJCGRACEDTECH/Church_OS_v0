@@ -203,6 +203,11 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     }
   }
 
+  if (!process.env.CLERK_SECRET_KEY) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
   const auth = getAuth(req);
   if (!auth?.userId) {
     res.status(401).json({ error: "Not authenticated" });

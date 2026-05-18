@@ -43,18 +43,25 @@ app.use(cors({
   credentials: true,
 }));
 
+app.use("/api/giving/stripe/webhook", express.raw({ type: "application/json" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-app.use(
-  clerkMiddleware((req) => ({
-    publishableKey: publishableKeyFromHost(
-      getClerkProxyHost(req) ?? "",
-      process.env.CLERK_PUBLISHABLE_KEY,
-    ),
-  })),
-);
+if (process.env.CLERK_SECRET_KEY) {
+  app.use(
+    clerkMiddleware((req) => ({
+      publishableKey: publishableKeyFromHost(
+        getClerkProxyHost(req) ?? "",
+        process.env.CLERK_PUBLISHABLE_KEY,
+      ),
+    })),
+  );
+} else if (process.env.NODE_ENV !== "production") {
+  logger.warn("CLERK_SECRET_KEY is not set; Clerk auth is disabled for local demo development.");
+} else {
+  throw new Error("CLERK_SECRET_KEY is required in production.");
+}
 
 app.use("/api", router);
 

@@ -55,6 +55,7 @@ async function resolveDemoUser(req: Request): Promise<{ id: number; role: "admin
 async function resolveLocalUser(req: Request): Promise<{ id: number; role: "admin" | "member" } | null> {
   const demoUser = await resolveDemoUser(req);
   if (demoUser) return demoUser;
+  if (!process.env.CLERK_SECRET_KEY) return null;
 
   const auth = getAuth(req);
   if (!auth?.userId) return null;

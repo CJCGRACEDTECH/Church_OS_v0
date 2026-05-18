@@ -10,6 +10,7 @@ export const ADMIN_LEVELS = {
 
 export const PERMISSIONS = {
   ATTENDANCE_CHECKIN: "attendance_checkin",
+  ATTENDANCE_MANAGEMENT: "attendance_management",
   MEMBER_DIRECTORY: "member_directory",
   MEMBER_PROFILES: "member_profiles",
   EVENT_MANAGEMENT: "event_management",
@@ -17,6 +18,10 @@ export const PERMISSIONS = {
   PASTORAL_NOTES: "pastoral_notes",
   GIVING_SUMMARY: "giving_summary",
   GIVING_DETAILS: "giving_details",
+  GIVING_VIEW_OWN: "giving_view_own",
+  GIVING_MANAGEMENT: "giving_management",
+  GIVING_REPORTS: "giving_reports",
+  CAMPAIGN_MANAGEMENT: "campaign_management",
   REPORTS: "reports",
   ADMIN_MANAGEMENT: "admin_management",
   SYSTEM_SETTINGS: "system_settings",
@@ -26,6 +31,7 @@ export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
 export const PERMISSION_LABELS: Record<Permission, string> = {
   [PERMISSIONS.ATTENDANCE_CHECKIN]: "Attendance Check-In",
+  [PERMISSIONS.ATTENDANCE_MANAGEMENT]: "Attendance Management",
   [PERMISSIONS.MEMBER_DIRECTORY]: "Member Directory",
   [PERMISSIONS.MEMBER_PROFILES]: "Member Profiles",
   [PERMISSIONS.EVENT_MANAGEMENT]: "Event Management",
@@ -33,6 +39,10 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   [PERMISSIONS.PASTORAL_NOTES]: "Pastoral Notes",
   [PERMISSIONS.GIVING_SUMMARY]: "Giving Summary",
   [PERMISSIONS.GIVING_DETAILS]: "Giving Details",
+  [PERMISSIONS.GIVING_VIEW_OWN]: "Giving: View Own",
+  [PERMISSIONS.GIVING_MANAGEMENT]: "Giving Management",
+  [PERMISSIONS.GIVING_REPORTS]: "Giving Reports",
+  [PERMISSIONS.CAMPAIGN_MANAGEMENT]: "Campaign Management",
   [PERMISSIONS.REPORTS]: "Reports",
   [PERMISSIONS.ADMIN_MANAGEMENT]: "Admin Management",
   [PERMISSIONS.SYSTEM_SETTINGS]: "System Settings",

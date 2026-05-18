@@ -49,7 +49,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+function ClerkBackedAuthProvider({ children }: { children: ReactNode }) {
   const { isSignedIn, isLoaded: clerkLoaded } = useUser();
   const { data: localUser, isLoading: localLoading } = useGetMe();
   const { signOut } = useClerk();
@@ -92,6 +92,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
+}
+
+function DemoOnlyAuthProvider({ children }: { children: ReactNode }) {
+  const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
+  const [isDemoMode, setIsDemoMode] = useState(() => {
+    const token = sessionStorage.getItem("demo_token");
+    if (token) setAuthTokenGetter(() => token);
+    return sessionStorage.getItem("demo_mode") === "true";
+  });
+  const { data: localUser, isLoading } = useGetMe();
+
+  const logout = () => {
+    sessionStorage.removeItem("demo_mode");
+    sessionStorage.removeItem("demo_token");
+    setAuthTokenGetter(null);
+    setIsDemoMode(false);
+    void fetch("/api/auth/demo-session", { method: "DELETE", credentials: "include" });
+    queryClient.clear();
+    setLocation("/sign-in");
+  };
+
+  const user = isDemoMode && localUser ? (localUser as LocalUser) : null;
+
+  return (
+    <AuthContext.Provider value={{ user, isLoading: isDemoMode ? isLoading : false, isDemoMode, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function AuthProvider({ children, clerkEnabled = true }: { children: ReactNode; clerkEnabled?: boolean }) {
+  if (!clerkEnabled) return <DemoOnlyAuthProvider>{children}</DemoOnlyAuthProvider>;
+  return <ClerkBackedAuthProvider>{children}</ClerkBackedAuthProvider>;
 }
 
 export function useAuth() {

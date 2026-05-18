@@ -1,9 +1,10 @@
 import { useAuth } from "@/components/auth-context";
 import MemberLayout from "@/components/MemberLayout";
+import EventsFeed from "@/components/EventsFeed";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { User, Users, BadgeDollarSign, CalendarDays } from "lucide-react";
+import { User, Users, BadgeDollarSign } from "lucide-react";
 
 export default function MemberDashboard() {
   const { user } = useAuth();
@@ -87,20 +88,7 @@ export default function MemberDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/50 shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CalendarDays className="h-5 w-5 text-primary" />
-                Upcoming Services
-              </CardTitle>
-              <CardDescription>See what's happening this week</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm text-muted-foreground italic py-6 text-center">
-                No upcoming services scheduled
-              </div>
-            </CardContent>
-          </Card>
+          <EventsFeed detailBasePath="/member/services" />
         </div>
       </div>
     </MemberLayout>

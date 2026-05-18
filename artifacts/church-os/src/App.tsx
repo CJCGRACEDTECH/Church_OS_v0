@@ -9,18 +9,16 @@ import { shadcn } from "@clerk/themes";
 
 import Unauthorized from "@/pages/unauthorized";
 import NotFound from "@/pages/not-found";
+import AttendanceCheckIn from "@/pages/attendance-check-in";
 
 import AdminDashboard from "@/pages/admin-dashboard";
 import AdminProfile from "@/pages/admin/profile";
 import AdminMembers from "@/pages/admin/members";
-import AdminHouseholds from "@/pages/admin/households";
 import AdminServices from "@/pages/admin/services";
 import AdminAttendance from "@/pages/admin/attendance";
 import AdminCheckIn from "@/pages/admin/check-in";
 import AdminGiving from "@/pages/admin/giving";
-import AdminReports from "@/pages/admin/reports";
 import AdminSettings from "@/pages/admin/settings";
-import AdminManagement from "@/pages/admin/admin-management";
 import AdminInviteAccept from "@/pages/admin/invite-accept";
 
 import MemberDashboard from "@/pages/member-dashboard";
@@ -229,6 +227,16 @@ function DemoLoginButtons() {
 }
 
 function SignInPage() {
+  if (!clerkPubKey) {
+    return (
+      <AuthPageShell>
+        <div className="flex flex-col items-center">
+          <DemoLoginButtons />
+        </div>
+      </AuthPageShell>
+    );
+  }
+
   return (
     <AuthPageShell>
       <div className="flex flex-col items-center">
@@ -245,6 +253,18 @@ function SignInPage() {
 }
 
 function SignUpPage() {
+  if (!clerkPubKey) {
+    return (
+      <AuthPageShell>
+        <div className="w-[440px] max-w-full rounded-2xl border border-gray-100 bg-white px-6 py-5 text-center shadow-xl">
+          <h1 className="text-lg font-semibold text-gray-900">Signup needs auth setup</h1>
+          <p className="mt-2 text-sm text-gray-500">Add Clerk or OAuth environment variables in Replit to enable public account creation.</p>
+          <DemoLoginButtons />
+        </div>
+      </AuthPageShell>
+    );
+  }
+
   return (
     <AuthPageShell>
       <SignUp
@@ -273,26 +293,31 @@ function Router() {
 
       <Route path="/" component={HomeRedirect} />
       <Route path="/unauthorized" component={Unauthorized} />
+      <Route path="/attendance/check-in/:token" component={AttendanceCheckIn} />
       <Route path="/admin/invite/:token" component={AdminInviteAccept} />
 
       {/* Admin routes */}
       <Route path="/admin">{() => <AdminRoute component={AdminDashboard} />}</Route>
       <Route path="/admin/profile">{() => <AdminRoute component={AdminProfile} />}</Route>
+      <Route path="/admin/members/:id">{() => <AdminRoute component={AdminMembers} />}</Route>
       <Route path="/admin/members">{() => <AdminRoute component={AdminMembers} />}</Route>
-      <Route path="/admin/households">{() => <AdminRoute component={AdminHouseholds} />}</Route>
+      <Route path="/admin/households">{() => <Redirect to="/admin/members" />}</Route>
+      <Route path="/admin/services/:id">{() => <AdminRoute component={AdminServices} />}</Route>
       <Route path="/admin/services">{() => <AdminRoute component={AdminServices} />}</Route>
+      <Route path="/admin/attendance/:id">{() => <AdminRoute component={AdminAttendance} />}</Route>
       <Route path="/admin/attendance">{() => <AdminRoute component={AdminAttendance} />}</Route>
       <Route path="/admin/check-in">{() => <AdminRoute component={AdminCheckIn} />}</Route>
       <Route path="/admin/giving">{() => <AdminRoute component={AdminGiving} />}</Route>
-      <Route path="/admin/reports">{() => <AdminRoute component={AdminReports} />}</Route>
+      <Route path="/admin/reports">{() => <Redirect to="/admin" />}</Route>
       <Route path="/admin/settings">{() => <AdminRoute component={AdminSettings} />}</Route>
-      <Route path="/admin/admins">{() => <AdminRoute component={AdminManagement} />}</Route>
+      <Route path="/admin/admins">{() => <Redirect to="/admin/settings?section=admins" />}</Route>
 
       {/* Member routes */}
       <Route path="/member">{() => <MemberRoute component={MemberDashboard} />}</Route>
       <Route path="/member/profile">{() => <MemberRoute component={MemberProfile} />}</Route>
       <Route path="/member/household">{() => <MemberRoute component={MemberHousehold} />}</Route>
       <Route path="/member/give">{() => <MemberRoute component={MemberGive} />}</Route>
+      <Route path="/member/services/:id">{() => <MemberRoute component={MemberServices} />}</Route>
       <Route path="/member/services">{() => <MemberRoute component={MemberServices} />}</Route>
       <Route path="/member/settings">{() => <MemberRoute component={MemberSettings} />}</Route>
 
@@ -303,6 +328,19 @@ function Router() {
 
 function ClerkProviderWithRoutes() {
   const [, setLocation] = useLocation();
+
+  if (!clerkPubKey) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <AuthProvider clerkEnabled={false}>
+            <Router />
+          </AuthProvider>
+          <Toaster />
+        </TooltipProvider>
+      </QueryClientProvider>
+    );
+  }
 
   return (
     <ClerkProvider

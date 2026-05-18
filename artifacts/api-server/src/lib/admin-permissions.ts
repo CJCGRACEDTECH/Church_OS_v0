@@ -11,6 +11,7 @@ export type AdminLevel = (typeof ADMIN_LEVELS)[keyof typeof ADMIN_LEVELS];
 
 export const ADMIN_PERMISSIONS = {
   ATTENDANCE_CHECKIN: "attendance_checkin",
+  ATTENDANCE_MANAGEMENT: "attendance_management",
   MEMBER_DIRECTORY: "member_directory",
   MEMBER_PROFILES: "member_profiles",
   EVENT_MANAGEMENT: "event_management",
@@ -18,6 +19,10 @@ export const ADMIN_PERMISSIONS = {
   PASTORAL_NOTES: "pastoral_notes",
   GIVING_SUMMARY: "giving_summary",
   GIVING_DETAILS: "giving_details",
+  GIVING_VIEW_OWN: "giving_view_own",
+  GIVING_MANAGEMENT: "giving_management",
+  GIVING_REPORTS: "giving_reports",
+  CAMPAIGN_MANAGEMENT: "campaign_management",
   REPORTS: "reports",
   ADMIN_MANAGEMENT: "admin_management",
   SYSTEM_SETTINGS: "system_settings",
@@ -33,7 +38,12 @@ export const PERMISSION_CATALOG: Array<{
   {
     key: ADMIN_PERMISSIONS.ATTENDANCE_CHECKIN,
     label: "Attendance Check-In",
-    description: "Run check-in and attendance capture for services and events.",
+    description: "Run children ministry check-in and operational check-in workflows.",
+  },
+  {
+    key: ADMIN_PERMISSIONS.ATTENDANCE_MANAGEMENT,
+    label: "Attendance Management",
+    description: "Create service and discipleship attendance sessions and edit attendance records.",
   },
   {
     key: ADMIN_PERMISSIONS.MEMBER_DIRECTORY,
@@ -71,6 +81,26 @@ export const PERMISSION_CATALOG: Array<{
     description: "View donation history and giving transaction details.",
   },
   {
+    key: ADMIN_PERMISSIONS.GIVING_VIEW_OWN,
+    label: "Giving: View Own",
+    description: "View personal giving history in member contexts.",
+  },
+  {
+    key: ADMIN_PERMISSIONS.GIVING_MANAGEMENT,
+    label: "Giving Management",
+    description: "View and manage giving records, tax status, and recurring giving.",
+  },
+  {
+    key: ADMIN_PERMISSIONS.GIVING_REPORTS,
+    label: "Giving Reports",
+    description: "Export giving records and generate donor tax receipts.",
+  },
+  {
+    key: ADMIN_PERMISSIONS.CAMPAIGN_MANAGEMENT,
+    label: "Campaign Management",
+    description: "Create and manage giving campaigns.",
+  },
+  {
     key: ADMIN_PERMISSIONS.REPORTS,
     label: "Reports",
     description: "View ministry, attendance, and financial reports.",
@@ -92,6 +122,7 @@ export const VALID_ADMIN_PERMISSIONS = PERMISSION_CATALOG.map((permission) => pe
 export const DEFAULT_ADMIN_LEVEL_PERMISSIONS: Record<AdminLevel, AdminPermission[]> = {
   [ADMIN_LEVELS.MINISTER]: [
     ADMIN_PERMISSIONS.ATTENDANCE_CHECKIN,
+    ADMIN_PERMISSIONS.ATTENDANCE_MANAGEMENT,
     ADMIN_PERMISSIONS.MEMBER_DIRECTORY,
     ADMIN_PERMISSIONS.MEMBER_PROFILES,
     ADMIN_PERMISSIONS.EVENT_MANAGEMENT,
@@ -99,6 +130,7 @@ export const DEFAULT_ADMIN_LEVEL_PERMISSIONS: Record<AdminLevel, AdminPermission
   ],
   [ADMIN_LEVELS.PASTOR]: [
     ADMIN_PERMISSIONS.ATTENDANCE_CHECKIN,
+    ADMIN_PERMISSIONS.ATTENDANCE_MANAGEMENT,
     ADMIN_PERMISSIONS.MEMBER_DIRECTORY,
     ADMIN_PERMISSIONS.MEMBER_PROFILES,
     ADMIN_PERMISSIONS.EVENT_MANAGEMENT,
