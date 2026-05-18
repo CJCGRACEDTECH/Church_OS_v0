@@ -19,10 +19,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { PERMISSIONS } from "@/lib/permissions";
 import { readProfilePhotoFile } from "@/lib/profile-photo";
-import { ArrowLeft, Mail, Pencil, Phone, Plus, Search, ShieldCheck, UserRound, Users } from "lucide-react";
+import { ArrowLeft, Mail, MessageSquare, Pencil, Phone, Plus, Search, ShieldCheck, UserRound, Users } from "lucide-react";
 
 type MemberStatus = "visitor" | "member" | "active_member" | "inactive";
 type BaptismStatus = "baptized" | "not_baptized" | "unknown";
@@ -519,6 +520,8 @@ function MemberProfile({ memberId }: { memberId: number }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = React.useState(false);
+  const [smsOpen, setSmsOpen] = React.useState(false);
+  const [smsMessage, setSmsMessage] = React.useState("");
   const [form, setForm] = React.useState<MemberFormState>(emptyMemberForm);
   const canEdit = user?.adminPermissions?.includes(PERMISSIONS.MEMBER_PROFILES) ?? false;
 
@@ -540,6 +543,23 @@ function MemberProfile({ memberId }: { memberId: number }) {
       void queryClient.invalidateQueries({ queryKey: ["members-directory"] });
     },
     onError: (error) => toast({ title: "Could not update member", description: error.message, variant: "destructive" }),
+  });
+
+  const sendSms = useMutation({
+    mutationFn: () => apiJson<{ ok: boolean; notConfigured?: boolean }>(`/admin/members/${memberId}/sms`, {
+      method: "POST",
+      body: JSON.stringify({ message: smsMessage }),
+    }),
+    onSuccess: (data) => {
+      if (data.notConfigured) {
+        toast({ title: "SMS not configured", description: "Add Twilio credentials to enable SMS.", variant: "destructive" });
+      } else {
+        toast({ title: "SMS sent" });
+        setSmsMessage("");
+        setSmsOpen(false);
+      }
+    },
+    onError: (error) => toast({ title: "Could not send SMS", description: error.message, variant: "destructive" }),
   });
 
   React.useEffect(() => {
@@ -565,22 +585,58 @@ function MemberProfile({ memberId }: { memberId: number }) {
               <h1 className="text-3xl font-semibold tracking-tight">{member ? memberName(member) : "Loading member"}</h1>
             </div>
           </div>
-          {member && canEdit && (
-            <Dialog open={editOpen} onOpenChange={setEditOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={() => setForm(formFromMember(member))}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Edit Profile
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Edit Member</DialogTitle>
-                  <DialogDescription>Update member profile details. Admin role and giving data are not managed here.</DialogDescription>
-                </DialogHeader>
-                <MemberForm form={form} setForm={setForm} onSubmit={() => updateMember.mutate()} submitLabel="Save Changes" isSubmitting={updateMember.isPending} />
-              </DialogContent>
-            </Dialog>
+          {member && (
+            <div className="flex items-center gap-2">
+              <Dialog open={smsOpen} onOpenChange={setSmsOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" disabled={!member.phoneNumber}>
+                    <MessageSquare className="mr-2 h-4 w-4" />
+                    Send SMS
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Send SMS to {memberName(member)}</DialogTitle>
+                    <DialogDescription>
+                      Message will be sent to {member.phoneNumber ?? "no phone on file"}.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-3">
+                    <Textarea
+                      placeholder="Type your message…"
+                      rows={4}
+                      value={smsMessage}
+                      onChange={(e) => setSmsMessage(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">{smsMessage.length} / 160 characters</p>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setSmsOpen(false)}>Cancel</Button>
+                    <Button disabled={!smsMessage.trim() || sendSms.isPending} onClick={() => sendSms.mutate()}>
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      {sendSms.isPending ? "Sending…" : "Send Message"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              {canEdit && (
+                <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                  <DialogTrigger asChild>
+                    <Button onClick={() => setForm(formFromMember(member))}>
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Edit Profile
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Edit Member</DialogTitle>
+                      <DialogDescription>Update member profile details. Admin role and giving data are not managed here.</DialogDescription>
+                    </DialogHeader>
+                    <MemberForm form={form} setForm={setForm} onSubmit={() => updateMember.mutate()} submitLabel="Save Changes" isSubmitting={updateMember.isPending} />
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
           )}
         </div>
 

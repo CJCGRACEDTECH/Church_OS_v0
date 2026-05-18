@@ -12,6 +12,7 @@ import {
 } from "@workspace/db";
 import { ADMIN_PERMISSIONS } from "../lib/admin-permissions";
 import { requireAdminPermission, requireAuth } from "../middlewares/auth";
+import { formatFollowUpMessage, sendSms, SMS_ENABLED } from "../lib/sms";
 
 const router: IRouter = Router();
 const requireAttendanceManagement = requireAdminPermission(ADMIN_PERMISSIONS.ATTENDANCE_MANAGEMENT);
@@ -277,6 +278,35 @@ router.get("/admin/attendance/events", requireAttendanceManagement, async (req, 
     eventMode: eventsTable.eventMode,
   }).from(eventsTable).where(and(eq(eventsTable.churchId, churchId), eq(eventsTable.status, "published"))).orderBy(eventsTable.startDatetime).limit(50);
   res.json({ events: events.map((event) => ({ ...event, startDatetime: event.startDatetime.toISOString() })) });
+});
+
+router.post("/admin/attendance/sessions/:id/follow-up-sms", requireAttendanceManagement, async (req, res): Promise<void> => {
+  if (!SMS_ENABLED) {
+    res.json({ sent: 0, failed: 0, notConfigured: true });
+    return;
+  }
+  const sessionId = Number(req.params.id);
+  const churchId = await getRequesterChurchId(req.localUserId);
+  if (!Number.isInteger(sessionId) || !churchId) { res.status(400).json({ error: "Invalid session." }); return; }
+  const [session] = await db.select().from(attendanceSessionsTable).where(and(eq(attendanceSessionsTable.id, sessionId), eq(attendanceSessionsTable.churchId, churchId)));
+  if (!session) { res.status(404).json({ error: "Session not found." }); return; }
+  const records = await db.select({
+    memberId: attendanceRecordsTable.memberId,
+    firstName: usersTable.firstName,
+    lastName: usersTable.lastName,
+    phoneNumber: usersTable.phoneNumber,
+  }).from(attendanceRecordsTable)
+    .innerJoin(usersTable, eq(attendanceRecordsTable.memberId, usersTable.id))
+    .where(and(eq(attendanceRecordsTable.sessionId, sessionId), eq(attendanceRecordsTable.followUpNeeded, true)));
+  let sent = 0;
+  let failed = 0;
+  for (const record of records) {
+    if (!record.phoneNumber) { failed++; continue; }
+    const msg = formatFollowUpMessage(`${record.firstName} ${record.lastName}`, session.sessionName);
+    const result = await sendSms(record.phoneNumber, msg);
+    if (result.ok) sent++; else failed++;
+  }
+  res.json({ sent, failed, notConfigured: false });
 });
 
 router.get("/attendance/qr/:token", requireAuth, async (req, res): Promise<void> => {

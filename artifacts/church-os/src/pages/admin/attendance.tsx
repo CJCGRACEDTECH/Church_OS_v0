@@ -1,6 +1,7 @@
 import React from "react";
 import { Link, useRoute } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { QRCodeSVG } from "qrcode.react";
 import AdminLayout from "@/components/AdminLayout";
 import StatCard from "@/components/StatCard";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiJson, formatDate, formatDateTime, labelize, type AttendanceMember, type AttendanceRecord, type AttendanceSession } from "@/lib/attendance";
-import { ArrowLeft, BarChart3, CheckCircle2, Pencil, Plus, QrCode, Search, Users } from "lucide-react";
+import { ArrowLeft, BarChart3, CheckCircle2, MessageSquare, Pencil, Plus, Printer, QrCode, Search, Users } from "lucide-react";
 
 type SessionForm = {
   attendanceType: "regular_service" | "discipleship";
@@ -206,10 +207,33 @@ function AttendanceSessionDetail({ sessionId }: { sessionId: number }) {
     },
     onError: (error) => toast({ title: "Could not update session", description: error.message, variant: "destructive" }),
   });
+  const sendFollowUpSms = useMutation({
+    mutationFn: () => apiJson<{ sent: number; failed: number; notConfigured: boolean }>(`/admin/attendance/sessions/${sessionId}/follow-up-sms`, { method: "POST" }),
+    onSuccess: (data) => {
+      if (data.notConfigured) {
+        toast({ title: "SMS not configured", description: "Add Twilio credentials to enable SMS follow-ups.", variant: "destructive" });
+      } else {
+        toast({ title: `Follow-up SMS sent`, description: `${data.sent} sent · ${data.failed} failed` });
+      }
+    },
+    onError: (error) => toast({ title: "Could not send SMS", description: error.message, variant: "destructive" }),
+  });
+
   const session = sessionQuery.data?.session;
   const records = sessionQuery.data?.records ?? [];
   const qrUrl = session ? `${window.location.origin}/attendance/check-in/${session.qrToken}` : "";
-  const qrImage = qrUrl ? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(qrUrl)}` : "";
+  const followUpCount = records.filter((r) => r.followUpNeeded).length;
+
+  function handlePrintQr() {
+    const svg = document.getElementById("attendance-qr-svg");
+    if (!svg) return;
+    const win = window.open("", "_blank");
+    if (!win) return;
+    win.document.write(`<html><head><title>QR Check-In — ${session?.sessionName ?? ""}</title><style>body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;gap:16px} p{font-size:14px;color:#555;text-align:center}</style></head><body>${svg.outerHTML}<p>${session?.sessionName ?? ""}<br/>${qrUrl}</p></body></html>`);
+    win.document.close();
+    win.focus();
+    win.print();
+  }
 
   return (
     <AdminLayout>
@@ -248,9 +272,29 @@ function AttendanceSessionDetail({ sessionId }: { sessionId: number }) {
               <Card>
                 <CardHeader><CardTitle className="flex items-center gap-2"><QrCode className="h-5 w-5" /> QR Check-In</CardTitle><CardDescription>Members scan and check themselves in while logged in.</CardDescription></CardHeader>
                 <CardContent className="space-y-3">
-                  {session.qrEnabled ? <img src={qrImage} alt="Attendance QR code" className="mx-auto rounded-md border bg-white p-3" /> : <p className="text-sm text-muted-foreground">QR is disabled.</p>}
+                  {session.qrEnabled ? (
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="rounded-md border bg-white p-3">
+                        <QRCodeSVG id="attendance-qr-svg" value={qrUrl} size={200} level="M" includeMargin={false} />
+                      </div>
+                      <Button variant="outline" size="sm" className="w-full" onClick={handlePrintQr}>
+                        <Printer className="mr-2 h-4 w-4" />Print QR Code
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">QR is disabled.</p>
+                  )}
                   <p className="break-all rounded-md bg-muted p-2 text-xs">{qrUrl}</p>
                   <p className="text-xs text-muted-foreground">Expires {formatDateTime(session.qrExpiration)}</p>
+                  {followUpCount > 0 && (
+                    <div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-2">
+                      <p className="text-xs font-medium text-amber-800">{followUpCount} member{followUpCount !== 1 ? "s" : ""} flagged for follow-up</p>
+                      <Button size="sm" variant="outline" className="w-full border-amber-300 text-amber-800 hover:bg-amber-100" disabled={sendFollowUpSms.isPending} onClick={() => sendFollowUpSms.mutate()}>
+                        <MessageSquare className="mr-2 h-3.5 w-3.5" />
+                        {sendFollowUpSms.isPending ? "Sending…" : "Send Follow-up SMS"}
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
               <Card>

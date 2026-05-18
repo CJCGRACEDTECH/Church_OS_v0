@@ -9,6 +9,7 @@ import {
 } from "@workspace/db";
 import { ADMIN_PERMISSIONS } from "../lib/admin-permissions";
 import { requireAdminPermission } from "../middlewares/auth";
+import { sendSms, SMS_ENABLED } from "../lib/sms";
 
 const router: IRouter = Router();
 
@@ -265,6 +266,24 @@ router.patch("/admin/members/:id", requireProfileAccess, async (req, res): Promi
   } catch {
     res.status(409).json({ error: "A user with this email already exists." });
   }
+});
+
+router.post("/admin/members/:id/sms", requireProfileAccess, async (req, res): Promise<void> => {
+  if (!SMS_ENABLED) {
+    res.json({ ok: false, notConfigured: true });
+    return;
+  }
+  const memberId = Number(req.params.id);
+  const churchId = await getRequesterChurchId(req.localUserId!);
+  if (!Number.isInteger(memberId) || !churchId) { res.status(400).json({ error: "Invalid member." }); return; }
+  const message = typeof req.body.message === "string" ? req.body.message.trim() : "";
+  if (!message) { res.status(400).json({ error: "Message is required." }); return; }
+  const [member] = await db.select().from(usersTable).where(and(eq(usersTable.id, memberId), eq(usersTable.churchId, churchId), eq(usersTable.role, "member")));
+  if (!member) { res.status(404).json({ error: "Member not found." }); return; }
+  if (!member.phoneNumber) { res.status(422).json({ error: "Member has no phone number on file." }); return; }
+  const result = await sendSms(member.phoneNumber, message);
+  if (!result.ok) { res.status(502).json({ error: result.error ?? "SMS failed." }); return; }
+  res.json({ ok: true, notConfigured: false });
 });
 
 export default router;
