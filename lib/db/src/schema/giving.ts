@@ -1,10 +1,12 @@
 import { boolean, integer, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { churchesTable } from "./churches";
 import { usersTable } from "./users";
 
 export const givingCampaignsTable = pgTable("giving_campaigns", {
   id: serial("id").primaryKey(),
+  churchId: integer("church_id").notNull().references(() => churchesTable.id),
   campaignName: text("campaign_name").notNull(),
   description: text("description"),
   goalAmountCents: integer("goal_amount_cents").notNull().default(0),
@@ -20,6 +22,7 @@ export const givingCampaignsTable = pgTable("giving_campaigns", {
 
 export const donationsTable = pgTable("donations", {
   id: serial("id").primaryKey(),
+  churchId: integer("church_id").notNull().references(() => churchesTable.id),
   memberId: integer("member_id").notNull().references(() => usersTable.id),
   donorName: text("donor_name").notNull(),
   donorEmail: text("donor_email").notNull(),
@@ -41,6 +44,7 @@ export const donationsTable = pgTable("donations", {
 
 export const recurringDonationsTable = pgTable("recurring_donations", {
   id: serial("id").primaryKey(),
+  churchId: integer("church_id").notNull().references(() => churchesTable.id),
   memberId: integer("member_id").notNull().references(() => usersTable.id),
   stripeSubscriptionId: text("stripe_subscription_id"),
   stripeCustomerId: text("stripe_customer_id"),
@@ -58,6 +62,7 @@ export const recurringDonationsTable = pgTable("recurring_donations", {
 
 export const taxReceiptsTable = pgTable("tax_receipts", {
   id: serial("id").primaryKey(),
+  churchId: integer("church_id").notNull().references(() => churchesTable.id),
   memberId: integer("member_id").notNull().references(() => usersTable.id),
   year: integer("year").notNull(),
   totalAmountCents: integer("total_amount_cents").notNull().default(0),

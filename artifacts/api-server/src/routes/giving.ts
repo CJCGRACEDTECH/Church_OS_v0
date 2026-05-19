@@ -105,8 +105,8 @@ function serializeRecurring(recurring: RecurringDonation) {
   };
 }
 
-async function campaignRaised(campaignId: number) {
-  const rows = await db.select().from(donationsTable).where(and(eq(donationsTable.campaignId, campaignId), eq(donationsTable.paymentStatus, "succeeded")));
+async function campaignRaised(campaignId: number, churchId: number) {
+  const rows = await db.select().from(donationsTable).where(and(eq(donationsTable.campaignId, campaignId), eq(donationsTable.churchId, churchId), eq(donationsTable.paymentStatus, "succeeded")));
   return rows.reduce((sum, donation) => sum + donation.amountCents, 0);
 }
 
@@ -161,9 +161,9 @@ async function createStripeCheckout(params: {
   return { setupRequired: false, checkoutUrl: data.url ?? null, checkoutSessionId: data.id ?? null };
 }
 
-router.get("/giving/campaigns", requireAuth, async (_req, res) => {
-  const campaigns = await db.select().from(givingCampaignsTable).where(eq(givingCampaignsTable.status, "active")).orderBy(desc(givingCampaignsTable.createdAt));
-  res.json({ campaigns: await Promise.all(campaigns.map(async (campaign) => serializeCampaign(campaign, await campaignRaised(campaign.id)))) });
+router.get("/giving/campaigns", requireAuth, async (req, res) => {
+  const campaigns = await db.select().from(givingCampaignsTable).where(and(eq(givingCampaignsTable.churchId, req.localChurchId), eq(givingCampaignsTable.status, "active"))).orderBy(desc(givingCampaignsTable.createdAt));
+  res.json({ campaigns: await Promise.all(campaigns.map(async (campaign) => serializeCampaign(campaign, await campaignRaised(campaign.id, req.localChurchId)))) });
 });
 
 router.get("/giving/history", requireAuth, async (req, res): Promise<void> => {
@@ -188,6 +188,11 @@ router.post("/giving/checkout", requireAuth, async (req, res): Promise<void> => 
   const frequency = enumValue(req.body?.frequency, FREQUENCIES, "monthly");
   if (amountCents < 100) { res.status(400).json({ error: "Minimum giving amount is $1.00." }); return; }
 
+  if (campaignId) {
+    const [campaign] = await db.select({ id: givingCampaignsTable.id }).from(givingCampaignsTable).where(and(eq(givingCampaignsTable.id, campaignId), eq(givingCampaignsTable.churchId, req.localChurchId), eq(givingCampaignsTable.status, "active")));
+    if (!campaign) { res.status(400).json({ error: "Campaign not found or not available." }); return; }
+  }
+
   const checkout = await createStripeCheckout({
     mode: donationType === "recurring" ? "subscription" : "payment",
     amountCents,
@@ -205,6 +210,7 @@ router.post("/giving/checkout", requireAuth, async (req, res): Promise<void> => 
 
   const donorName = `${user.firstName} ${user.lastName}`;
   const [donation] = await db.insert(donationsTable).values({
+    churchId: req.localChurchId,
     memberId: user.id,
     donorName,
     donorEmail: user.email,
@@ -218,6 +224,7 @@ router.post("/giving/checkout", requireAuth, async (req, res): Promise<void> => 
 
   if (donationType === "recurring") {
     await db.insert(recurringDonationsTable).values({
+      churchId: req.localChurchId,
       memberId: user.id,
       amountCents,
       givingCategory: category,
@@ -246,13 +253,13 @@ router.get("/giving/receipts/:year", requireAuth, async (req, res): Promise<void
   res.send(receiptHtml({ user, donations, year }));
 });
 
-router.get("/admin/giving/summary", requireGivingManagement, async (_req, res) => {
+router.get("/admin/giving/summary", requireGivingManagement, async (req, res) => {
   const now = new Date();
   const yearStart = new Date(`${now.getFullYear()}-01-01T00:00:00Z`);
   const monthStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
-  const donations = await db.select().from(donationsTable);
+  const donations = await db.select().from(donationsTable).where(eq(donationsTable.churchId, req.localChurchId));
   const succeeded = donations.filter((donation) => donation.paymentStatus === "succeeded");
-  const campaigns = await db.select().from(givingCampaignsTable);
+  const campaigns = await db.select().from(givingCampaignsTable).where(eq(givingCampaignsTable.churchId, req.localChurchId));
   res.json({
     totalYearCents: succeeded.filter((donation) => donation.donationDate >= yearStart).reduce((sum, donation) => sum + donation.amountCents, 0),
     totalMonthCents: succeeded.filter((donation) => donation.donationDate >= monthStart).reduce((sum, donation) => sum + donation.amountCents, 0),
@@ -270,25 +277,26 @@ router.get("/admin/giving/donations", requireGivingManagement, async (req, res) 
   const category = typeof req.query.category === "string" ? req.query.category : "";
   const status = typeof req.query.status === "string" ? req.query.status : "";
   const filters = [
+    eq(donationsTable.churchId, req.localChurchId),
     ...(search ? [or(ilike(donationsTable.donorName, `%${search}%`), ilike(donationsTable.donorEmail, `%${search}%`))] : []),
     ...(year ? [gte(donationsTable.donationDate, new Date(`${year}-01-01T00:00:00Z`)), lte(donationsTable.donationDate, new Date(`${year}-12-31T23:59:59Z`))] : []),
     ...(CATEGORIES.has(category) ? [eq(donationsTable.givingCategory, category as typeof donationsTable.$inferSelect.givingCategory)] : []),
     ...(PAYMENT_STATUSES.has(status) ? [eq(donationsTable.paymentStatus, status as typeof donationsTable.$inferSelect.paymentStatus)] : []),
   ];
-  const donations = await db.select().from(donationsTable).where(filters.length ? and(...filters) : undefined).orderBy(desc(donationsTable.donationDate));
+  const donations = await db.select().from(donationsTable).where(and(...filters)).orderBy(desc(donationsTable.donationDate));
   res.json({ donations: donations.map(serializeDonation) });
 });
 
 router.patch("/admin/giving/donations/:id", requireGivingManagement, async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) { res.status(400).json({ error: "Invalid donation." }); return; }
-  const [donation] = await db.update(donationsTable).set({ taxDeductible: req.body?.taxDeductible === true }).where(eq(donationsTable.id, id)).returning();
+  const [donation] = await db.update(donationsTable).set({ taxDeductible: req.body?.taxDeductible === true }).where(and(eq(donationsTable.id, id), eq(donationsTable.churchId, req.localChurchId))).returning();
   if (!donation) { res.status(404).json({ error: "Donation not found." }); return; }
   res.json({ donation: serializeDonation(donation) });
 });
 
-router.get("/admin/giving/export.csv", requireGivingReports, async (_req, res) => {
-  const donations = await db.select().from(donationsTable).orderBy(desc(donationsTable.donationDate));
+router.get("/admin/giving/export.csv", requireGivingReports, async (req, res) => {
+  const donations = await db.select().from(donationsTable).where(eq(donationsTable.churchId, req.localChurchId)).orderBy(desc(donationsTable.donationDate));
   const rows = ["Donation ID,Donor Name,Donor Email,Amount,Date,Type,Category,Status,Tax Deductible"];
   donations.forEach((donation) => rows.push([
     donation.id,
@@ -306,15 +314,16 @@ router.get("/admin/giving/export.csv", requireGivingReports, async (_req, res) =
   res.send(rows.join("\n"));
 });
 
-router.get("/admin/giving/campaigns", requireGivingManagement, async (_req, res) => {
-  const campaigns = await db.select().from(givingCampaignsTable).orderBy(desc(givingCampaignsTable.createdAt));
-  res.json({ campaigns: await Promise.all(campaigns.map(async (campaign) => serializeCampaign(campaign, await campaignRaised(campaign.id)))) });
+router.get("/admin/giving/campaigns", requireGivingManagement, async (req, res) => {
+  const campaigns = await db.select().from(givingCampaignsTable).where(eq(givingCampaignsTable.churchId, req.localChurchId)).orderBy(desc(givingCampaignsTable.createdAt));
+  res.json({ campaigns: await Promise.all(campaigns.map(async (campaign) => serializeCampaign(campaign, await campaignRaised(campaign.id, req.localChurchId)))) });
 });
 
 router.post("/admin/giving/campaigns", requireCampaignManagement, async (req, res): Promise<void> => {
   const name = typeof req.body?.campaignName === "string" ? req.body.campaignName.trim() : "";
   if (!name) { res.status(400).json({ error: "Campaign name is required." }); return; }
   const [campaign] = await db.insert(givingCampaignsTable).values({
+    churchId: req.localChurchId,
     campaignName: name,
     description: textOrNull(req.body?.description),
     goalAmountCents: cents(req.body?.goalAmount),
@@ -340,9 +349,9 @@ router.patch("/admin/giving/campaigns/:id", requireCampaignManagement, async (re
     status: enumValue(req.body?.status, CAMPAIGN_STATUSES, "draft"),
     campaignImageUrl: textOrNull(req.body?.campaignImageUrl),
     campaignCategory: textOrNull(req.body?.campaignCategory),
-  }).where(eq(givingCampaignsTable.id, id)).returning();
+  }).where(and(eq(givingCampaignsTable.id, id), eq(givingCampaignsTable.churchId, req.localChurchId))).returning();
   if (!campaign) { res.status(404).json({ error: "Campaign not found." }); return; }
-  res.json({ campaign: serializeCampaign(campaign, await campaignRaised(campaign.id)) });
+  res.json({ campaign: serializeCampaign(campaign, await campaignRaised(campaign.id, req.localChurchId)) });
 });
 
 router.post("/giving/stripe/webhook", async (req, res): Promise<void> => {

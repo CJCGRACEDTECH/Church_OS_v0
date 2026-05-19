@@ -602,6 +602,7 @@ async function seed() {
 
     const values = {
       ...campaignInput,
+      churchId: church.id,
       startDate: new Date(campaignInput.startDate),
       endDate: new Date(campaignInput.endDate),
       createdByUserId: givingCreator?.id ?? null,
@@ -630,6 +631,7 @@ async function seed() {
 
     const campaignId = donationInput.campaignName ? campaignIds.get(donationInput.campaignName) ?? null : null;
     const values = {
+      churchId: church.id,
       memberId: donor.id,
       donorName: donationInput.donorName,
       donorEmail: donationInput.donorEmail,
@@ -657,6 +659,7 @@ async function seed() {
         .where(eq(schema.recurringDonationsTable.stripeSubscriptionId, donation.stripeSubscriptionId ?? ""));
 
       const recurringValues = {
+        churchId: church.id,
         memberId: donor.id,
         stripeSubscriptionId: donation.stripeSubscriptionId,
         stripeCustomerId: "cus_demo_member",

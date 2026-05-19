@@ -15,11 +15,12 @@ declare global {
     interface Request {
       localUserId: number;
       localUserRole: "admin" | "member";
+      localChurchId: number;
     }
   }
 }
 
-async function resolveDemoUser(req: Request): Promise<{ id: number; role: "admin" | "member" } | null> {
+async function resolveDemoUser(req: Request): Promise<{ id: number; role: "admin" | "member"; churchId: number } | null> {
   if (process.env.NODE_ENV === "production") return null;
 
   const secret = process.env.SESSION_SECRET ?? "dev-demo-secret";
@@ -42,17 +43,17 @@ async function resolveDemoUser(req: Request): Promise<{ id: number; role: "admin
     const userId = parseInt(payload.sub, 10);
     if (isNaN(userId)) return null;
     const [user] = await db
-      .select({ id: usersTable.id, role: usersTable.role, isActive: usersTable.isActive, accountStatus: usersTable.accountStatus })
+      .select({ id: usersTable.id, role: usersTable.role, churchId: usersTable.churchId, isActive: usersTable.isActive, accountStatus: usersTable.accountStatus })
       .from(usersTable)
       .where(eq(usersTable.id, userId));
     if (!user || !user.isActive || user.accountStatus !== "active") return null;
-    return { id: user.id, role: user.role as "admin" | "member" };
+    return { id: user.id, role: user.role as "admin" | "member", churchId: user.churchId };
   } catch {
     return null;
   }
 }
 
-async function resolveLocalUser(req: Request): Promise<{ id: number; role: "admin" | "member" } | null> {
+async function resolveLocalUser(req: Request): Promise<{ id: number; role: "admin" | "member"; churchId: number } | null> {
   const demoUser = await resolveDemoUser(req);
   if (demoUser) return demoUser;
   if (!process.env.CLERK_SECRET_KEY) return null;
@@ -64,6 +65,7 @@ async function resolveLocalUser(req: Request): Promise<{ id: number; role: "admi
     .select({
       id: usersTable.id,
       role: usersTable.role,
+      churchId: usersTable.churchId,
       isActive: usersTable.isActive,
       accountStatus: usersTable.accountStatus,
     })
@@ -71,7 +73,7 @@ async function resolveLocalUser(req: Request): Promise<{ id: number; role: "admi
     .where(eq(usersTable.clerkUserId, auth.userId));
 
   if (!user || !user.isActive || user.accountStatus !== "active") return null;
-  return { id: user.id, role: user.role };
+  return { id: user.id, role: user.role, churchId: user.churchId };
 }
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -82,6 +84,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   }
   req.localUserId = localUser.id;
   req.localUserRole = localUser.role;
+  req.localChurchId = localUser.churchId;
   next();
 }
 
@@ -98,6 +101,7 @@ export function requireRole(role: string) {
     }
     req.localUserId = localUser.id;
     req.localUserRole = localUser.role;
+    req.localChurchId = localUser.churchId;
     next();
   };
 }
@@ -116,6 +120,7 @@ export async function requireSuperAdmin(req: Request, res: Response, next: NextF
   }
   req.localUserId = localUser.id;
   req.localUserRole = localUser.role;
+  req.localChurchId = localUser.churchId;
   next();
 }
 
@@ -152,6 +157,7 @@ export function requireAdminPermission(permission: AdminPermission) {
 
     req.localUserId = localUser.id;
     req.localUserRole = localUser.role;
+    req.localChurchId = localUser.churchId;
     next();
   };
 }
