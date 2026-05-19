@@ -172,6 +172,10 @@ router.post("/admin/attendance/sessions", requireAttendanceManagement, async (re
     res.status(400).json({ error: "Session name, date, and QR expiration are required." });
     return;
   }
+  if (payload.sessionName.length > 255) {
+    res.status(400).json({ error: "Session name must be 255 characters or fewer." });
+    return;
+  }
   const values = { ...payload, sessionDate: payload.sessionDate, qrExpiration: payload.qrExpiration };
   const [session] = await db.insert(attendanceSessionsTable).values({
     churchId,
@@ -207,6 +211,10 @@ router.patch("/admin/attendance/sessions/:id", requireAttendanceManagement, asyn
   const payload = sessionPayload(req.body);
   if (!payload.sessionName || !payload.sessionDate || !payload.qrExpiration) {
     res.status(400).json({ error: "Session name, date, and QR expiration are required." });
+    return;
+  }
+  if (payload.sessionName.length > 255) {
+    res.status(400).json({ error: "Session name must be 255 characters or fewer." });
     return;
   }
   const values = { ...payload, sessionDate: payload.sessionDate, qrExpiration: payload.qrExpiration };

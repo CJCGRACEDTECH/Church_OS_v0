@@ -224,12 +224,23 @@ function AttendanceSessionDetail({ sessionId }: { sessionId: number }) {
   const qrUrl = session ? `${window.location.origin}/attendance/check-in/${session.qrToken}` : "";
   const followUpCount = records.filter((r) => r.followUpNeeded).length;
 
+  function escapeHtml(str: string): string {
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#x27;");
+  }
+
   function handlePrintQr() {
     const svg = document.getElementById("attendance-qr-svg");
     if (!svg) return;
     const win = window.open("", "_blank");
     if (!win) return;
-    win.document.write(`<html><head><title>QR Check-In — ${session?.sessionName ?? ""}</title><style>body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;gap:16px} p{font-size:14px;color:#555;text-align:center}</style></head><body>${svg.outerHTML}<p>${session?.sessionName ?? ""}<br/>${qrUrl}</p></body></html>`);
+    const safeName = escapeHtml(session?.sessionName ?? "");
+    const safeUrl = escapeHtml(qrUrl);
+    win.document.write(`<html><head><title>QR Check-In — ${safeName}</title><style>body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;gap:16px} p{font-size:14px;color:#555;text-align:center}</style></head><body>${svg.outerHTML}<p>${safeName}<br/>${safeUrl}</p></body></html>`);
     win.document.close();
     win.focus();
     win.print();
