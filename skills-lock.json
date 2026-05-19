@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "skills": {
+    "audit-website": {
+      "source": "squirrelscan/skills",
+      "sourceType": "github",
+      "skillPath": "audit-website/SKILL.md",
+      "computedHash": "2c060290f90340e8bb6009502ec936b8ebb3ff889332a43e24bf210528ebba9f"
+    },
+    "better-auth-best-practices": {
+      "source": "better-auth/skills",
+      "sourceType": "github",
+      "skillPath": "better-auth/best-practices/SKILL.md",
+      "computedHash": "a4c830509e85557b59339d8d93a4e243e9e59c686e7678854d39230e12c2a6dc"
+    },
+    "browser-use": {
+      "source": "browser-use/browser-use",
+      "sourceType": "github",
+      "skillPath": "skills/browser-use/SKILL.md",
+      "computedHash": "9f3a097275554dc44356f37d17d445d9c2b5b3579332fa93a1e9422f465f01bb"
+    },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "skillPath": "skills/frontend-design/SKILL.md",
+      "computedHash": "063a0e6448123cd359ad0044cc46b0e490cc7964d45ef4bb9fd842bd2ffbca67"
+    },
+    "supabase-postgres-best-practices": {
+      "source": "supabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/supabase-postgres-best-practices/SKILL.md",
+      "computedHash": "292c93e5a86e2429204bc37abe26b3c9023c4760eb02418462887f2082f118ce"
+    }
+  }
+}
