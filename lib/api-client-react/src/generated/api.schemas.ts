@@ -84,7 +84,6 @@ export interface UpdateProfileRequest {
   lastName: string;
   /** @nullable */
   preferredName?: string | null;
-  email: string;
   /** @nullable */
   phoneNumber?: string | null;
   /** @nullable */

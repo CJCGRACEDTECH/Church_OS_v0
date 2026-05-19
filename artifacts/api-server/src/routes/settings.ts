@@ -237,6 +237,9 @@ router.patch("/admin/users/:id", requireSuperAdmin, async (req, res): Promise<vo
   if (adminLevel !== undefined && !isAdminLevel(adminLevel)) { res.status(400).json({ error: "Invalid admin title." }); return; }
   if (accountStatus !== undefined && !["active", "pending", "disabled"].includes(accountStatus)) { res.status(400).json({ error: "Invalid account status." }); return; }
 
+  const churchId = await requesterChurchId(req.localUserId);
+  if (!churchId) { res.status(401).json({ error: "Requester not found." }); return; }
+
   const [updated] = await db.update(usersTable).set({
     firstName: cleanText(req.body?.firstName) ?? undefined,
     lastName: cleanText(req.body?.lastName) ?? undefined,
@@ -246,7 +249,7 @@ router.patch("/admin/users/:id", requireSuperAdmin, async (req, res): Promise<vo
     assignedMinistry: cleanText(req.body?.assignedMinistry),
     accountStatus,
     role: "admin",
-  }).where(and(eq(usersTable.id, id), eq(usersTable.role, "admin"))).returning();
+  }).where(and(eq(usersTable.id, id), eq(usersTable.role, "admin"), eq(usersTable.churchId, churchId))).returning();
 
   if (!updated) { res.status(404).json({ error: "Admin not found." }); return; }
   res.json({ admin: updated });
@@ -255,17 +258,24 @@ router.patch("/admin/users/:id", requireSuperAdmin, async (req, res): Promise<vo
 router.delete("/admin/users/:id/admin-access", requireSuperAdmin, async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || id === req.localUserId) { res.status(400).json({ error: "Invalid admin id." }); return; }
+
+  const churchId = await requesterChurchId(req.localUserId);
+  if (!churchId) { res.status(401).json({ error: "Requester not found." }); return; }
+
   const [updated] = await db.update(usersTable).set({
     role: "member",
     adminLevel: null,
     assignedMinistry: null,
     accountStatus: "active",
-  }).where(and(eq(usersTable.id, id), eq(usersTable.role, "admin"))).returning();
+  }).where(and(eq(usersTable.id, id), eq(usersTable.role, "admin"), eq(usersTable.churchId, churchId))).returning();
   if (!updated) { res.status(404).json({ error: "Admin not found." }); return; }
   res.json({ message: "Admin access removed." });
 });
 
-router.get("/admin/activity-log", requireAdminPermission(ADMIN_PERMISSIONS.ADMIN_MANAGEMENT), async (_req, res) => {
+router.get("/admin/activity-log", requireAdminPermission(ADMIN_PERMISSIONS.ADMIN_MANAGEMENT), async (req, res) => {
+  const churchId = await requesterChurchId(req.localUserId);
+  if (!churchId) { res.status(401).json({ error: "Requester not found." }); return; }
+
   const recentAdmins = await db.select({
     id: usersTable.id,
     firstName: usersTable.firstName,
@@ -273,9 +283,9 @@ router.get("/admin/activity-log", requireAdminPermission(ADMIN_PERMISSIONS.ADMIN
     email: usersTable.email,
     lastLoginAt: usersTable.lastLoginAt,
     accountStatus: usersTable.accountStatus,
-  }).from(usersTable).where(eq(usersTable.role, "admin"));
+  }).from(usersTable).where(and(eq(usersTable.role, "admin"), eq(usersTable.churchId, churchId)));
 
-  const recentInvites = await db.select().from(adminInvitationsTable);
+  const recentInvites = await db.select().from(adminInvitationsTable).where(eq(adminInvitationsTable.churchId, churchId));
   res.json({
     log: [
       ...recentAdmins.map((admin) => ({

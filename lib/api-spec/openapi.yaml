@@ -385,8 +385,6 @@ components:
           type:
             - string
             - "null"
-        email:
-          type: string
         phoneNumber:
           type:
             - string
@@ -450,7 +448,6 @@ components:
       required:
         - firstName
         - lastName
-        - email
 
     ChangePasswordRequest:
       type: object

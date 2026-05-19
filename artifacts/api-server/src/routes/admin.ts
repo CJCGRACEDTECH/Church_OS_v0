@@ -88,6 +88,11 @@ function reqLogger(email: string, inviteUrl: string) {
   console.info({ email, inviteUrl }, "Admin invite email fallback");
 }
 
+async function getRequesterChurchId(userId: number): Promise<number | null> {
+  const [user] = await db.select({ churchId: usersTable.churchId }).from(usersTable).where(eq(usersTable.id, userId));
+  return user?.churchId ?? null;
+}
+
 function serializeAdminUser(user: {
   id: number;
   email: string;
@@ -132,7 +137,10 @@ router.get("/admin/permission-catalog", requireRole("admin"), (_req, res) => {
   });
 });
 
-router.get("/admin/users", requireRole("admin"), async (_req, res): Promise<void> => {
+router.get("/admin/users", requireRole("admin"), async (req, res): Promise<void> => {
+  const churchId = await getRequesterChurchId(req.localUserId);
+  if (!churchId) { res.status(401).json({ error: "Requester not found." }); return; }
+
   const users = await db
     .select({
       id: usersTable.id,
@@ -149,7 +157,7 @@ router.get("/admin/users", requireRole("admin"), async (_req, res): Promise<void
       createdByUserId: usersTable.createdByUserId,
     })
     .from(usersTable)
-    .where(eq(usersTable.role, "admin"))
+    .where(and(eq(usersTable.role, "admin"), eq(usersTable.churchId, churchId)))
     .orderBy(desc(usersTable.createdAt));
 
   const payload = await Promise.all(users.map(async (user) => {
@@ -167,6 +175,9 @@ router.get("/admin/users/:id", requireRole("admin"), async (req, res): Promise<v
     return;
   }
 
+  const churchId = await getRequesterChurchId(req.localUserId);
+  if (!churchId) { res.status(401).json({ error: "Requester not found." }); return; }
+
   const [user] = await db
     .select({
       id: usersTable.id,
@@ -183,7 +194,7 @@ router.get("/admin/users/:id", requireRole("admin"), async (req, res): Promise<v
       createdByUserId: usersTable.createdByUserId,
     })
     .from(usersTable)
-    .where(and(eq(usersTable.id, id), eq(usersTable.role, "admin")));
+    .where(and(eq(usersTable.id, id), eq(usersTable.role, "admin"), eq(usersTable.churchId, churchId)));
 
   if (!user) {
     res.status(404).json({ error: "Admin not found." });
@@ -201,6 +212,9 @@ router.patch("/admin/users/:id/permissions", requireSuperAdmin, async (req, res)
     return;
   }
 
+  const churchId = await getRequesterChurchId(req.localUserId);
+  if (!churchId) { res.status(401).json({ error: "Requester not found." }); return; }
+
   const permissions = normalizePermissions(req.body?.permissions);
   const [target] = await db
     .select({
@@ -209,7 +223,7 @@ router.patch("/admin/users/:id/permissions", requireSuperAdmin, async (req, res)
       adminLevel: usersTable.adminLevel,
     })
     .from(usersTable)
-    .where(eq(usersTable.id, id));
+    .where(and(eq(usersTable.id, id), eq(usersTable.churchId, churchId)));
 
   if (!target || target.role !== "admin") {
     res.status(404).json({ error: "Admin not found." });
@@ -318,10 +332,14 @@ router.post("/admin/invitations", requireSuperAdmin, async (req, res): Promise<v
   });
 });
 
-router.get("/admin/invitations", requireSuperAdmin, async (_req, res): Promise<void> => {
+router.get("/admin/invitations", requireSuperAdmin, async (req, res): Promise<void> => {
+  const churchId = await getRequesterChurchId(req.localUserId);
+  if (!churchId) { res.status(401).json({ error: "Requester not found." }); return; }
+
   const invitations = await db
     .select()
     .from(adminInvitationsTable)
+    .where(eq(adminInvitationsTable.churchId, churchId))
     .orderBy(desc(adminInvitationsTable.createdAt));
 
   const now = new Date();
@@ -348,7 +366,7 @@ router.get("/admin/invitations/accept/:token", async (req, res): Promise<void> =
   const [invite] = await db
     .select()
     .from(adminInvitationsTable)
-    .where(eq(adminInvitationsTable.tokenHash, tokenHash(req.params.token)));
+    .where(eq(adminInvitationsTable.tokenHash, tokenHash(String(req.params.token))));
 
   if (!invite || invite.status !== "pending" || invite.expiresAt <= new Date()) {
     res.status(404).json({ error: "This invite is invalid or expired." });
@@ -367,11 +385,11 @@ router.get("/admin/invitations/accept/:token", async (req, res): Promise<void> =
   });
 });
 
-router.post("/admin/invitations/accept/:token", async (req, res): Promise<void> => {
+router.post("/admin/invitations/accept/:token", requireAuth, async (req, res): Promise<void> => {
   const [invite] = await db
     .select()
     .from(adminInvitationsTable)
-    .where(eq(adminInvitationsTable.tokenHash, tokenHash(req.params.token)));
+    .where(eq(adminInvitationsTable.tokenHash, tokenHash(String(req.params.token))));
 
   if (!invite || invite.status !== "pending" || invite.expiresAt <= new Date()) {
     if (invite?.status === "pending") {
@@ -381,22 +399,32 @@ router.post("/admin/invitations/accept/:token", async (req, res): Promise<void> 
     return;
   }
 
-  const [existingUser] = await db
+  const [acceptingUser] = await db
     .select({
       id: usersTable.id,
       email: usersTable.email,
+      churchId: usersTable.churchId,
       role: usersTable.role,
-      passwordHash: usersTable.passwordHash,
     })
     .from(usersTable)
-    .where(eq(usersTable.email, invite.email));
+    .where(eq(usersTable.id, req.localUserId));
 
-  if (!existingUser) {
-    res.status(404).json({ error: "No account found for this invite email. Sign in or sign up with the invited email address first." });
+  if (!acceptingUser) {
+    res.status(401).json({ error: "Authenticated user not found." });
     return;
   }
 
-  const userId = existingUser.id;
+  if (acceptingUser.email !== invite.email) {
+    res.status(403).json({ error: "This invite was sent to a different email address. Sign in with the invited email address to accept it." });
+    return;
+  }
+
+  if (acceptingUser.churchId !== invite.churchId) {
+    res.status(403).json({ error: "This invite is not valid for your account." });
+    return;
+  }
+
+  const userId = acceptingUser.id;
 
   await db
     .update(usersTable)

@@ -297,17 +297,6 @@ router.patch("/auth/profile", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const email = normalizeEmail(parsed.data.email);
-  const [conflict] = await db
-    .select({ id: usersTable.id })
-    .from(usersTable)
-    .where(eq(usersTable.email, email));
-
-  if (conflict && conflict.id !== req.localUserId) {
-    res.status(409).json({ error: "That email address is already in use." });
-    return;
-  }
-
   const nullable = (value?: string | null) => value?.trim() || null;
 
   await db
@@ -316,7 +305,6 @@ router.patch("/auth/profile", requireAuth, async (req, res): Promise<void> => {
       firstName: parsed.data.firstName.trim(),
       lastName: parsed.data.lastName.trim(),
       preferredName: nullable(parsed.data.preferredName),
-      email,
       phoneNumber: nullable(parsed.data.phoneNumber),
       profilePhotoUrl: nullable(parsed.data.profilePhotoUrl),
       dateOfBirth: parsed.data.dateOfBirth || null,

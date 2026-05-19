@@ -120,7 +120,6 @@ export const UpdateProfileBody = zod.object({
   firstName: zod.string(),
   lastName: zod.string(),
   preferredName: zod.string().nullish(),
-  email: zod.string(),
   phoneNumber: zod.string().nullish(),
   profilePhotoUrl: zod.string().nullish(),
   dateOfBirth: zod.string().nullish(),
