@@ -47,6 +47,27 @@ async function getRequesterChurchId(userId: number) {
   return user?.churchId ?? null;
 }
 
+function serializeMemberDirectory(user: typeof usersTable.$inferSelect) {
+  return {
+    id: user.id,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    preferredName: user.preferredName,
+    profilePhotoUrl: user.profilePhotoUrl,
+    email: user.email,
+    phoneNumber: user.phoneNumber,
+    gender: user.gender,
+    memberStatus: user.memberStatus,
+    ministryDepartment: user.ministryDepartment,
+    joinDate: user.joinDate,
+    baptismStatus: user.baptismStatus,
+    smallGroup: user.smallGroup,
+    servingStatus: user.servingStatus,
+    createdAt: user.createdAt.toISOString(),
+    updatedAt: user.updatedAt.toISOString(),
+  };
+}
+
 function serializeMember(user: typeof usersTable.$inferSelect) {
   return {
     id: user.id,
@@ -146,7 +167,7 @@ router.get("/admin/members", requireDirectoryAccess, async (req, res): Promise<v
   const departments = Array.from(new Set(members.map((member) => member.ministryDepartment).filter(Boolean))).sort();
 
   res.json({
-    members: members.map(serializeMember),
+    members: members.map(serializeMemberDirectory),
     filters: { ministryDepartments: departments },
   });
 });
