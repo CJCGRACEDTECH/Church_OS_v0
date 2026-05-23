@@ -71,8 +71,14 @@ router.get("/admin/dashboard/summary", requireRole("admin"), async (req, res): P
 
   const [checkedInRow] = await db
     .select({ c: count() })
-    .from(childrenTable)
-    .where(and(eq(childrenTable.churchId, churchId), eq(childrenTable.checkinStatus, "checked_in")));
+    .from(checkinRecordsTable)
+    .innerJoin(childrenTable, eq(checkinRecordsTable.childId, childrenTable.id))
+    .where(and(
+      eq(childrenTable.churchId, churchId),
+      eq(checkinRecordsTable.status, "active"),
+      gte(checkinRecordsTable.checkinTime, startOfToday),
+      isNull(checkinRecordsTable.checkoutTime),
+    ));
 
   const recentSessions = await db
     .select({ id: attendanceSessionsTable.id, sessionName: attendanceSessionsTable.sessionName, sessionDate: attendanceSessionsTable.sessionDate })

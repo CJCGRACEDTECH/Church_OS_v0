@@ -3,21 +3,23 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth-context";
 import AdminLayout from "@/components/AdminLayout";
 import StatCard from "@/components/StatCard";
-import EventsFeed from "@/components/EventsFeed";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { apiJson, dollars, labelize, type GivingCampaign } from "@/lib/giving";
+import { apiJson as eventsApiJson, formatDateTimeRange, labelize as eventLabelize, type ChurchEvent } from "@/lib/events";
 import {
   Activity,
   BadgeDollarSign,
   BarChart3,
+  CalendarDays,
   Megaphone,
   Smile,
   UserPlus,
   Users,
+  Video,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -45,6 +47,7 @@ type ActivityLogEntry = {
   label: string;
   detail: string;
   status: string;
+  timestamp: string | null;
 };
 
 function initials(first: string, last: string) {
@@ -150,7 +153,7 @@ export default function AdminDashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <EventsFeed detailBasePath="/admin/services" />
+          <AdminUpcomingEventsCard />
           <AttendanceTrendCard
             trend={summary?.attendanceTrend ?? []}
             isLoading={summaryQuery.isLoading}
@@ -386,18 +389,107 @@ function ActivityFeedCard({
         )}
         {!isLoading &&
           !isError &&
-          log.slice(0, 8).map((entry, i) => (
-            <div key={i} className="flex items-center gap-3 rounded-md border p-3">
-              <div className="h-2 w-2 rounded-full shrink-0 bg-primary/60" />
+          log.slice(0, 10).map((entry, i) => (
+            <div key={i} className="flex items-start gap-3 rounded-md border p-3">
+              <div className="h-2 w-2 rounded-full shrink-0 bg-primary/60 mt-1.5" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium truncate">{entry.label}</p>
                 <p className="text-xs text-muted-foreground truncate">{entry.detail}</p>
+                {entry.timestamp && (
+                  <p className="text-[11px] text-muted-foreground/70 mt-0.5">
+                    {formatDistanceToNow(new Date(entry.timestamp), { addSuffix: true })}
+                  </p>
+                )}
               </div>
               <Badge variant="outline" className="shrink-0 capitalize text-xs">
                 {entry.status}
               </Badge>
             </div>
           ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function AdminUpcomingEventsCard() {
+  const now = new Date().toISOString();
+  const eventsQuery = useQuery({
+    queryKey: ["dashboard-admin-events"],
+    queryFn: () => eventsApiJson<{ events: ChurchEvent[] }>(`/admin/events?start=${now}&limit=5`),
+  });
+  const events = eventsQuery.data?.events ?? [];
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between gap-4">
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            <CalendarDays className="h-5 w-5" /> Upcoming Services & Events
+          </CardTitle>
+          <CardDescription>Next 5 services and events on the calendar.</CardDescription>
+        </div>
+        <Button asChild size="sm" variant="outline">
+          <Link href="/admin/services">Manage</Link>
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {eventsQuery.isLoading && <SkeletonList rows={4} />}
+        {eventsQuery.isError && (
+          <EmptyState message="Could not load upcoming events." isError />
+        )}
+        {!eventsQuery.isLoading && !eventsQuery.isError && events.length === 0 && (
+          <EmptyState
+            message="No upcoming services or events scheduled."
+            actionHref="/admin/services"
+            actionLabel="Create Event"
+          />
+        )}
+        {!eventsQuery.isLoading &&
+          !eventsQuery.isError &&
+          events.map((event) => {
+            const start = event.occurrenceStartDatetime ?? event.startDatetime;
+            const dateLabel = new Date(start).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            });
+            const timeLabel = new Date(start).toLocaleTimeString("en-US", {
+              hour: "numeric",
+              minute: "2-digit",
+            });
+            return (
+              <div
+                key={`${event.id}-${start}`}
+                className="flex items-start justify-between gap-3 rounded-md border p-3"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="inline-flex items-center gap-1 text-xs font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                      {dateLabel}
+                    </span>
+                    <Badge variant="secondary" className="text-xs">
+                      {eventLabelize(event.eventType)}
+                    </Badge>
+                    {event.eventMode !== "in_person" && (
+                      <Badge variant="outline" className="text-xs">
+                        <Video className="mr-1 h-3 w-3" />
+                        {eventLabelize(event.eventMode)}
+                      </Badge>
+                    )}
+                    {event.status === "cancelled" && (
+                      <Badge variant="destructive" className="text-xs">Cancelled</Badge>
+                    )}
+                  </div>
+                  <p className="font-medium truncate">{event.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {timeLabel}{event.location ? ` · ${event.location}` : ""}
+                  </p>
+                </div>
+                <Button asChild variant="outline" size="sm" className="shrink-0">
+                  <Link href={`/admin/services/${event.id}`}>View</Link>
+                </Button>
+              </div>
+            );
+          })}
       </CardContent>
     </Card>
   );

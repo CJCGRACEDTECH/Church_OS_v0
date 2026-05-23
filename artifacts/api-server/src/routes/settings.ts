@@ -291,16 +291,27 @@ router.get("/admin/activity-log", requireAdminPermission(ADMIN_PERMISSIONS.ADMIN
       ...recentAdmins.map((admin) => ({
         type: "admin_login",
         label: `${admin.firstName} ${admin.lastName}`,
-        detail: admin.lastLoginAt ? `Last login ${admin.lastLoginAt.toISOString()}` : "No login recorded",
+        detail: admin.lastLoginAt ? "Signed in to Church OS" : "Has not signed in yet",
         status: admin.accountStatus,
+        timestamp: admin.lastLoginAt?.toISOString() ?? null,
       })),
       ...recentInvites.map((invite) => ({
         type: "admin_invite",
         label: `${invite.firstName} ${invite.lastName}`,
-        detail: `Invite ${invite.status} for ${invite.email}`,
+        detail: invite.status === "accepted"
+          ? `Accepted admin invite (${invite.email})`
+          : invite.status === "expired"
+            ? `Invite expired for ${invite.email}`
+            : `Admin invite sent to ${invite.email}`,
         status: invite.status,
+        timestamp: invite.status === "accepted" && invite.acceptedAt
+          ? invite.acceptedAt.toISOString()
+          : invite.createdAt.toISOString(),
       })),
-    ].slice(0, 20),
+    ]
+      .filter((entry) => entry.timestamp != null)
+      .sort((a, b) => new Date(b.timestamp!).getTime() - new Date(a.timestamp!).getTime())
+      .slice(0, 20),
   });
 });
 
