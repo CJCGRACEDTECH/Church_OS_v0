@@ -163,7 +163,7 @@ function AttendanceDashboard() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard label="Total Today" value={summary ? `${summary.totalToday} / ${summary.totalMembers}` : "—"} trend="Members present today" />
           <StatCard label="Active Sessions" value={String(summary?.activeSessions ?? 0)} trend="Open now" />
-          <StatCard label="Weekly Attendance" value={summary ? `${summary.weeklyAttendance} / ${summary.totalMembers}` : "—"} trend="Members present this week" />
+          <StatCard label="Avg. Attendance" value={summary ? `${summary.regularAvgAttendance} / ${summary.totalMembers}` : "—"} trend="Per regular service session" />
           <StatCard label="Discipleship" value={String(summary?.discipleshipAttendance ?? 0)} trend="Friday groups" />
         </div>
 
