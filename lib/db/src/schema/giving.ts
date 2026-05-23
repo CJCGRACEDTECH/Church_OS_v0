@@ -38,6 +38,7 @@ export const donationsTable = pgTable("donations", {
   stripeReceiptUrl: text("stripe_receipt_url"),
   paymentStatus: text("payment_status", { enum: ["pending", "succeeded", "failed", "refunded"] }).notNull().default("pending"),
   taxDeductible: boolean("tax_deductible").notNull().default(true),
+  receiptIssued: boolean("receipt_issued").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

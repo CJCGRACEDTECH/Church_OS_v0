@@ -64,6 +64,7 @@ function serializeDonation(donation: Donation) {
     stripeReceiptUrl: donation.stripeReceiptUrl,
     paymentStatus: donation.paymentStatus,
     taxDeductible: donation.taxDeductible,
+    receiptIssued: donation.receiptIssued,
     createdAt: donation.createdAt.toISOString(),
     updatedAt: donation.updatedAt.toISOString(),
   };
@@ -259,13 +260,16 @@ router.get("/admin/giving/summary", requireGivingManagement, async (req, res) =>
   const monthStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
   const donations = await db.select().from(donationsTable).where(eq(donationsTable.churchId, req.localChurchId));
   const succeeded = donations.filter((donation) => donation.paymentStatus === "succeeded");
+  const succeededYear = succeeded.filter((donation) => donation.donationDate >= yearStart);
   const campaigns = await db.select().from(givingCampaignsTable).where(eq(givingCampaignsTable.churchId, req.localChurchId));
+  const totalYearCents = succeededYear.reduce((sum, donation) => sum + donation.amountCents, 0);
   res.json({
-    totalYearCents: succeeded.filter((donation) => donation.donationDate >= yearStart).reduce((sum, donation) => sum + donation.amountCents, 0),
+    totalYearCents,
     totalMonthCents: succeeded.filter((donation) => donation.donationDate >= monthStart).reduce((sum, donation) => sum + donation.amountCents, 0),
     recurringCents: succeeded.filter((donation) => donation.donationType === "recurring").reduce((sum, donation) => sum + donation.amountCents, 0),
     campaignRaisedCents: succeeded.filter((donation) => donation.campaignId).reduce((sum, donation) => sum + donation.amountCents, 0),
     donorsCount: new Set(succeeded.map((donation) => donation.memberId)).size,
+    avgGiftCents: succeededYear.length > 0 ? Math.round(totalYearCents / succeededYear.length) : 0,
     failedPayments: donations.filter((donation) => donation.paymentStatus === "failed").length,
     activeCampaigns: campaigns.filter((campaign) => campaign.status === "active").length,
   });
@@ -274,12 +278,15 @@ router.get("/admin/giving/summary", requireGivingManagement, async (req, res) =>
 router.get("/admin/giving/donations", requireGivingManagement, async (req, res) => {
   const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
   const year = typeof req.query.year === "string" ? Number(req.query.year) : null;
+  const fromDate = typeof req.query.fromDate === "string" ? req.query.fromDate : null;
+  const toDate = typeof req.query.toDate === "string" ? req.query.toDate : null;
   const category = typeof req.query.category === "string" ? req.query.category : "";
   const status = typeof req.query.status === "string" ? req.query.status : "";
   const filters = [
     eq(donationsTable.churchId, req.localChurchId),
     ...(search ? [or(ilike(donationsTable.donorName, `%${search}%`), ilike(donationsTable.donorEmail, `%${search}%`))] : []),
-    ...(year ? [gte(donationsTable.donationDate, new Date(`${year}-01-01T00:00:00Z`)), lte(donationsTable.donationDate, new Date(`${year}-12-31T23:59:59Z`))] : []),
+    ...(fromDate ? [gte(donationsTable.donationDate, new Date(fromDate))] : year ? [gte(donationsTable.donationDate, new Date(`${year}-01-01T00:00:00Z`))] : []),
+    ...(toDate ? [lte(donationsTable.donationDate, new Date(`${toDate}T23:59:59Z`))] : year ? [lte(donationsTable.donationDate, new Date(`${year}-12-31T23:59:59Z`))] : []),
     ...(CATEGORIES.has(category) ? [eq(donationsTable.givingCategory, category as typeof donationsTable.$inferSelect.givingCategory)] : []),
     ...(PAYMENT_STATUSES.has(status) ? [eq(donationsTable.paymentStatus, status as typeof donationsTable.$inferSelect.paymentStatus)] : []),
   ];
@@ -290,28 +297,51 @@ router.get("/admin/giving/donations", requireGivingManagement, async (req, res) 
 router.patch("/admin/giving/donations/:id", requireGivingManagement, async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) { res.status(400).json({ error: "Invalid donation." }); return; }
-  const [donation] = await db.update(donationsTable).set({ taxDeductible: req.body?.taxDeductible === true }).where(and(eq(donationsTable.id, id), eq(donationsTable.churchId, req.localChurchId))).returning();
+  const updates: Partial<{ taxDeductible: boolean; receiptIssued: boolean }> = {};
+  if (typeof req.body?.taxDeductible === "boolean") updates.taxDeductible = req.body.taxDeductible;
+  if (typeof req.body?.receiptIssued === "boolean") updates.receiptIssued = req.body.receiptIssued;
+  if (Object.keys(updates).length === 0) { res.status(400).json({ error: "No valid fields to update." }); return; }
+  const [donation] = await db.update(donationsTable).set(updates).where(and(eq(donationsTable.id, id), eq(donationsTable.churchId, req.localChurchId))).returning();
   if (!donation) { res.status(404).json({ error: "Donation not found." }); return; }
   res.json({ donation: serializeDonation(donation) });
 });
 
 router.get("/admin/giving/export.csv", requireGivingReports, async (req, res) => {
-  const donations = await db.select().from(donationsTable).where(eq(donationsTable.churchId, req.localChurchId)).orderBy(desc(donationsTable.donationDate));
-  const rows = ["Donation ID,Donor Name,Donor Email,Amount,Date,Type,Category,Status,Tax Deductible"];
-  donations.forEach((donation) => rows.push([
-    donation.id,
-    JSON.stringify(donation.donorName),
-    donation.donorEmail,
-    (donation.amountCents / 100).toFixed(2),
-    donation.donationDate.toISOString(),
-    donation.donationType,
-    donation.givingCategory,
-    donation.paymentStatus,
-    donation.taxDeductible ? "yes" : "no",
+  const rows = await db
+    .select({
+      id: donationsTable.id,
+      donorName: donationsTable.donorName,
+      donorEmail: donationsTable.donorEmail,
+      amountCents: donationsTable.amountCents,
+      donationDate: donationsTable.donationDate,
+      donationType: donationsTable.donationType,
+      givingCategory: donationsTable.givingCategory,
+      paymentStatus: donationsTable.paymentStatus,
+      taxDeductible: donationsTable.taxDeductible,
+      receiptIssued: donationsTable.receiptIssued,
+      campaignName: givingCampaignsTable.campaignName,
+    })
+    .from(donationsTable)
+    .leftJoin(givingCampaignsTable, eq(donationsTable.campaignId, givingCampaignsTable.id))
+    .where(eq(donationsTable.churchId, req.localChurchId))
+    .orderBy(desc(donationsTable.donationDate));
+  const csvRows = ["Donation ID,Donor Name,Donor Email,Amount,Date,Type,Category,Campaign,Status,Tax Deductible,Receipt Issued"];
+  rows.forEach((row) => csvRows.push([
+    row.id,
+    JSON.stringify(row.donorName),
+    row.donorEmail,
+    (row.amountCents / 100).toFixed(2),
+    row.donationDate.toISOString(),
+    row.donationType,
+    row.givingCategory,
+    JSON.stringify(row.campaignName ?? ""),
+    row.paymentStatus,
+    row.taxDeductible ? "yes" : "no",
+    row.receiptIssued ? "yes" : "no",
   ].join(",")));
   res.setHeader("content-type", "text/csv");
   res.setHeader("content-disposition", "attachment; filename=giving-records.csv");
-  res.send(rows.join("\n"));
+  res.send(csvRows.join("\n"));
 });
 
 router.get("/admin/giving/campaigns", requireGivingManagement, async (req, res) => {

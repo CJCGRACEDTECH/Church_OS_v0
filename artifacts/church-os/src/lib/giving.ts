@@ -21,6 +21,7 @@ export type Donation = {
   stripeReceiptUrl: string | null;
   paymentStatus: PaymentStatus;
   taxDeductible: boolean;
+  receiptIssued: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -63,6 +64,7 @@ export type GivingSummary = {
   recurringCents: number;
   campaignRaisedCents: number;
   donorsCount: number;
+  avgGiftCents: number;
   failedPayments: number;
   activeCampaigns: number;
 };

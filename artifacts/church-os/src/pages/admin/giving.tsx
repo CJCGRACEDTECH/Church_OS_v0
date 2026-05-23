@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -25,7 +26,7 @@ import {
   type GivingSummary,
   type PaymentStatus,
 } from "@/lib/giving";
-import { Download, Megaphone, Pencil, Plus, Search, ShieldCheck } from "lucide-react";
+import { Download, Megaphone, Pencil, Plus, Search, ShieldCheck, Users } from "lucide-react";
 
 type CampaignForm = {
   campaignName: string;
@@ -36,6 +37,12 @@ type CampaignForm = {
   campaignImageUrl: string;
   startDate: string;
   endDate: string;
+};
+
+type CampaignErrors = {
+  campaignName?: string;
+  goalAmount?: string;
+  endDate?: string;
 };
 
 const emptyCampaignForm: CampaignForm = {
@@ -62,15 +69,29 @@ function campaignToForm(campaign: GivingCampaign): CampaignForm {
   };
 }
 
+function validateCampaignForm(form: CampaignForm): CampaignErrors {
+  const errors: CampaignErrors = {};
+  if (!form.campaignName.trim()) errors.campaignName = "Campaign name is required.";
+  if (Number(form.goalAmount) <= 0) errors.goalAmount = "Goal amount must be greater than $0.";
+  if (form.endDate && new Date(form.endDate) < new Date(new Date().toDateString())) {
+    errors.endDate = "End date must be today or in the future.";
+  }
+  return errors;
+}
+
+const thisYear = new Date().getFullYear();
+
 export default function AdminGiving() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [search, setSearch] = React.useState("");
-  const [year, setYear] = React.useState(String(new Date().getFullYear()));
+  const [fromDate, setFromDate] = React.useState(`${thisYear}-01-01`);
+  const [toDate, setToDate] = React.useState(`${thisYear}-12-31`);
   const [category, setCategory] = React.useState("");
   const [status, setStatus] = React.useState("");
   const [campaignOpen, setCampaignOpen] = React.useState(false);
   const [campaignForm, setCampaignForm] = React.useState<CampaignForm>(emptyCampaignForm);
+  const [campaignErrors, setCampaignErrors] = React.useState<CampaignErrors>({});
   const [editingCampaign, setEditingCampaign] = React.useState<GivingCampaign | null>(null);
 
   async function exportCsv() {
@@ -99,11 +120,12 @@ export default function AdminGiving() {
   });
 
   const donationsQuery = useQuery({
-    queryKey: ["admin-giving-donations", search, year, category, status],
+    queryKey: ["admin-giving-donations", search, fromDate, toDate, category, status],
     queryFn: () => {
       const params = new URLSearchParams();
       if (search.trim()) params.set("search", search.trim());
-      if (year.trim()) params.set("year", year.trim());
+      if (fromDate) params.set("fromDate", fromDate);
+      if (toDate) params.set("toDate", toDate);
       if (category) params.set("category", category);
       if (status) params.set("status", status);
       return apiJson<{ donations: Donation[] }>(`/admin/giving/donations?${params}`);
@@ -114,6 +136,17 @@ export default function AdminGiving() {
     queryKey: ["admin-giving-campaigns"],
     queryFn: () => apiJson<{ campaigns: GivingCampaign[] }>("/admin/giving/campaigns"),
   });
+
+  function submitCampaign() {
+    const errors = validateCampaignForm(campaignForm);
+    setCampaignErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+    if (editingCampaign) {
+      updateCampaign.mutate();
+    } else {
+      createCampaign.mutate();
+    }
+  }
 
   const createCampaign = useMutation({
     mutationFn: () => apiJson<{ campaign: GivingCampaign }>("/admin/giving/campaigns", {
@@ -128,6 +161,7 @@ export default function AdminGiving() {
     onSuccess: () => {
       setCampaignOpen(false);
       setCampaignForm(emptyCampaignForm);
+      setCampaignErrors({});
       toast({ title: "Campaign created" });
       void queryClient.invalidateQueries({ queryKey: ["admin-giving-campaigns"] });
       void queryClient.invalidateQueries({ queryKey: ["admin-giving-summary"] });
@@ -152,6 +186,7 @@ export default function AdminGiving() {
       setCampaignOpen(false);
       setEditingCampaign(null);
       setCampaignForm(emptyCampaignForm);
+      setCampaignErrors({});
       toast({ title: "Campaign updated" });
       void queryClient.invalidateQueries({ queryKey: ["admin-giving-campaigns"] });
       void queryClient.invalidateQueries({ queryKey: ["admin-giving-summary"] });
@@ -162,22 +197,24 @@ export default function AdminGiving() {
   function openNewCampaign() {
     setEditingCampaign(null);
     setCampaignForm(emptyCampaignForm);
+    setCampaignErrors({});
     setCampaignOpen(true);
   }
 
   function openEditCampaign(campaign: GivingCampaign) {
     setEditingCampaign(campaign);
     setCampaignForm(campaignToForm(campaign));
+    setCampaignErrors({});
     setCampaignOpen(true);
   }
 
-  const updateTaxStatus = useMutation({
-    mutationFn: ({ id, taxDeductible }: { id: number; taxDeductible: boolean }) => apiJson<{ donation: Donation }>(`/admin/giving/donations/${id}`, {
+  const updateReceiptStatus = useMutation({
+    mutationFn: ({ id, receiptIssued }: { id: number; receiptIssued: boolean }) => apiJson<{ donation: Donation }>(`/admin/giving/donations/${id}`, {
       method: "PATCH",
-      body: JSON.stringify({ taxDeductible }),
+      body: JSON.stringify({ receiptIssued }),
     }),
     onSuccess: () => {
-      toast({ title: "Donation updated" });
+      toast({ title: "Receipt status updated" });
       void queryClient.invalidateQueries({ queryKey: ["admin-giving-donations"] });
     },
     onError: (error) => toast({ title: "Could not update donation", description: error.message, variant: "destructive" }),
@@ -186,6 +223,8 @@ export default function AdminGiving() {
   const summary = summaryQuery.data;
   const donations = donationsQuery.data?.donations ?? [];
   const campaigns = campaignsQuery.data?.campaigns ?? [];
+  const isLoadingSummary = summaryQuery.isLoading;
+  const isLoadingDonations = donationsQuery.isLoading;
 
   return (
     <AdminLayout>
@@ -208,8 +247,9 @@ export default function AdminGiving() {
                 </DialogHeader>
                 <CampaignFormView
                   form={campaignForm}
-                  setForm={setCampaignForm}
-                  onSubmit={() => editingCampaign ? updateCampaign.mutate() : createCampaign.mutate()}
+                  errors={campaignErrors}
+                  setForm={(f) => { setCampaignForm(f); setCampaignErrors({}); }}
+                  onSubmit={submitCampaign}
                   isSubmitting={createCampaign.isPending || updateCampaign.isPending}
                   submitLabel={editingCampaign ? "Save Changes" : "Create Campaign"}
                 />
@@ -218,11 +258,21 @@ export default function AdminGiving() {
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Giving This Year" value={dollars(summary?.totalYearCents ?? 0)} trend="Succeeded donations" />
-          <StatCard label="Giving This Month" value={dollars(summary?.totalMonthCents ?? 0)} trend="Current month" />
-          <StatCard label="Recurring Giving" value={dollars(summary?.recurringCents ?? 0)} trend="Succeeded recurring gifts" />
-          <StatCard label="Active Campaigns" value={String(summary?.activeCampaigns ?? 0)} trend={`${summary?.failedPayments ?? 0} failed payments`} />
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {isLoadingSummary ? (
+            Array.from({ length: 6 }).map((_, i) => (
+              <Card key={i}><CardContent className="p-6"><Skeleton className="h-4 w-28 mb-3" /><Skeleton className="h-8 w-20" /></CardContent></Card>
+            ))
+          ) : (
+            <>
+              <StatCard label="Giving This Year" value={dollars(summary?.totalYearCents ?? 0)} trend="YTD succeeded donations" />
+              <StatCard label="Giving This Month" value={dollars(summary?.totalMonthCents ?? 0)} trend="Current month" />
+              <StatCard label="Avg Gift (YTD)" value={dollars(summary?.avgGiftCents ?? 0)} trend="Average gift size this year" />
+              <StatCard label="Unique Donors" value={String(summary?.donorsCount ?? 0)} trend="Members who have given" />
+              <StatCard label="Recurring Giving" value={dollars(summary?.recurringCents ?? 0)} trend="Succeeded recurring gifts" />
+              <StatCard label="Active Campaigns" value={String(summary?.activeCampaigns ?? 0)} trend={`${summary?.failedPayments ?? 0} failed payment${(summary?.failedPayments ?? 0) !== 1 ? "s" : ""}`} />
+            </>
+          )}
         </div>
 
         <Card>
@@ -235,15 +285,16 @@ export default function AdminGiving() {
         <Card>
           <CardHeader>
             <CardTitle>Giving Records</CardTitle>
-            <CardDescription>Search donations, review payment status, and mark tax-deductible records.</CardDescription>
+            <CardDescription>Search donations, filter by date range, and mark tax receipts issued.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-[1fr_120px_180px_160px]">
+            <div className="grid gap-3 md:grid-cols-[1fr_160px_160px_180px_160px]">
               <div className="relative">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input className="pl-9" placeholder="Search donor name or email" value={search} onChange={(event) => setSearch(event.target.value)} />
               </div>
-              <Input value={year} onChange={(event) => setYear(event.target.value)} placeholder="Year" />
+              <Input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} title="From date" />
+              <Input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} title="To date" />
               <select value={category} onChange={(event) => setCategory(event.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
                 <option value="">All categories</option>
                 <option value="tithe">Tithe</option>
@@ -263,24 +314,62 @@ export default function AdminGiving() {
             </div>
             <div className="rounded-md border">
               <Table>
-                <TableHeader><TableRow><TableHead>Donor</TableHead><TableHead>Date</TableHead><TableHead>Category</TableHead><TableHead>Status</TableHead><TableHead>Tax</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Donor</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Receipt</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
                 <TableBody>
-                  {donations.map((donation) => (
-                    <TableRow key={donation.id}>
-                      <TableCell>
-                        <div className="font-medium">{donation.donorName}</div>
-                        <div className="text-xs text-muted-foreground">{donation.donorEmail}</div>
+                  {isLoadingDonations ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-6" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                      </TableRow>
+                    ))
+                  ) : donations.length > 0 ? (
+                    donations.map((donation) => (
+                      <TableRow key={donation.id}>
+                        <TableCell>
+                          <div className="font-medium">{donation.donorName}</div>
+                          <div className="text-xs text-muted-foreground">{donation.donorEmail}</div>
+                        </TableCell>
+                        <TableCell>{formatDate(donation.donationDate)}</TableCell>
+                        <TableCell>{labelize(donation.givingCategory)}</TableCell>
+                        <TableCell><Badge variant={statusVariant(donation.paymentStatus)}>{labelize(donation.paymentStatus)}</Badge></TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              checked={donation.receiptIssued}
+                              onCheckedChange={(checked) => updateReceiptStatus.mutate({ id: donation.id, receiptIssued: checked === true })}
+                              aria-label="Tax receipt issued"
+                            />
+                            <span className="text-xs text-muted-foreground hidden sm:inline">Issued</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right font-medium">{dollars(donation.amountCents)}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-12 text-center">
+                        <div className="flex flex-col items-center gap-2">
+                          <Users className="h-8 w-8 text-muted-foreground/40" />
+                          <p className="font-medium text-muted-foreground">No donations recorded yet</p>
+                          <p className="text-sm text-muted-foreground">Set up Stripe to accept online giving, or adjust your date filters.</p>
+                        </div>
                       </TableCell>
-                      <TableCell>{formatDate(donation.donationDate)}</TableCell>
-                      <TableCell>{labelize(donation.givingCategory)}</TableCell>
-                      <TableCell><Badge variant={statusVariant(donation.paymentStatus)}>{labelize(donation.paymentStatus)}</Badge></TableCell>
-                      <TableCell>
-                        <Checkbox checked={donation.taxDeductible} onCheckedChange={(checked) => updateTaxStatus.mutate({ id: donation.id, taxDeductible: checked === true })} aria-label="Tax deductible" />
-                      </TableCell>
-                      <TableCell className="text-right font-medium">{dollars(donation.amountCents)}</TableCell>
                     </TableRow>
-                  ))}
-                  {!donations.length && <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">No giving records found.</TableCell></TableRow>}
+                  )}
                 </TableBody>
               </Table>
             </div>
@@ -292,26 +381,55 @@ export default function AdminGiving() {
             <CardTitle className="flex items-center gap-2"><Megaphone className="h-5 w-5" /> Campaigns</CardTitle>
             <CardDescription>Active campaigns appear on the member Give page.</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {campaigns.map((campaign) => (
-              <div key={campaign.id} className="rounded-md border p-4">
-                {campaign.campaignImageUrl && <img src={campaign.campaignImageUrl} alt="" className="mb-4 h-32 w-full rounded-md object-cover" />}
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="font-semibold">{campaign.campaignName}</h3>
-                    <p className="text-sm text-muted-foreground">{campaign.campaignCategory ?? "Campaign"}</p>
+          <CardContent>
+            {campaignsQuery.isLoading ? (
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <div key={i} className="rounded-md border p-4 space-y-3">
+                    <Skeleton className="h-32 w-full rounded-md" />
+                    <Skeleton className="h-5 w-40" />
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-2 w-full rounded-full" />
                   </div>
-                  <Badge variant={campaign.status === "active" ? "default" : "secondary"}>{labelize(campaign.status)}</Badge>
-                </div>
-                <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{campaign.description}</p>
-                <Progress className="mt-4" value={campaign.progressPercent} />
-                <p className="mt-2 text-sm text-muted-foreground">{dollars(campaign.amountRaisedCents)} raised of {dollars(campaign.goalAmountCents)}</p>
-                <Button className="mt-4 w-full" variant="secondary" onClick={() => openEditCampaign(campaign)}>
-                  <Pencil className="mr-2 h-4 w-4" /> Manage Campaign
-                </Button>
+                ))}
               </div>
-            ))}
-            {!campaigns.length && <p className="text-sm text-muted-foreground">No campaigns have been created.</p>}
+            ) : campaigns.length > 0 ? (
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {campaigns.map((campaign) => (
+                  <div key={campaign.id} className="rounded-md border p-4">
+                    {campaign.campaignImageUrl && <img src={campaign.campaignImageUrl} alt="" className="mb-4 h-32 w-full rounded-md object-cover" />}
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="font-semibold">{campaign.campaignName}</h3>
+                        <p className="text-sm text-muted-foreground">{campaign.campaignCategory ?? "Campaign"}</p>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant={campaign.status === "active" ? "default" : "secondary"}>{labelize(campaign.status)}</Badge>
+                      </div>
+                    </div>
+                    <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{campaign.description}</p>
+                    <Progress className="mt-4" value={campaign.progressPercent} />
+                    <div className="mt-2 flex items-center justify-between text-sm text-muted-foreground">
+                      <span>{dollars(campaign.amountRaisedCents)} raised</span>
+                      <span>of {dollars(campaign.goalAmountCents)}</span>
+                    </div>
+                    {campaign.endDate && (
+                      <p className="mt-1 text-xs text-muted-foreground">Ends {formatDate(campaign.endDate)}</p>
+                    )}
+                    <Button className="mt-4 w-full" variant="secondary" onClick={() => openEditCampaign(campaign)}>
+                      <Pencil className="mr-2 h-4 w-4" /> Manage Campaign
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-md border border-dashed p-8 text-center">
+                <Megaphone className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
+                <p className="font-medium text-muted-foreground">No campaigns yet</p>
+                <p className="mt-1 text-sm text-muted-foreground">Create your first campaign to start collecting toward a goal.</p>
+                <Button className="mt-4" onClick={openNewCampaign}><Plus className="mr-2 h-4 w-4" /> New Campaign</Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -321,12 +439,14 @@ export default function AdminGiving() {
 
 function CampaignFormView({
   form,
+  errors,
   setForm,
   onSubmit,
   isSubmitting,
   submitLabel,
 }: {
   form: CampaignForm;
+  errors: CampaignErrors;
   setForm: (form: CampaignForm) => void;
   onSubmit: () => void;
   isSubmitting: boolean;
@@ -338,10 +458,12 @@ function CampaignFormView({
         <div className="space-y-2">
           <Label>Campaign Name</Label>
           <Input value={form.campaignName} onChange={(event) => setForm({ ...form, campaignName: event.target.value })} />
+          {errors.campaignName && <p className="text-sm text-destructive">{errors.campaignName}</p>}
         </div>
         <div className="space-y-2">
-          <Label>Goal Amount</Label>
+          <Label>Goal Amount ($)</Label>
           <Input type="number" min="1" value={form.goalAmount} onChange={(event) => setForm({ ...form, goalAmount: event.target.value })} />
+          {errors.goalAmount && <p className="text-sm text-destructive">{errors.goalAmount}</p>}
         </div>
         <div className="space-y-2">
           <Label>Status</Label>
@@ -363,6 +485,7 @@ function CampaignFormView({
         <div className="space-y-2">
           <Label>End Date</Label>
           <Input type="date" value={form.endDate} onChange={(event) => setForm({ ...form, endDate: event.target.value })} />
+          {errors.endDate && <p className="text-sm text-destructive">{errors.endDate}</p>}
         </div>
         <div className="space-y-2 md:col-span-2">
           <Label>Campaign Image URL</Label>
@@ -373,7 +496,7 @@ function CampaignFormView({
           <Textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} rows={4} />
         </div>
       </div>
-      <Button onClick={onSubmit} disabled={isSubmitting}>{submitLabel}</Button>
+      <Button onClick={onSubmit} disabled={isSubmitting}>{isSubmitting ? "Saving..." : submitLabel}</Button>
     </div>
   );
 }
@@ -381,3 +504,4 @@ function CampaignFormView({
 function statusVariant(status: PaymentStatus) {
   return status === "succeeded" ? "default" : status === "failed" || status === "refunded" ? "destructive" : "secondary";
 }
+

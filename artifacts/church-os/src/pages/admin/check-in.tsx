@@ -353,12 +353,7 @@ export default function AdminCheckIn() {
                               {child.checkinStatus === "checked_in" ? (
                                 <CheckoutDialog child={child} isPending={checkOut.isPending} onCheckout={(guardianId) => checkOut.mutate({ childId: child.id, guardianId })} />
                               ) : (
-                                <Button size="sm" onClick={(event) => {
-                                  event.stopPropagation();
-                                  checkIn.mutate(child);
-                                }}>
-                                  Check In
-                                </Button>
+                                <CheckinConfirmDialog child={child} isPending={checkIn.isPending} onConfirm={() => checkIn.mutate(child)} />
                               )}
                             </div>
                           </TableCell>
@@ -383,7 +378,20 @@ export default function AdminCheckIn() {
               </Table>
               {filteredChildren.length === 0 && (
                 <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-                  No children match that search.
+                  {children.length === 0 ? (
+                    <span>
+                      No children registered yet.{" "}
+                      <button
+                        onClick={() => setRegisterOpen(true)}
+                        className="text-primary underline underline-offset-2"
+                      >
+                        Register a child
+                      </button>{" "}
+                      to start checking them in.
+                    </span>
+                  ) : (
+                    "No children match that search."
+                  )}
                 </div>
               )}
             </CardContent>
@@ -482,10 +490,23 @@ function MinistryCheckinHistory({
   records: MinistryCheckinHistoryRecord[];
   isLoading: boolean;
 }) {
+  const [nameSearch, setNameSearch] = React.useState("");
+  const [fromDate, setFromDate] = React.useState("");
+  const [toDate, setToDate] = React.useState("");
+
+  const filteredByFilters = React.useMemo(() => {
+    return records.filter((record) => {
+      if (nameSearch.trim() && !record.childName.toLowerCase().includes(nameSearch.trim().toLowerCase())) return false;
+      if (fromDate && new Date(record.checkinTime) < new Date(fromDate)) return false;
+      if (toDate && new Date(record.checkinTime) > new Date(`${toDate}T23:59:59`)) return false;
+      return true;
+    });
+  }, [records, nameSearch, fromDate, toDate]);
+
   const groupedRecords = React.useMemo(() => {
     const groups = new Map<string, MinistryCheckinHistoryRecord[]>();
 
-    records.forEach((record) => {
+    filteredByFilters.forEach((record) => {
       const key = dateGroupKey(record.checkinTime);
       groups.set(key, [...(groups.get(key) ?? []), record]);
     });
@@ -496,7 +517,7 @@ function MinistryCheckinHistory({
       records: dateRecords,
       activeCount: dateRecords.filter((record) => record.status === "active").length,
     }));
-  }, [records]);
+  }, [filteredByFilters]);
 
   return (
     <Card>
@@ -507,7 +528,19 @@ function MinistryCheckinHistory({
         </div>
         <CardDescription>Attendance log for Children Ministry by date, time, child, and check-in person.</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-[1fr_160px_160px]">
+          <div className="relative">
+            <Input
+              placeholder="Search by child name"
+              value={nameSearch}
+              onChange={(event) => setNameSearch(event.target.value)}
+              className="pl-3"
+            />
+          </div>
+          <Input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} title="From date" />
+          <Input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} title="To date" />
+        </div>
         {isLoading ? (
           <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
             Loading check-in history...
@@ -837,6 +870,88 @@ function ChildRegistrationForm({
         </Button>
       </DialogFooter>
     </form>
+  );
+}
+
+function CheckinConfirmDialog({
+  child,
+  isPending,
+  onConfirm,
+}: {
+  child: Child;
+  isPending: boolean;
+  onConfirm: () => void;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const authorized = child.guardians.filter((g) => g.authorizedPickup);
+  const hasAlerts = !!(child.allergyInformation || child.medicalNotes);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" onClick={(event) => event.stopPropagation()}>
+          Check In
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Confirm Check-In</DialogTitle>
+          <DialogDescription>Review this child's profile before checking them in.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <ChildAvatar child={child} size="lg" />
+            <div>
+              <p className="text-lg font-semibold">{childName(child)}</p>
+              <p className="text-sm text-muted-foreground">
+                {child.age !== null ? `${child.age} years old` : "Age not listed"} · {child.classroom || "No classroom assigned"}
+              </p>
+            </div>
+          </div>
+          {hasAlerts && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Health Alerts</p>
+              {child.allergyInformation && (
+                <p className="text-sm text-amber-900"><span className="font-medium">Allergies:</span> {child.allergyInformation}</p>
+              )}
+              {child.medicalNotes && (
+                <p className="text-sm text-amber-900"><span className="font-medium">Medical:</span> {child.medicalNotes}</p>
+              )}
+            </div>
+          )}
+          {authorized.length > 0 && (
+            <div>
+              <p className="mb-2 text-sm font-medium">Authorized Pickup Contacts</p>
+              <div className="space-y-1">
+                {authorized.map((guardian) => (
+                  <div key={guardian.id} className="flex items-center justify-between text-sm">
+                    <span>{guardian.name} · <span className="text-muted-foreground">{relationshipLabel(guardian.relationship)}</span></span>
+                    {guardian.phoneNumber && <span className="text-muted-foreground">{guardian.phoneNumber}</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {authorized.length === 0 && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+              No authorized pickup contacts on file. Add a guardian before check-in.
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button
+            disabled={isPending}
+            onClick={() => {
+              onConfirm();
+              setOpen(false);
+            }}
+          >
+            {isPending ? "Checking in..." : "Confirm Check-In"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
