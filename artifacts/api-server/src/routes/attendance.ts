@@ -129,7 +129,16 @@ router.get("/admin/attendance/summary", requireAttendanceManagement, async (req,
   const churchId = await getRequesterChurchId(req.localUserId);
   if (!churchId) { res.status(401).json({ error: "User church not found." }); return; }
 
-  const sessions = await db.select().from(attendanceSessionsTable).where(eq(attendanceSessionsTable.churchId, churchId)).orderBy(desc(attendanceSessionsTable.sessionDate));
+  const [memberCountRow, sessions] = await Promise.all([
+    db.select({ c: count() }).from(usersTable).where(and(
+      eq(usersTable.churchId, churchId),
+      eq(usersTable.role, "member"),
+      sql`${usersTable.memberStatus} in ('member', 'active_member')`,
+    )),
+    db.select().from(attendanceSessionsTable).where(eq(attendanceSessionsTable.churchId, churchId)).orderBy(desc(attendanceSessionsTable.sessionDate)),
+  ]);
+  const totalMembers = memberCountRow[0]?.c ?? 0;
+
   const sessionIds = sessions.map((session) => session.id);
   const records = sessionIds.length
     ? await db.select().from(attendanceRecordsTable).where(inArray(attendanceRecordsTable.sessionId, sessionIds))
@@ -146,6 +155,7 @@ router.get("/admin/attendance/summary", requireAttendanceManagement, async (req,
   const discipleshipPresentCount = records.filter((r) => discipleshipSessionIds.has(r.sessionId) && r.attendanceStatus === "present").length;
 
   res.json({
+    totalMembers,
     totalToday: records.filter((r) => todaySessionIds.has(r.sessionId) && r.attendanceStatus === "present").length,
     activeSessions: sessions.filter((s) => s.sessionStatus === "active").length,
     weeklyAttendance: records.filter((r) => r.attendanceStatus === "present").length,
@@ -171,14 +181,22 @@ router.get("/admin/attendance/sessions", requireAttendanceManagement, async (req
     ...(SESSION_STATUSES.has(status) ? [eq(attendanceSessionsTable.sessionStatus, status as typeof attendanceSessionsTable.$inferSelect.sessionStatus)] : []),
     ...(search ? [or(ilike(attendanceSessionsTable.sessionName, `%${search}%`), ilike(attendanceSessionsTable.discipleshipGroup, `%${search}%`))] : []),
   ];
-  const sessions = await db.select().from(attendanceSessionsTable).where(and(...filters)).orderBy(desc(attendanceSessionsTable.sessionDate));
+
+  const [sessions, memberCountRow] = await Promise.all([
+    db.select().from(attendanceSessionsTable).where(and(...filters)).orderBy(desc(attendanceSessionsTable.sessionDate)),
+    db.select({ c: count() }).from(usersTable).where(and(
+      eq(usersTable.churchId, churchId),
+      eq(usersTable.role, "member"),
+      sql`${usersTable.memberStatus} in ('member', 'active_member')`,
+    )),
+  ]);
+  const memberCount = memberCountRow[0]?.c ?? 0;
 
   const sessionIds = sessions.map((s) => s.id);
   const countRows = sessionIds.length
     ? await db
         .select({
           sessionId: attendanceRecordsTable.sessionId,
-          total: count(),
           present: sql<number>`count(*) filter (where ${attendanceRecordsTable.attendanceStatus} = 'present')`,
         })
         .from(attendanceRecordsTable)
@@ -186,13 +204,13 @@ router.get("/admin/attendance/sessions", requireAttendanceManagement, async (req
         .groupBy(attendanceRecordsTable.sessionId)
     : [];
 
-  const countMap = new Map(countRows.map((row) => [row.sessionId, { total: Number(row.total), present: Number(row.present) }]));
+  const presentMap = new Map(countRows.map((row) => [row.sessionId, Number(row.present)]));
 
   res.json({
     sessions: sessions.map((session) => ({
       ...serializeSession(session),
-      presentCount: countMap.get(session.id)?.present ?? 0,
-      totalCount: countMap.get(session.id)?.total ?? 0,
+      presentCount: presentMap.get(session.id) ?? 0,
+      memberCount,
     })),
   });
 });
@@ -225,14 +243,22 @@ router.get("/admin/attendance/sessions/:id", requireAttendanceManagement, async 
   if (!Number.isInteger(sessionId) || !churchId) { res.status(400).json({ error: "Invalid session." }); return; }
   const [session] = await db.select().from(attendanceSessionsTable).where(and(eq(attendanceSessionsTable.id, sessionId), eq(attendanceSessionsTable.churchId, churchId)));
   if (!session) { res.status(404).json({ error: "Session not found." }); return; }
-  const records = await db
-    .select({ record: attendanceRecordsTable, firstName: usersTable.firstName, lastName: usersTable.lastName, email: usersTable.email })
-    .from(attendanceRecordsTable)
-    .innerJoin(usersTable, eq(attendanceRecordsTable.memberId, usersTable.id))
-    .where(eq(attendanceRecordsTable.sessionId, session.id))
-    .orderBy(desc(attendanceRecordsTable.checkinTime));
+  const [records, memberCountRow] = await Promise.all([
+    db
+      .select({ record: attendanceRecordsTable, firstName: usersTable.firstName, lastName: usersTable.lastName, email: usersTable.email })
+      .from(attendanceRecordsTable)
+      .innerJoin(usersTable, eq(attendanceRecordsTable.memberId, usersTable.id))
+      .where(eq(attendanceRecordsTable.sessionId, session.id))
+      .orderBy(desc(attendanceRecordsTable.checkinTime)),
+    db.select({ c: count() }).from(usersTable).where(and(
+      eq(usersTable.churchId, churchId),
+      eq(usersTable.role, "member"),
+      sql`${usersTable.memberStatus} in ('member', 'active_member')`,
+    )),
+  ]);
   res.json({
     session: serializeSession(session),
+    memberCount: memberCountRow[0]?.c ?? 0,
     records: records.map((row) => serializeRecord(row.record, { firstName: row.firstName, lastName: row.lastName, email: row.email })),
   });
 });

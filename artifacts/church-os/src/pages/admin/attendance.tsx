@@ -18,9 +18,10 @@ import { useToast } from "@/hooks/use-toast";
 import { apiJson, formatDate, formatDateTime, labelize, type AttendanceMember, type AttendanceRecord, type AttendanceSession } from "@/lib/attendance";
 import { ArrowLeft, BarChart3, CheckCircle2, MessageSquare, Pencil, Plus, Printer, QrCode, Search, Users, XCircle } from "lucide-react";
 
-type SessionWithCounts = AttendanceSession & { presentCount: number; totalCount: number };
+type SessionWithCounts = AttendanceSession & { presentCount: number; memberCount: number };
 
 type AttendanceSummary = {
+  totalMembers: number;
   totalToday: number;
   activeSessions: number;
   weeklyAttendance: number;
@@ -160,9 +161,9 @@ function AttendanceDashboard() {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Total Today" value={String(summary?.totalToday ?? 0)} trend="Present records today" />
+          <StatCard label="Total Today" value={summary ? `${summary.totalToday} / ${summary.totalMembers}` : "—"} trend="Members present today" />
           <StatCard label="Active Sessions" value={String(summary?.activeSessions ?? 0)} trend="Open now" />
-          <StatCard label="Weekly Attendance" value={String(summary?.weeklyAttendance ?? 0)} trend="All present records" />
+          <StatCard label="Weekly Attendance" value={summary ? `${summary.weeklyAttendance} / ${summary.totalMembers}` : "—"} trend="Members present this week" />
           <StatCard label="Discipleship" value={String(summary?.discipleshipAttendance ?? 0)} trend="Friday groups" />
         </div>
 
@@ -218,7 +219,7 @@ function AttendanceDashboard() {
                     <TableHead>Type</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Present</TableHead>
+                    <TableHead>Attended</TableHead>
                     <TableHead>QR</TableHead>
                     <TableHead className="w-24"></TableHead>
                   </TableRow>
@@ -262,7 +263,7 @@ function AttendanceDashboard() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-sm font-medium tabular-nums">
-                            {session.presentCount}/{session.totalCount}
+                            {session.presentCount} / {session.memberCount}
                           </TableCell>
                           <TableCell>
                             {session.qrEnabled
@@ -311,7 +312,7 @@ function AttendanceSessionDetail({ sessionId }: { sessionId: number }) {
 
   const sessionQuery = useQuery({
     queryKey: ["attendance-session", sessionId],
-    queryFn: () => apiJson<{ session: AttendanceSession; records: AttendanceRecord[] }>(`/admin/attendance/sessions/${sessionId}`),
+    queryFn: () => apiJson<{ session: AttendanceSession; memberCount: number; records: AttendanceRecord[] }>(`/admin/attendance/sessions/${sessionId}`),
   });
   const membersQuery = useQuery({
     queryKey: ["attendance-member-search", memberSearch],
@@ -357,6 +358,7 @@ function AttendanceSessionDetail({ sessionId }: { sessionId: number }) {
   });
 
   const session = sessionQuery.data?.session;
+  const memberCount = sessionQuery.data?.memberCount ?? 0;
   const records = sessionQuery.data?.records ?? [];
   const qrUrl = session ? `${window.location.origin}/attendance/check-in/${session.qrToken}` : "";
   const followUpCount = records.filter((r) => r.followUpNeeded).length;
@@ -539,7 +541,7 @@ function AttendanceSessionDetail({ sessionId }: { sessionId: number }) {
                 </div>
                 {records.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2">
-                    <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-200 hover:bg-emerald-100">{presentCount} Present</Badge>
+                    <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-200 hover:bg-emerald-100">{presentCount} / {memberCount} Present</Badge>
                     <Badge variant="secondary">{absentCount} Absent</Badge>
                     <Badge variant="outline" className="text-amber-700 border-amber-300">{lateCount} Late</Badge>
                     <Badge variant="outline">{excusedCount} Excused</Badge>
