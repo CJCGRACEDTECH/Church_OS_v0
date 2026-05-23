@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { and, desc, eq, ilike, or } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   attendanceRecordsTable,
@@ -132,19 +132,30 @@ router.get("/admin/attendance/summary", requireAttendanceManagement, async (req,
   const sessions = await db.select().from(attendanceSessionsTable).where(eq(attendanceSessionsTable.churchId, churchId)).orderBy(desc(attendanceSessionsTable.sessionDate));
   const sessionIds = sessions.map((session) => session.id);
   const records = sessionIds.length
-    ? await db.select().from(attendanceRecordsTable).where(or(...sessionIds.map((id) => eq(attendanceRecordsTable.sessionId, id))))
+    ? await db.select().from(attendanceRecordsTable).where(inArray(attendanceRecordsTable.sessionId, sessionIds))
     : [];
+
   const today = new Date().toDateString();
   const todaySessionIds = new Set(sessions.filter((session) => session.sessionDate.toDateString() === today).map((session) => session.id));
-  const discipleshipSessionIds = new Set(sessions.filter((session) => session.attendanceType === "discipleship").map((session) => session.id));
+  const regularSessions = sessions.filter((session) => session.attendanceType === "regular_service");
+  const discipleshipSessions = sessions.filter((session) => session.attendanceType === "discipleship");
+  const regularSessionIds = new Set(regularSessions.map((session) => session.id));
+  const discipleshipSessionIds = new Set(discipleshipSessions.map((session) => session.id));
+
+  const regularPresentCount = records.filter((r) => regularSessionIds.has(r.sessionId) && r.attendanceStatus === "present").length;
+  const discipleshipPresentCount = records.filter((r) => discipleshipSessionIds.has(r.sessionId) && r.attendanceStatus === "present").length;
 
   res.json({
-    totalToday: records.filter((record) => todaySessionIds.has(record.sessionId) && record.attendanceStatus === "present").length,
-    activeSessions: sessions.filter((session) => session.sessionStatus === "active").length,
-    weeklyAttendance: records.filter((record) => record.attendanceStatus === "present").length,
-    discipleshipAttendance: records.filter((record) => discipleshipSessionIds.has(record.sessionId) && record.attendanceStatus === "present").length,
-    membersPresent: records.filter((record) => record.attendanceStatus === "present").length,
+    totalToday: records.filter((r) => todaySessionIds.has(r.sessionId) && r.attendanceStatus === "present").length,
+    activeSessions: sessions.filter((s) => s.sessionStatus === "active").length,
+    weeklyAttendance: records.filter((r) => r.attendanceStatus === "present").length,
+    discipleshipAttendance: discipleshipPresentCount,
+    membersPresent: records.filter((r) => r.attendanceStatus === "present").length,
     visitorsCount: 0,
+    regularSessionCount: regularSessions.length,
+    regularAvgAttendance: regularSessions.length > 0 ? Math.round(regularPresentCount / regularSessions.length) : 0,
+    discipleshipSessionCount: discipleshipSessions.length,
+    discipleshipAvgAttendance: discipleshipSessions.length > 0 ? Math.round(discipleshipPresentCount / discipleshipSessions.length) : 0,
   });
 });
 
@@ -161,7 +172,29 @@ router.get("/admin/attendance/sessions", requireAttendanceManagement, async (req
     ...(search ? [or(ilike(attendanceSessionsTable.sessionName, `%${search}%`), ilike(attendanceSessionsTable.discipleshipGroup, `%${search}%`))] : []),
   ];
   const sessions = await db.select().from(attendanceSessionsTable).where(and(...filters)).orderBy(desc(attendanceSessionsTable.sessionDate));
-  res.json({ sessions: sessions.map(serializeSession) });
+
+  const sessionIds = sessions.map((s) => s.id);
+  const countRows = sessionIds.length
+    ? await db
+        .select({
+          sessionId: attendanceRecordsTable.sessionId,
+          total: count(),
+          present: sql<number>`count(*) filter (where ${attendanceRecordsTable.attendanceStatus} = 'present')`,
+        })
+        .from(attendanceRecordsTable)
+        .where(inArray(attendanceRecordsTable.sessionId, sessionIds))
+        .groupBy(attendanceRecordsTable.sessionId)
+    : [];
+
+  const countMap = new Map(countRows.map((row) => [row.sessionId, { total: Number(row.total), present: Number(row.present) }]));
+
+  res.json({
+    sessions: sessions.map((session) => ({
+      ...serializeSession(session),
+      presentCount: countMap.get(session.id)?.present ?? 0,
+      totalCount: countMap.get(session.id)?.total ?? 0,
+    })),
+  });
 });
 
 router.post("/admin/attendance/sessions", requireAttendanceManagement, async (req, res): Promise<void> => {
@@ -219,6 +252,19 @@ router.patch("/admin/attendance/sessions/:id", requireAttendanceManagement, asyn
   }
   const values = { ...payload, sessionDate: payload.sessionDate, qrExpiration: payload.qrExpiration };
   const [session] = await db.update(attendanceSessionsTable).set(values).where(and(eq(attendanceSessionsTable.id, sessionId), eq(attendanceSessionsTable.churchId, churchId))).returning();
+  if (!session) { res.status(404).json({ error: "Session not found." }); return; }
+  res.json({ session: serializeSession(session) });
+});
+
+router.patch("/admin/attendance/sessions/:id/close", requireAttendanceManagement, async (req, res): Promise<void> => {
+  const sessionId = Number(req.params.id);
+  const churchId = await getRequesterChurchId(req.localUserId);
+  if (!Number.isInteger(sessionId) || !churchId) { res.status(400).json({ error: "Invalid session." }); return; }
+  const [session] = await db
+    .update(attendanceSessionsTable)
+    .set({ sessionStatus: "closed" })
+    .where(and(eq(attendanceSessionsTable.id, sessionId), eq(attendanceSessionsTable.churchId, churchId)))
+    .returning();
   if (!session) { res.status(404).json({ error: "Session not found." }); return; }
   res.json({ session: serializeSession(session) });
 });

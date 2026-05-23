@@ -3,11 +3,22 @@ import { Link, useLocation, useRoute } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import AdminLayout from "@/components/AdminLayout";
 import EventForm from "@/components/EventForm";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import {
   apiJson,
@@ -27,18 +38,41 @@ import {
   spanPosition,
   type ChurchEvent,
   type EventFormState,
+  type EventType,
 } from "@/lib/events";
-import { ArrowLeft, CalendarDays, ExternalLink, Pencil, Plus, Search, Trash2, Video } from "lucide-react";
+import { ArrowLeft, Ban, CalendarDays, ExternalLink, Pencil, Plus, Search, Trash2, Video } from "lucide-react";
+
+const EVENT_TYPE_BADGE_CLASSES: Record<EventType, string> = {
+  service: "bg-indigo-100 text-indigo-800 border-indigo-200",
+  bible_study: "bg-sky-100 text-sky-800 border-sky-200",
+  prayer: "bg-violet-100 text-violet-800 border-violet-200",
+  baptism: "bg-cyan-100 text-cyan-800 border-cyan-200",
+  fasting_season: "bg-amber-100 text-amber-900 border-amber-200",
+  special_event: "bg-rose-100 text-rose-800 border-rose-200",
+  announcement: "bg-slate-100 text-slate-700 border-slate-200",
+};
+
+function EventTypeBadge({ eventType }: { eventType: EventType }) {
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${EVENT_TYPE_BADGE_CLASSES[eventType] ?? "bg-muted text-muted-foreground"}`}>
+      {labelize(eventType)}
+    </span>
+  );
+}
+
+function EventStatusBadge({ status }: { status: ChurchEvent["status"] }) {
+  if (status === "published") return <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border border-emerald-200">Published</Badge>;
+  if (status === "cancelled") return <Badge variant="destructive">Cancelled</Badge>;
+  return <Badge variant="outline">Draft</Badge>;
+}
 
 function EventBadges({ event }: { event: ChurchEvent }) {
   return (
-    <div className="flex flex-wrap gap-2">
-      <Badge variant="secondary">{labelize(event.eventType)}</Badge>
+    <div className="flex flex-wrap gap-2 items-center">
+      <EventTypeBadge eventType={event.eventType} />
+      <EventStatusBadge status={event.status} />
       {event.isRecurring && <Badge variant="outline">Weekly</Badge>}
       {event.eventMode !== "in_person" && <Badge variant="outline"><Video className="mr-1 h-3 w-3" />{labelize(event.eventMode)}</Badge>}
-      {event.youtubeLink && <Badge variant="outline">YouTube</Badge>}
-      {event.status === "draft" && <Badge variant="outline">Draft</Badge>}
-      {event.status === "cancelled" && <Badge variant="destructive">Cancelled</Badge>}
       {event.visibility === "admin_only" && <Badge variant="outline">Admins Only</Badge>}
     </div>
   );
@@ -57,6 +91,7 @@ function AdminServicesCalendar() {
   const [eventType, setEventType] = React.useState("");
   const [month, setMonth] = React.useState(new Date());
   const [createOpen, setCreateOpen] = React.useState(false);
+  const [showAll, setShowAll] = React.useState(false);
   const [form, setForm] = React.useState<EventFormState>(() => {
     const start = new Date();
     start.setDate(start.getDate() + 1);
@@ -79,7 +114,7 @@ function AdminServicesCalendar() {
 
   const upcomingQuery = useQuery({
     queryKey: ["admin-upcoming-events"],
-    queryFn: () => apiJson<{ events: ChurchEvent[] }>("/admin/events?limit=10"),
+    queryFn: () => apiJson<{ events: ChurchEvent[] }>("/admin/events?limit=50"),
   });
 
   const createEvent = useMutation({
@@ -96,6 +131,7 @@ function AdminServicesCalendar() {
 
   const events = eventsQuery.data?.events ?? [];
   const upcoming = upcomingQuery.data?.events ?? [];
+  const visibleUpcoming = showAll ? upcoming : upcoming.slice(0, 20);
   const days = calendarDays(month);
 
   return (
@@ -156,22 +192,38 @@ function AdminServicesCalendar() {
                 {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
                   <div key={day} className="border-b bg-muted/40 p-2 text-center text-xs font-medium text-muted-foreground">{day}</div>
                 ))}
-                {days.map((day) => {
-                  const dayEvents = events.filter((event) => eventSpansDay(event, day.date));
-                  return (
-                    <div key={day.key} className={`min-h-28 border-b border-r p-2 ${day.inMonth ? "bg-background" : "bg-muted/20 text-muted-foreground"}`}>
-                      <p className="text-xs font-medium">{day.date.getDate()}</p>
-                      <div className="mt-2 space-y-1">
-                        {dayEvents.slice(0, 3).map((event) => (
-                          <Link key={`${event.id}-${eventStart(event)}-${day.key}`} href={`/admin/services/${event.id}`} className={calendarEventClass(event, day.date)} title={shouldShowSpanLabel(event, day.date) ? event.title : undefined}>
-                            {calendarEventLabel(event, day.date)}
-                          </Link>
-                        ))}
+                {eventsQuery.isLoading
+                  ? Array.from({ length: 42 }, (_, index) => (
+                      <div key={index} className="min-h-28 border-b border-r p-2">
+                        <Skeleton className="h-3 w-4 mb-2" />
+                        {index % 3 === 0 && <Skeleton className="h-5 w-full rounded" />}
+                        {index % 5 === 0 && <Skeleton className="mt-1 h-5 w-4/5 rounded" />}
                       </div>
-                    </div>
-                  );
-                })}
+                    ))
+                  : days.map((day) => {
+                      const dayEvents = events.filter((e) => eventSpansDay(e, day.date));
+                      return (
+                        <div key={day.key} className={`min-h-28 border-b border-r p-2 ${day.inMonth ? "bg-background" : "bg-muted/20 text-muted-foreground"}`}>
+                          <p className="text-xs font-medium">{day.date.getDate()}</p>
+                          <div className="mt-2 space-y-1">
+                            {dayEvents.slice(0, 3).map((e) => (
+                              <Link key={`${e.id}-${eventStart(e)}-${day.key}`} href={`/admin/services/${e.id}`} className={calendarEventClass(e, day.date)} title={shouldShowSpanLabel(e, day.date) ? e.title : undefined}>
+                                {calendarEventLabel(e, day.date)}
+                              </Link>
+                            ))}
+                            {dayEvents.length > 3 && <p className="text-xs text-muted-foreground pl-1">+{dayEvents.length - 3} more</p>}
+                          </div>
+                        </div>
+                      );
+                    })
+                }
               </div>
+              {!eventsQuery.isLoading && events.length === 0 && (
+                <p className="py-4 text-center text-sm text-muted-foreground">
+                  No events this month —{" "}
+                  <button className="underline hover:text-foreground" onClick={() => setCreateOpen(true)}>create one</button>
+                </p>
+              )}
             </CardContent>
           </Card>
 
@@ -181,10 +233,32 @@ function AdminServicesCalendar() {
               <CardDescription>Next services and events</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {upcoming.map((event) => <EventListItem key={`${event.id}-${eventStart(event)}`} event={event} href={`/admin/services/${event.id}`} />)}
-              </div>
-              {!upcoming.length && <p className="py-8 text-center text-sm text-muted-foreground">No upcoming events.</p>}
+              {upcomingQuery.isLoading ? (
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {Array.from({ length: 3 }, (_, index) => (
+                    <div key={index} className="rounded-md border p-3 space-y-2">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3 w-1/2" />
+                      <Skeleton className="h-5 w-24 rounded-full" />
+                    </div>
+                  ))}
+                </div>
+              ) : upcoming.length === 0 ? (
+                <p className="py-8 text-center text-sm text-muted-foreground">No upcoming events.</p>
+              ) : (
+                <>
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {visibleUpcoming.map((e) => <EventListItem key={`${e.id}-${eventStart(e)}`} event={e} href={`/admin/services/${e.id}`} />)}
+                  </div>
+                  {upcoming.length > 20 && !showAll && (
+                    <div className="mt-4 text-center">
+                      <Button variant="outline" size="sm" onClick={() => setShowAll(true)}>
+                        Load more ({upcoming.length - 20} remaining)
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -198,6 +272,7 @@ function AdminEventDetail({ eventId }: { eventId: number }) {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const [editOpen, setEditOpen] = React.useState(false);
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [form, setForm] = React.useState<EventFormState>(emptyEventForm);
 
   const eventQuery = useQuery({
@@ -217,8 +292,26 @@ function AdminEventDetail({ eventId }: { eventId: number }) {
       toast({ title: "Event updated" });
       void queryClient.invalidateQueries({ queryKey: ["admin-event", eventId] });
       void queryClient.invalidateQueries({ queryKey: ["admin-events"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-upcoming-events"] });
     },
     onError: (error) => toast({ title: "Could not update event", description: error.message, variant: "destructive" }),
+  });
+
+  const cancelEvent = useMutation({
+    mutationFn: () => {
+      if (!event) throw new Error("No event loaded");
+      return apiJson<{ event: ChurchEvent }>(`/admin/events/${eventId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ ...payloadFromEventForm(formFromEvent(event)), status: "cancelled" }),
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Event cancelled" });
+      void queryClient.invalidateQueries({ queryKey: ["admin-event", eventId] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-events"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-upcoming-events"] });
+    },
+    onError: (error) => toast({ title: "Could not cancel event", description: error.message, variant: "destructive" }),
   });
 
   const deleteEvent = useMutation({
@@ -226,6 +319,7 @@ function AdminEventDetail({ eventId }: { eventId: number }) {
     onSuccess: () => {
       toast({ title: "Event deleted" });
       void queryClient.invalidateQueries({ queryKey: ["admin-events"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-upcoming-events"] });
       setLocation("/admin/services");
     },
     onError: (error) => toast({ title: "Could not delete event", description: error.message, variant: "destructive" }),
@@ -239,7 +333,7 @@ function AdminEventDetail({ eventId }: { eventId: number }) {
             <Link href="/admin/services"><ArrowLeft className="mr-2 h-4 w-4" />Services & Events</Link>
           </Button>
           {event && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Dialog open={editOpen} onOpenChange={setEditOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline"><Pencil className="mr-2 h-4 w-4" />Edit</Button>
@@ -252,15 +346,59 @@ function AdminEventDetail({ eventId }: { eventId: number }) {
                   <EventForm form={form} setForm={setForm} onSubmit={() => updateEvent.mutate()} submitLabel="Save Changes" isSubmitting={updateEvent.isPending} />
                 </DialogContent>
               </Dialog>
-              <Button variant="destructive" onClick={() => deleteEvent.mutate()} disabled={deleteEvent.isPending}><Trash2 className="mr-2 h-4 w-4" />Delete</Button>
+              {event.status !== "cancelled" && (
+                <Button
+                  variant="outline"
+                  className="border-amber-300 text-amber-800 hover:bg-amber-50"
+                  onClick={() => cancelEvent.mutate()}
+                  disabled={cancelEvent.isPending}
+                >
+                  <Ban className="mr-2 h-4 w-4" />Cancel Event
+                </Button>
+              )}
+              <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
+                <Trash2 className="mr-2 h-4 w-4" />Delete
+              </Button>
             </div>
           )}
         </div>
-        {event ? <EventDetailCard event={event} /> : <Card><CardContent className="py-12 text-center text-muted-foreground">{eventQuery.isLoading ? "Loading event..." : "Event not found."}</CardContent></Card>}
+
+        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete "{event?.title}"?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently remove the event and all its data. This cannot be undone.
+                {event?.isRecurring && " Note: this deletes the event definition and all future occurrences."}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Keep Event</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => deleteEvent.mutate()}
+              >
+                Delete Permanently
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {event ? (
+          <EventDetailCard event={event} />
+        ) : (
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              {eventQuery.isLoading ? "Loading event..." : "Event not found."}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </AdminLayout>
   );
 }
+
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 function EventDetailCard({ event }: { event: ChurchEvent }) {
   return (
@@ -269,7 +407,9 @@ function EventDetailCard({ event }: { event: ChurchEvent }) {
       <CardHeader>
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
-            <CardTitle className="text-3xl">{event.title}</CardTitle>
+            <CardTitle className={`text-3xl ${event.status === "cancelled" ? "line-through text-muted-foreground" : ""}`}>
+              {event.title}
+            </CardTitle>
             <CardDescription className="mt-2">{formatDateTimeRange(event)}</CardDescription>
           </div>
           <EventBadges event={event} />
@@ -278,18 +418,35 @@ function EventDetailCard({ event }: { event: ChurchEvent }) {
       <CardContent className="grid gap-6 lg:grid-cols-[1fr_280px]">
         <div className="space-y-4">
           <p className="text-sm leading-6 text-muted-foreground">{event.description ?? "No description provided."}</p>
-          <div className="flex flex-wrap gap-2">
-            {event.zoomLink && <Button asChild variant="outline"><a href={event.zoomLink} target="_blank" rel="noreferrer">Zoom <ExternalLink className="ml-2 h-4 w-4" /></a></Button>}
-            {event.youtubeLink && <Button asChild variant="outline"><a href={event.youtubeLink} target="_blank" rel="noreferrer">YouTube <ExternalLink className="ml-2 h-4 w-4" /></a></Button>}
-          </div>
+          {event.isRecurring && (
+            <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+              Recurring weekly — every {WEEKDAYS[event.recurrenceDay ?? 0] ?? "?"} at {event.recurrenceTime ?? "—"}
+            </p>
+          )}
+          {(event.zoomLink || event.youtubeLink) && (
+            <div className="flex flex-wrap gap-2">
+              {event.zoomLink && <Button asChild variant="outline"><a href={event.zoomLink} target="_blank" rel="noreferrer">Zoom <ExternalLink className="ml-2 h-4 w-4" /></a></Button>}
+              {event.youtubeLink && <Button asChild variant="outline"><a href={event.youtubeLink} target="_blank" rel="noreferrer">YouTube <ExternalLink className="ml-2 h-4 w-4" /></a></Button>}
+            </div>
+          )}
         </div>
-        <div className="rounded-md border p-4 text-sm">
-          <p className="font-medium">Location</p>
-          <p className="mt-1 text-muted-foreground">{event.location ?? "Not set"}</p>
-          <p className="mt-4 font-medium">Mode</p>
-          <p className="mt-1 text-muted-foreground">{labelize(event.eventMode)}</p>
-          <p className="mt-4 font-medium">Created</p>
-          <p className="mt-1 text-muted-foreground">{formatDate(event.createdAt)}</p>
+        <div className="rounded-md border p-4 text-sm space-y-4">
+          <div>
+            <p className="font-medium">Location</p>
+            <p className="mt-1 text-muted-foreground">{event.location ?? "Not set"}</p>
+          </div>
+          <div>
+            <p className="font-medium">Mode</p>
+            <p className="mt-1 text-muted-foreground">{labelize(event.eventMode)}</p>
+          </div>
+          <div>
+            <p className="font-medium">Visibility</p>
+            <p className="mt-1 text-muted-foreground">{labelize(event.visibility)}</p>
+          </div>
+          <div>
+            <p className="font-medium">Created</p>
+            <p className="mt-1 text-muted-foreground">{formatDate(event.createdAt)}</p>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -302,7 +459,7 @@ function EventListItem({ event, href }: { event: ChurchEvent; href: string }) {
       <div className="flex gap-3">
         {event.posterUrl ? <img src={event.posterUrl} alt="" className="h-16 w-20 rounded-md object-cover" /> : null}
         <div className="min-w-0 flex-1">
-          <p className="font-medium">{event.title}</p>
+          <p className={`font-medium truncate ${event.status === "cancelled" ? "line-through text-muted-foreground" : ""}`}>{event.title}</p>
           <p className="text-sm text-muted-foreground">{formatDateTimeRange(event)}</p>
           <div className="mt-2"><EventBadges event={event} /></div>
         </div>
@@ -314,7 +471,8 @@ function EventListItem({ event, href }: { event: ChurchEvent; href: string }) {
 
 function calendarEventClass(event: ChurchEvent, day: Date) {
   const colors = eventTypeCalendarClasses(event.eventType);
-  if (!isMultiDayEvent(event)) return `block rounded px-2 py-1 text-xs ${colors.single}`;
+  const cancelled = event.status === "cancelled" ? "opacity-50" : "";
+  if (!isMultiDayEvent(event)) return `block rounded px-2 py-1 text-xs ${colors.single} ${cancelled}`;
   const position = spanPosition(event, day);
   const shape = position === "start"
     ? "rounded-l-md rounded-r-none"
@@ -323,7 +481,7 @@ function calendarEventClass(event: ChurchEvent, day: Date) {
     : position === "middle"
     ? "rounded-none"
     : "rounded-md";
-  return `-mx-2 block ${shape} px-2 py-1 text-xs font-medium ${colors.span}`;
+  return `-mx-2 block ${shape} px-2 py-1 text-xs font-medium ${colors.span} ${cancelled}`;
 }
 
 function calendarEventLabel(event: ChurchEvent, day: Date) {
