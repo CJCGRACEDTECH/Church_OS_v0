@@ -1,6 +1,6 @@
-import { and, desc, eq, ilike, or } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import { Router, type IRouter } from "express";
-import { db, eventsTable, usersTable, type Event } from "@workspace/db";
+import { attendanceRecordsTable, attendanceSessionsTable, db, eventsTable, usersTable, type Event } from "@workspace/db";
 import { ADMIN_PERMISSIONS } from "../lib/admin-permissions";
 import { requireAdminPermission, requireAuth } from "../middlewares/auth";
 
@@ -212,7 +212,30 @@ router.get("/admin/events/:id", requireEventManagement, async (req, res): Promis
     return;
   }
 
-  res.json({ event: serializeEvent(event) });
+  const linkedSessions = await db
+    .select({ sessionId: attendanceSessionsTable.id })
+    .from(attendanceSessionsTable)
+    .where(and(
+      eq(attendanceSessionsTable.serviceEventId, eventId),
+      eq(attendanceSessionsTable.churchId, churchId),
+    ));
+
+  const linkedSessionCount = linkedSessions.length;
+  let linkedAttendanceCount = 0;
+
+  if (linkedSessionCount > 0) {
+    const sessionIds = linkedSessions.map((r) => r.sessionId);
+    const [countRow] = await db
+      .select({ total: count() })
+      .from(attendanceRecordsTable)
+      .where(and(
+        inArray(attendanceRecordsTable.sessionId, sessionIds),
+        eq(attendanceRecordsTable.attendanceStatus, "present"),
+      ));
+    linkedAttendanceCount = Number(countRow?.total ?? 0);
+  }
+
+  res.json({ event: { ...serializeEvent(event), linkedSessionCount, linkedAttendanceCount } });
 });
 
 router.post("/admin/events", requireEventManagement, async (req, res): Promise<void> => {

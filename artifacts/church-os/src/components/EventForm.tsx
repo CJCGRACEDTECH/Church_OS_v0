@@ -110,26 +110,33 @@ export default function EventForm({
           <option value="public">Public / Members</option>
           <option value="admin_only">Admins Only</option>
         </SelectField>
-        <SelectField label="Recurrence Pattern" value={form.recurrencePattern} onChange={(value) => set("recurrencePattern", value)}>
-          <option value="one_time">One-time</option>
-          <option value="weekly">Weekly</option>
-          <option value="custom">Custom</option>
-        </SelectField>
       </div>
 
-      <div className="flex items-center gap-3">
-        <input
-          id="isRecurring"
-          type="checkbox"
-          checked={form.isRecurring}
-          onChange={(event) => {
-            set("isRecurring", event.target.checked);
-            set("recurrencePattern", event.target.checked ? "weekly" : "one_time");
-          }}
-          className="h-4 w-4 rounded border-input"
-        />
-        <Label htmlFor="isRecurring">Recurring Event</Label>
-      </div>
+      <div className="rounded-md border p-4 space-y-3">
+        <div className="flex items-center gap-3">
+          <input
+            id="isRecurring"
+            type="checkbox"
+            checked={form.isRecurring}
+            onChange={(event) => {
+              set("isRecurring", event.target.checked);
+              set("recurrencePattern", event.target.checked ? "weekly" : "one_time");
+            }}
+            className="h-4 w-4 rounded border-input"
+          />
+          <Label htmlFor="isRecurring" className="font-medium cursor-pointer">Recurring Event</Label>
+        </div>
+        {form.isRecurring && (
+          <div className="space-y-3 pl-7">
+            <p className="text-xs text-muted-foreground">
+              This event repeats on the same day of the week at the same time. Each week generates a separate attendance session you can track independently.
+            </p>
+            <SelectField label="Repeat Pattern" value={form.recurrencePattern} onChange={(value) => set("recurrencePattern", value)}>
+              <option value="weekly">Weekly — every week on the same day</option>
+              <option value="custom">Custom — manage dates manually</option>
+            </SelectField>
+          </div>
+        )}</div>
 
       <div className="space-y-2">
         <Label>Description</Label>

@@ -443,6 +443,14 @@ function EventDetailCard({ event }: { event: ChurchEvent }) {
             <p className="font-medium">Visibility</p>
             <p className="mt-1 text-muted-foreground">{labelize(event.visibility)}</p>
           </div>
+          {(event.linkedSessionCount ?? 0) > 0 && (
+            <div>
+              <p className="font-medium">Attendance</p>
+              <p className="mt-1 text-muted-foreground">
+                {event.linkedAttendanceCount ?? 0} present across {event.linkedSessionCount} session{event.linkedSessionCount === 1 ? "" : "s"}
+              </p>
+            </div>
+          )}
           <div>
             <p className="font-medium">Created</p>
             <p className="mt-1 text-muted-foreground">{formatDate(event.createdAt)}</p>

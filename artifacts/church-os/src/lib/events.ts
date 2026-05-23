@@ -28,6 +28,8 @@ export type ChurchEvent = {
   createdByUserId: number | null;
   createdAt: string;
   updatedAt: string;
+  linkedSessionCount?: number;
+  linkedAttendanceCount?: number;
 };
 
 export type EventFormState = {
