@@ -59,7 +59,10 @@ function SidebarNav() {
             if (!item.permission) return true;
             return hasPermission("admin", item.permission, user?.adminPermissions);
           }).map((item) => {
-            const isActive = location === item.href;
+            const isActive =
+              item.href === "/admin"
+                ? location === item.href
+                : location === item.href || location.startsWith(item.href + "/");
             return (
               <Link
                 key={item.label}
