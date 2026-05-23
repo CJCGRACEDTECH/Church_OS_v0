@@ -354,6 +354,68 @@ const CHILDREN = [
   },
 ];
 
+const DISCIPLESHIP_GROUPS = [
+  {
+    name: "Cornerstone",
+    teacherLeader: "Elder Thomas Reid",
+    members: [
+      { firstName: "Elijah",    lastName: "Foster",    email: "elijah.foster@example.test",    memberStatus: "active_member" as const },
+      { firstName: "Naomi",     lastName: "Hayes",     email: "naomi.hayes@example.test",      memberStatus: "active_member" as const },
+      { firstName: "Marcus",    lastName: "Webb",      email: "marcus.webb@example.test",      memberStatus: "member" as const },
+      { firstName: "Priscilla", lastName: "Stone",     email: "priscilla.stone@example.test",  memberStatus: "active_member" as const },
+      { firstName: "Daniel",    lastName: "Osei",      email: "daniel.osei@example.test",      memberStatus: "member" as const },
+      { firstName: "Faith",     lastName: "Nguyen",    email: "faith.nguyen@example.test",     memberStatus: "active_member" as const },
+      { firstName: "Samuel",    lastName: "Adeyemi",   email: "samuel.adeyemi@example.test",   memberStatus: "active_member" as const },
+      { firstName: "Gloria",    lastName: "Mensah",    email: "gloria.mensah@example.test",    memberStatus: "member" as const },
+      { firstName: "Isaac",     lastName: "Turner",    email: "isaac.turner@example.test",     memberStatus: "active_member" as const },
+      { firstName: "Ruth",      lastName: "Chambers",  email: "ruth.chambers@example.test",    memberStatus: "member" as const },
+    ],
+  },
+  {
+    name: "Overcomers",
+    teacherLeader: "Elder Grace Kim",
+    members: [
+      { firstName: "Caleb",     lastName: "Rivers",    email: "caleb.rivers@example.test",     memberStatus: "active_member" as const },
+      { firstName: "Hannah",    lastName: "Cross",     email: "hannah.cross@example.test",     memberStatus: "member" as const },
+      { firstName: "Joseph",    lastName: "Okafor",    email: "joseph.okafor@example.test",    memberStatus: "active_member" as const },
+      { firstName: "Lydia",     lastName: "Park",      email: "lydia.park@example.test",       memberStatus: "active_member" as const },
+      { firstName: "Ezra",      lastName: "Mitchell",  email: "ezra.mitchell@example.test",    memberStatus: "member" as const },
+      { firstName: "Abigail",   lastName: "Santos",    email: "abigail.santos@example.test",   memberStatus: "active_member" as const },
+      { firstName: "Nathan",    lastName: "Boateng",   email: "nathan.boateng@example.test",   memberStatus: "member" as const },
+      { firstName: "Miriam",    lastName: "Clarke",    email: "miriam.clarke@example.test",    memberStatus: "active_member" as const },
+      { firstName: "Joshua",    lastName: "Owusu",     email: "joshua.owusu@example.test",     memberStatus: "active_member" as const },
+      { firstName: "Deborah",   lastName: "James",     email: "deborah.james@example.test",    memberStatus: "member" as const },
+    ],
+  },
+  {
+    name: "Covenant",
+    teacherLeader: "Elder Marcus Powell",
+    members: [
+      { firstName: "Benjamin",  lastName: "Asante",    email: "benjamin.asante@example.test",  memberStatus: "active_member" as const },
+      { firstName: "Esther",    lastName: "Liang",     email: "esther.liang@example.test",     memberStatus: "member" as const },
+      { firstName: "Emmanuel",  lastName: "Darko",     email: "emmanuel.darko@example.test",   memberStatus: "active_member" as const },
+      { firstName: "Leah",      lastName: "Washington",email: "leah.washington@example.test",  memberStatus: "active_member" as const },
+      { firstName: "Micah",     lastName: "Chen",      email: "micah.chen@example.test",       memberStatus: "member" as const },
+      { firstName: "Rachel",    lastName: "Amponsah",  email: "rachel.amponsah@example.test",  memberStatus: "active_member" as const },
+      { firstName: "Stephen",   lastName: "Yeboah",    email: "stephen.yeboah@example.test",   memberStatus: "active_member" as const },
+      { firstName: "Judith",    lastName: "Monroe",    email: "judith.monroe@example.test",    memberStatus: "member" as const },
+      { firstName: "Philip",    lastName: "Ofori",     email: "philip.ofori@example.test",     memberStatus: "active_member" as const },
+      { firstName: "Sarah",     lastName: "Kwarteng",  email: "sarah.kwarteng@example.test",   memberStatus: "active_member" as const },
+    ],
+  },
+];
+
+const FRIDAY_DATES = [
+  "2026-04-03",
+  "2026-04-10",
+  "2026-04-17",
+  "2026-04-24",
+  "2026-05-01",
+  "2026-05-08",
+  "2026-05-15",
+  "2026-05-22",
+];
+
 const GIVING_CAMPAIGNS = [
   {
     campaignName: "Building Fund",
@@ -781,6 +843,95 @@ async function seed() {
     }
 
     console.log(`   child: ${child.firstName} ${child.lastName} (${child.classroom})`);
+  }
+
+  console.log("🌱 Seeding Discipleship groups and attendance...");
+  const [discipleshipCreator] = await db
+    .select({ id: schema.usersTable.id })
+    .from(schema.usersTable)
+    .where(eq(schema.usersTable.email, "admin@churchos.test"));
+
+  for (const group of DISCIPLESHIP_GROUPS) {
+    const memberIds: number[] = [];
+
+    for (const m of group.members) {
+      const [member] = await db
+        .insert(schema.usersTable)
+        .values({
+          churchId: church.id,
+          email: m.email,
+          firstName: m.firstName,
+          lastName: m.lastName,
+          role: "member",
+          memberStatus: m.memberStatus,
+          accountStatus: "active",
+          isActive: true,
+          adminLevel: null,
+        })
+        .onConflictDoUpdate({
+          target: schema.usersTable.email,
+          set: { firstName: m.firstName, lastName: m.lastName, memberStatus: m.memberStatus, accountStatus: "active", isActive: true },
+        })
+        .returning();
+      memberIds.push(member.id);
+    }
+
+    console.log(`   group "${group.name}": ${memberIds.length} disciples seeded`);
+
+    for (let fridayIndex = 0; fridayIndex < FRIDAY_DATES.length; fridayIndex++) {
+      const dateStr = FRIDAY_DATES[fridayIndex];
+      const sessionDate = new Date(`${dateStr}T19:00:00Z`);
+      const sessionName = `${group.name} — Friday Discipleship`;
+      const qrExpiration = new Date(sessionDate.getTime() + 2 * 60 * 60 * 1000);
+
+      const [existingSession] = await db
+        .select({ id: schema.attendanceSessionsTable.id })
+        .from(schema.attendanceSessionsTable)
+        .where(
+          and(
+            eq(schema.attendanceSessionsTable.churchId, church.id),
+            eq(schema.attendanceSessionsTable.sessionName, sessionName),
+            eq(schema.attendanceSessionsTable.sessionDate, sessionDate),
+          ),
+        );
+
+      const sessionValues = {
+        churchId: church.id,
+        attendanceType: "discipleship" as const,
+        sessionName,
+        sessionDate,
+        startTime: "19:00",
+        location: "Fellowship Hall",
+        discipleshipGroup: group.name,
+        teacherLeader: group.teacherLeader,
+        lessonTopic: ["The Great Commission", "Walking in the Spirit", "Prayer & Fasting", "Servanthood", "Faith & Works", "The Body of Christ", "Grace & Truth", "Stewardship"][fridayIndex % 8],
+        qrToken: `qr-disc-${group.name.toLowerCase()}-${dateStr}`,
+        qrEnabled: false,
+        qrExpiration,
+        sessionStatus: "closed" as const,
+        createdByUserId: discipleshipCreator?.id ?? null,
+      };
+
+      const [session] = existingSession
+        ? await db.update(schema.attendanceSessionsTable).set(sessionValues).where(eq(schema.attendanceSessionsTable.id, existingSession.id)).returning()
+        : await db.insert(schema.attendanceSessionsTable).values(sessionValues).returning();
+
+      await db.delete(schema.attendanceRecordsTable).where(eq(schema.attendanceRecordsTable.sessionId, session.id));
+
+      const absentIndices = new Set([(fridayIndex * 3) % 10, (fridayIndex * 3 + 1) % 10]);
+
+      const records = memberIds.map((memberId, idx) => ({
+        sessionId: session.id,
+        memberId,
+        attendanceStatus: absentIndices.has(idx) ? ("absent" as const) : ("present" as const),
+        checkinSource: "manual_admin" as const,
+        checkinTime: new Date(sessionDate.getTime() + 10 * 60 * 1000),
+        checkedInByUserId: discipleshipCreator?.id ?? null,
+      }));
+
+      await db.insert(schema.attendanceRecordsTable).values(records);
+      console.log(`   session: ${sessionName} on ${dateStr} — ${records.filter((r) => r.attendanceStatus === "present").length}/${memberIds.length} present`);
+    }
   }
 
   console.log("✅ Seed complete.");
