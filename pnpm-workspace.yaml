@@ -166,6 +166,8 @@ overrides:
   "brace-expansion": "^2.1.0"
   # GHSA-qx2v-qp2m-jg93 — postcss XSS
   "postcss": "^8.5.14"
+  # GHSA-qjx8-664m-686j — js-cookie XSS via cookie injection
+  "js-cookie": "^3.0.7"
 
 allowBuilds:
   '@clerk/shared': true
