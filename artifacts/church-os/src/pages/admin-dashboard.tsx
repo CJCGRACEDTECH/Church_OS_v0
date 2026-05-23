@@ -31,7 +31,13 @@ type DashboardSummary = {
   activeCampaigns: number;
   checkedInChildren: number;
   attendanceRateLast4: number | null;
-  attendanceTrend: Array<{ sessionName: string; sessionDate: string; present: number; memberCount: number }>;
+  attendanceTrend: Array<{
+    sessionName: string;
+    sessionDate: string;
+    attendanceType: string;
+    present: number;
+    memberCount: number;
+  }>;
   givingTrend: Array<{ sessionName: string; sessionDate: string; totalCents: number }>;
   recentNewMembers: Array<{
     id: number;
@@ -206,18 +212,14 @@ function AttendanceTrendCard({
   isError: boolean;
   canSee: boolean;
 }) {
-  const memberCount = trend[0]?.memberCount ?? 0;
-
   return (
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-4">
         <div>
           <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" /> Attendance Trend
+            <BarChart3 className="h-5 w-5" /> Attendance Rate Trend
           </CardTitle>
-          <CardDescription>
-            Present vs. {memberCount > 0 ? `${memberCount} total members` : "total members"} across last 8 sessions.
-          </CardDescription>
+          <CardDescription>% of members present — last 8 sessions.</CardDescription>
         </div>
         <Button asChild size="sm" variant="outline">
           <Link href="/admin/attendance">View All</Link>
@@ -246,46 +248,60 @@ function AttendanceTrendCard({
         )}
         {canSee && !isLoading && !isError && trend.length > 0 && (
           <div className="space-y-3">
-            <div className="flex items-end gap-1.5 h-28">
-              {trend.map((session, i) => {
-                const mc = session.memberCount > 0 ? session.memberCount : 1;
-                const presentPct = Math.min((session.present / mc) * 100, 100);
-                const rate = Math.round((session.present / mc) * 100);
-                const label = new Date(session.sessionDate).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                });
-                return (
-                  <div key={i} className="flex-1 flex flex-col items-center group relative">
-                    <div className="w-full flex flex-col justify-end h-24 relative">
-                      <div
-                        className="w-full rounded-t-sm bg-primary/15 absolute bottom-0"
-                        style={{ height: "100%" }}
-                      />
-                      <div
-                        className="w-full rounded-t-sm bg-primary absolute bottom-0"
-                        style={{ height: `${presentPct}%` }}
-                      />
-                    </div>
-                    <span className="text-[9px] text-muted-foreground truncate w-full text-center mt-1">
-                      {label}
-                    </span>
-                    <div className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 hidden group-hover:flex bg-popover text-popover-foreground text-xs rounded px-2 py-1 shadow border whitespace-nowrap z-10 flex-col items-center">
-                      <span className="font-medium">{session.sessionName}</span>
-                      <span>{session.present} / {session.memberCount} members ({rate}%)</span>
-                    </div>
+            <div className="relative">
+              <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-5">
+                {[100, 75, 50, 25, 0].map((pct) => (
+                  <div key={pct} className="flex items-center gap-1.5">
+                    <span className="text-[9px] text-muted-foreground/60 w-5 text-right shrink-0">{pct}</span>
+                    <div className="flex-1 border-t border-dashed border-muted-foreground/15" />
                   </div>
-                );
-              })}
+                ))}
+              </div>
+              <div className="flex items-end gap-1.5 h-32 pl-7">
+                {trend.map((session, i) => {
+                  const denominator = session.memberCount > 0 ? session.memberCount : 1;
+                  const ratePct = Math.min(Math.round((session.present / denominator) * 100), 100);
+                  const isRegular = session.attendanceType === "regular_service";
+                  const label = new Date(session.sessionDate).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                  });
+                  const tooltipRate = `${session.present} / ${session.memberCount} — ${ratePct}%`;
+                  const tooltipDate = new Date(session.sessionDate).toLocaleDateString("en-US", {
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  });
+                  return (
+                    <div key={i} className="flex-1 flex flex-col items-center group relative">
+                      <div className="w-full flex flex-col justify-end h-24 relative">
+                        <div
+                          className={`w-full rounded-t-sm absolute bottom-0 transition-opacity ${isRegular ? "bg-primary" : "bg-amber-500 dark:bg-amber-400"}`}
+                          style={{ height: `${ratePct}%` }}
+                        />
+                      </div>
+                      <span className="text-[9px] text-muted-foreground truncate w-full text-center mt-1">
+                        {label}
+                      </span>
+                      <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 hidden group-hover:flex bg-popover text-popover-foreground text-xs rounded px-2.5 py-1.5 shadow-md border whitespace-nowrap z-10 flex-col items-center gap-0.5">
+                        <span className="font-semibold">{session.sessionName}</span>
+                        <span className="text-muted-foreground">{tooltipDate}</span>
+                        <span className="font-medium text-foreground">{tooltipRate}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <div className="flex items-center gap-4 text-xs text-muted-foreground pl-7">
               <span className="flex items-center gap-1.5">
                 <span className="inline-block h-2.5 w-2.5 rounded-sm bg-primary" />
-                Present
+                Regular Service
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="inline-block h-2.5 w-2.5 rounded-sm bg-primary/15" />
-                Total Members
+                <span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-500 dark:bg-amber-400" />
+                Discipleship
               </span>
             </div>
           </div>

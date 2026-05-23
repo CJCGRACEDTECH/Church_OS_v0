@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNull, lte } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   attendanceRecordsTable,
@@ -49,13 +49,17 @@ router.get("/admin/dashboard/summary", requireRole("admin"), async (req, res): P
     db.select({ c: count() }).from(usersTable).where(and(
       eq(usersTable.churchId, churchId),
       eq(usersTable.role, "member"),
-      sql`${usersTable.memberStatus} in ('member', 'active_member')`,
+      inArray(usersTable.memberStatus, ["member", "active_member"]),
     )),
     db.select({ amountCents: donationsTable.amountCents }).from(donationsTable).where(and(eq(donationsTable.churchId, churchId), eq(donationsTable.paymentStatus, "succeeded"), gte(donationsTable.createdAt, startOfMonth))),
     db.select({ c: count() }).from(givingCampaignsTable).where(and(eq(givingCampaignsTable.churchId, churchId), eq(givingCampaignsTable.status, "active"))),
     db.select({ c: count() }).from(checkinRecordsTable).innerJoin(childrenTable, eq(checkinRecordsTable.childId, childrenTable.id)).where(and(eq(childrenTable.churchId, churchId), eq(checkinRecordsTable.status, "active"), gte(checkinRecordsTable.checkinTime, startOfToday), isNull(checkinRecordsTable.checkoutTime))),
-    db.select({ id: attendanceSessionsTable.id, sessionName: attendanceSessionsTable.sessionName, sessionDate: attendanceSessionsTable.sessionDate })
-      .from(attendanceSessionsTable).where(eq(attendanceSessionsTable.churchId, churchId)).orderBy(desc(attendanceSessionsTable.sessionDate)).limit(8),
+    db.select({
+      id: attendanceSessionsTable.id,
+      sessionName: attendanceSessionsTable.sessionName,
+      sessionDate: attendanceSessionsTable.sessionDate,
+      attendanceType: attendanceSessionsTable.attendanceType,
+    }).from(attendanceSessionsTable).where(eq(attendanceSessionsTable.churchId, churchId)).orderBy(desc(attendanceSessionsTable.sessionDate)).limit(8),
     db.select({ id: attendanceSessionsTable.id, sessionName: attendanceSessionsTable.sessionName, sessionDate: attendanceSessionsTable.sessionDate })
       .from(attendanceSessionsTable).where(and(eq(attendanceSessionsTable.churchId, churchId), eq(attendanceSessionsTable.attendanceType, "regular_service"))).orderBy(desc(attendanceSessionsTable.sessionDate)).limit(8),
     db.select({ id: usersTable.id, firstName: usersTable.firstName, lastName: usersTable.lastName, memberStatus: usersTable.memberStatus, ministryDepartment: usersTable.ministryDepartment, createdAt: usersTable.createdAt })
@@ -89,6 +93,7 @@ router.get("/admin/dashboard/summary", requireRole("admin"), async (req, res): P
   const attendanceTrend = [...trendSessions].reverse().map((session) => ({
     sessionName: session.sessionName,
     sessionDate: session.sessionDate.toISOString(),
+    attendanceType: session.attendanceType,
     present: presentBySession.get(session.id) ?? 0,
     memberCount,
   }));
