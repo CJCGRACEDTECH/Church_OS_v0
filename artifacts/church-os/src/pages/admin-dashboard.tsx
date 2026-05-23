@@ -161,25 +161,25 @@ export default function AdminDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <AdminUpcomingEventsCard />
+          <CampaignsCard
+            campaigns={activeCampaigns}
+            isLoading={campaignsQuery.isLoading}
+            isError={campaignsQuery.isError}
+            canSee={canSeeGiving}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <AttendanceTrendCard
             trend={summary?.attendanceTrend ?? []}
             isLoading={summaryQuery.isLoading}
             isError={summaryQuery.isError}
             canSee={canSeeAttendance}
           />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <GivingTrendCard
             trend={summary?.givingTrend ?? []}
             isLoading={summaryQuery.isLoading}
             isError={summaryQuery.isError}
-            canSee={canSeeGiving}
-          />
-          <CampaignsCard
-            campaigns={activeCampaigns}
-            isLoading={campaignsQuery.isLoading}
-            isError={campaignsQuery.isError}
             canSee={canSeeGiving}
           />
         </div>
