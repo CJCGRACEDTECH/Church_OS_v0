@@ -168,6 +168,8 @@ overrides:
   "postcss": "^8.5.14"
   # GHSA-qjx8-664m-686j — js-cookie XSS via cookie injection
   "js-cookie": "^3.0.7"
+  # GHSA-q8mj-m7cp-5q26 — qs prototype pollution / query string injection
+  "qs": "^6.15.2"
 
 allowBuilds:
   '@clerk/shared': true
