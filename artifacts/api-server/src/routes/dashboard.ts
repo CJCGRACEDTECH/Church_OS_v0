@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, isNull, or } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   attendanceRecordsTable,
@@ -31,122 +31,106 @@ router.get("/admin/dashboard/summary", requireRole("admin"), async (req, res): P
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  const [totalMembersRow] = await db
-    .select({ c: count() })
-    .from(usersTable)
-    .where(and(eq(usersTable.churchId, churchId), eq(usersTable.role, "member")));
-
-  const [newMembersRow] = await db
-    .select({ c: count() })
-    .from(usersTable)
-    .where(and(
+  const [
+    [totalMembersRow],
+    [newMembersRow],
+    [visitorsRow],
+    [memberCountRow],
+    mtdDonations,
+    [activeCampaignsRow],
+    [checkedInRow],
+    trendSessions,
+    givingTrendSessions,
+    recentNewMembers,
+  ] = await Promise.all([
+    db.select({ c: count() }).from(usersTable).where(and(eq(usersTable.churchId, churchId), eq(usersTable.role, "member"))),
+    db.select({ c: count() }).from(usersTable).where(and(eq(usersTable.churchId, churchId), eq(usersTable.role, "member"), gte(usersTable.createdAt, thirtyDaysAgo))),
+    db.select({ c: count() }).from(usersTable).where(and(eq(usersTable.churchId, churchId), eq(usersTable.role, "member"), eq(usersTable.memberStatus, "visitor"))),
+    db.select({ c: count() }).from(usersTable).where(and(
       eq(usersTable.churchId, churchId),
       eq(usersTable.role, "member"),
-      gte(usersTable.createdAt, thirtyDaysAgo),
-    ));
+      sql`${usersTable.memberStatus} in ('member', 'active_member')`,
+    )),
+    db.select({ amountCents: donationsTable.amountCents }).from(donationsTable).where(and(eq(donationsTable.churchId, churchId), eq(donationsTable.paymentStatus, "succeeded"), gte(donationsTable.createdAt, startOfMonth))),
+    db.select({ c: count() }).from(givingCampaignsTable).where(and(eq(givingCampaignsTable.churchId, churchId), eq(givingCampaignsTable.status, "active"))),
+    db.select({ c: count() }).from(checkinRecordsTable).innerJoin(childrenTable, eq(checkinRecordsTable.childId, childrenTable.id)).where(and(eq(childrenTable.churchId, churchId), eq(checkinRecordsTable.status, "active"), gte(checkinRecordsTable.checkinTime, startOfToday), isNull(checkinRecordsTable.checkoutTime))),
+    db.select({ id: attendanceSessionsTable.id, sessionName: attendanceSessionsTable.sessionName, sessionDate: attendanceSessionsTable.sessionDate })
+      .from(attendanceSessionsTable).where(eq(attendanceSessionsTable.churchId, churchId)).orderBy(desc(attendanceSessionsTable.sessionDate)).limit(8),
+    db.select({ id: attendanceSessionsTable.id, sessionName: attendanceSessionsTable.sessionName, sessionDate: attendanceSessionsTable.sessionDate })
+      .from(attendanceSessionsTable).where(and(eq(attendanceSessionsTable.churchId, churchId), eq(attendanceSessionsTable.attendanceType, "regular_service"))).orderBy(desc(attendanceSessionsTable.sessionDate)).limit(8),
+    db.select({ id: usersTable.id, firstName: usersTable.firstName, lastName: usersTable.lastName, memberStatus: usersTable.memberStatus, ministryDepartment: usersTable.ministryDepartment, createdAt: usersTable.createdAt })
+      .from(usersTable).where(and(eq(usersTable.churchId, churchId), eq(usersTable.role, "member"), gte(usersTable.createdAt, thirtyDaysAgo))).orderBy(desc(usersTable.createdAt)).limit(8),
+  ]);
 
-  const [visitorsRow] = await db
-    .select({ c: count() })
-    .from(usersTable)
-    .where(and(
-      eq(usersTable.churchId, churchId),
-      eq(usersTable.role, "member"),
-      eq(usersTable.memberStatus, "visitor"),
-    ));
-
-  const mtdDonations = await db
-    .select({ amountCents: donationsTable.amountCents })
-    .from(donationsTable)
-    .where(and(
-      eq(donationsTable.churchId, churchId),
-      eq(donationsTable.paymentStatus, "succeeded"),
-      gte(donationsTable.createdAt, startOfMonth),
-    ));
+  const memberCount = Number(memberCountRow?.c ?? 0);
   const givingMtdCents = mtdDonations.reduce((sum, d) => sum + d.amountCents, 0);
 
-  const [activeCampaignsRow] = await db
-    .select({ c: count() })
-    .from(givingCampaignsTable)
-    .where(and(eq(givingCampaignsTable.churchId, churchId), eq(givingCampaignsTable.status, "active")));
+  const trendSessionIds = trendSessions.map((s) => s.id);
+  const trendRecords = trendSessionIds.length > 0
+    ? await db
+        .select({ sessionId: attendanceRecordsTable.sessionId, attendanceStatus: attendanceRecordsTable.attendanceStatus })
+        .from(attendanceRecordsTable)
+        .where(inArray(attendanceRecordsTable.sessionId, trendSessionIds))
+    : [];
 
-  const [checkedInRow] = await db
-    .select({ c: count() })
-    .from(checkinRecordsTable)
-    .innerJoin(childrenTable, eq(checkinRecordsTable.childId, childrenTable.id))
-    .where(and(
-      eq(childrenTable.churchId, churchId),
-      eq(checkinRecordsTable.status, "active"),
-      gte(checkinRecordsTable.checkinTime, startOfToday),
-      isNull(checkinRecordsTable.checkoutTime),
-    ));
-
-  const recentSessions = await db
-    .select({ id: attendanceSessionsTable.id, sessionName: attendanceSessionsTable.sessionName, sessionDate: attendanceSessionsTable.sessionDate })
-    .from(attendanceSessionsTable)
-    .where(eq(attendanceSessionsTable.churchId, churchId))
-    .orderBy(desc(attendanceSessionsTable.sessionDate))
-    .limit(4);
-
-  let attendanceRateLast4: number | null = null;
-  if (recentSessions.length > 0) {
-    const sessionIds = recentSessions.map((s) => s.id);
-    const records = await db
-      .select({ attendanceStatus: attendanceRecordsTable.attendanceStatus })
-      .from(attendanceRecordsTable)
-      .where(or(...sessionIds.map((id) => eq(attendanceRecordsTable.sessionId, id))));
-    const present = records.filter((r) => r.attendanceStatus === "present").length;
-    attendanceRateLast4 = records.length > 0 ? Math.round((present / records.length) * 100) : null;
+  const presentBySession = new Map<number, number>();
+  for (const r of trendRecords) {
+    if (r.attendanceStatus === "present") {
+      presentBySession.set(r.sessionId, (presentBySession.get(r.sessionId) ?? 0) + 1);
+    }
   }
 
-  const trendSessions = await db
-    .select({ id: attendanceSessionsTable.id, sessionName: attendanceSessionsTable.sessionName, sessionDate: attendanceSessionsTable.sessionDate })
-    .from(attendanceSessionsTable)
-    .where(eq(attendanceSessionsTable.churchId, churchId))
-    .orderBy(desc(attendanceSessionsTable.sessionDate))
-    .limit(8);
+  const recentSessionIds = new Set(trendSessions.slice(0, 4).map((s) => s.id));
+  const recentPresent = trendRecords.filter((r) => recentSessionIds.has(r.sessionId) && r.attendanceStatus === "present").length;
+  const attendanceRateLast4 = recentSessionIds.size > 0 && memberCount > 0
+    ? Math.round((recentPresent / (memberCount * recentSessionIds.size)) * 100)
+    : null;
 
-  const trendData = await Promise.all(
-    [...trendSessions].reverse().map(async (session) => {
-      const sessionRecords = await db
-        .select({ attendanceStatus: attendanceRecordsTable.attendanceStatus })
-        .from(attendanceRecordsTable)
-        .where(eq(attendanceRecordsTable.sessionId, session.id));
+  const attendanceTrend = [...trendSessions].reverse().map((session) => ({
+    sessionName: session.sessionName,
+    sessionDate: session.sessionDate.toISOString(),
+    present: presentBySession.get(session.id) ?? 0,
+    memberCount,
+  }));
+
+  const orderedGivingSessions = [...givingTrendSessions].reverse();
+  let givingTrend: Array<{ sessionName: string; sessionDate: string; totalCents: number }> = [];
+  if (orderedGivingSessions.length > 0) {
+    const minDate = orderedGivingSessions[0].sessionDate;
+    const maxDate = new Date(orderedGivingSessions[orderedGivingSessions.length - 1].sessionDate);
+    maxDate.setDate(maxDate.getDate() + 1);
+    const sessionDonations = await db
+      .select({ donationDate: donationsTable.donationDate, amountCents: donationsTable.amountCents })
+      .from(donationsTable)
+      .where(and(
+        eq(donationsTable.churchId, churchId),
+        eq(donationsTable.paymentStatus, "succeeded"),
+        gte(donationsTable.donationDate, minDate),
+        lte(donationsTable.donationDate, maxDate),
+      ));
+    givingTrend = orderedGivingSessions.map((session) => {
+      const sessionDateStr = session.sessionDate.toDateString();
+      const totalCents = sessionDonations
+        .filter((d) => new Date(d.donationDate).toDateString() === sessionDateStr)
+        .reduce((sum, d) => sum + d.amountCents, 0);
       return {
         sessionName: session.sessionName,
         sessionDate: session.sessionDate.toISOString(),
-        present: sessionRecords.filter((r) => r.attendanceStatus === "present").length,
-        total: sessionRecords.length,
+        totalCents,
       };
-    }),
-  );
-
-  const recentNewMembers = await db
-    .select({
-      id: usersTable.id,
-      firstName: usersTable.firstName,
-      lastName: usersTable.lastName,
-      memberStatus: usersTable.memberStatus,
-      ministryDepartment: usersTable.ministryDepartment,
-      createdAt: usersTable.createdAt,
-    })
-    .from(usersTable)
-    .where(and(
-      eq(usersTable.churchId, churchId),
-      eq(usersTable.role, "member"),
-      gte(usersTable.createdAt, thirtyDaysAgo),
-    ))
-    .orderBy(desc(usersTable.createdAt))
-    .limit(8);
+    });
+  }
 
   res.json({
-    totalMembers: totalMembersRow?.c ?? 0,
-    newMembersLast30Days: newMembersRow?.c ?? 0,
-    visitors: visitorsRow?.c ?? 0,
+    totalMembers: Number(totalMembersRow?.c ?? 0),
+    newMembersLast30Days: Number(newMembersRow?.c ?? 0),
+    visitors: Number(visitorsRow?.c ?? 0),
     givingMtdCents,
-    activeCampaigns: activeCampaignsRow?.c ?? 0,
-    checkedInChildren: checkedInRow?.c ?? 0,
+    activeCampaigns: Number(activeCampaignsRow?.c ?? 0),
+    checkedInChildren: Number(checkedInRow?.c ?? 0),
     attendanceRateLast4,
-    attendanceTrend: trendData,
+    attendanceTrend,
+    givingTrend,
     recentNewMembers: recentNewMembers.map((m) => ({
       id: m.id,
       firstName: m.firstName,

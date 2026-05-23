@@ -31,7 +31,8 @@ type DashboardSummary = {
   activeCampaigns: number;
   checkedInChildren: number;
   attendanceRateLast4: number | null;
-  attendanceTrend: Array<{ sessionName: string; sessionDate: string; present: number; total: number }>;
+  attendanceTrend: Array<{ sessionName: string; sessionDate: string; present: number; memberCount: number }>;
+  givingTrend: Array<{ sessionName: string; sessionDate: string; totalCents: number }>;
   recentNewMembers: Array<{
     id: number;
     firstName: string;
@@ -108,7 +109,7 @@ export default function AdminDashboard() {
           ? `${summary.attendanceRateLast4}%`
           : "—"
         : "—",
-      trend: "Last 4 sessions",
+      trend: "Last 4 sessions vs. total members",
       href: canSeeAttendance ? "/admin/attendance" : undefined,
       icon: <BarChart3 className="h-4 w-4" />,
       loading: summaryQuery.isLoading,
@@ -163,18 +164,25 @@ export default function AdminDashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <GivingTrendCard
+            trend={summary?.givingTrend ?? []}
+            isLoading={summaryQuery.isLoading}
+            isError={summaryQuery.isError}
+            canSee={canSeeGiving}
+          />
           <CampaignsCard
             campaigns={activeCampaigns}
             isLoading={campaignsQuery.isLoading}
             isError={campaignsQuery.isError}
             canSee={canSeeGiving}
           />
-          <ActivityFeedCard
-            log={activityQuery.data?.log ?? []}
-            isLoading={activityQuery.isLoading}
-            isError={activityQuery.isError}
-          />
         </div>
+
+        <ActivityFeedCard
+          log={activityQuery.data?.log ?? []}
+          isLoading={activityQuery.isLoading}
+          isError={activityQuery.isError}
+        />
 
         <NewMembersCard
           members={summary?.recentNewMembers ?? []}
@@ -198,7 +206,7 @@ function AttendanceTrendCard({
   isError: boolean;
   canSee: boolean;
 }) {
-  const maxTotal = Math.max(...trend.map((t) => t.total), 1);
+  const memberCount = trend[0]?.memberCount ?? 0;
 
   return (
     <Card>
@@ -207,7 +215,9 @@ function AttendanceTrendCard({
           <CardTitle className="flex items-center gap-2">
             <BarChart3 className="h-5 w-5" /> Attendance Trend
           </CardTitle>
-          <CardDescription>Present vs. total across last 8 sessions.</CardDescription>
+          <CardDescription>
+            Present vs. {memberCount > 0 ? `${memberCount} total members` : "total members"} across last 8 sessions.
+          </CardDescription>
         </div>
         <Button asChild size="sm" variant="outline">
           <Link href="/admin/attendance">View All</Link>
@@ -238,8 +248,9 @@ function AttendanceTrendCard({
           <div className="space-y-3">
             <div className="flex items-end gap-1.5 h-28">
               {trend.map((session, i) => {
-                const presentPct = session.total > 0 ? (session.present / maxTotal) * 100 : 0;
-                const totalPct = (session.total / maxTotal) * 100;
+                const mc = session.memberCount > 0 ? session.memberCount : 1;
+                const presentPct = Math.min((session.present / mc) * 100, 100);
+                const rate = Math.round((session.present / mc) * 100);
                 const label = new Date(session.sessionDate).toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
@@ -249,7 +260,7 @@ function AttendanceTrendCard({
                     <div className="w-full flex flex-col justify-end h-24 relative">
                       <div
                         className="w-full rounded-t-sm bg-primary/15 absolute bottom-0"
-                        style={{ height: `${totalPct}%` }}
+                        style={{ height: "100%" }}
                       />
                       <div
                         className="w-full rounded-t-sm bg-primary absolute bottom-0"
@@ -259,9 +270,9 @@ function AttendanceTrendCard({
                     <span className="text-[9px] text-muted-foreground truncate w-full text-center mt-1">
                       {label}
                     </span>
-                    <div className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 hidden group-hover:flex bg-popover text-popover-foreground text-xs rounded px-2 py-1 shadow border whitespace-nowrap z-10 flex-col items-center">
+                    <div className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 hidden group-hover:flex bg-popover text-popover-foreground text-xs rounded px-2 py-1 shadow border whitespace-nowrap z-10 flex-col items-center">
                       <span className="font-medium">{session.sessionName}</span>
-                      <span>{session.present}/{session.total} present</span>
+                      <span>{session.present} / {session.memberCount} members ({rate}%)</span>
                     </div>
                   </div>
                 );
@@ -274,7 +285,95 @@ function AttendanceTrendCard({
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="inline-block h-2.5 w-2.5 rounded-sm bg-primary/15" />
-                Total Recorded
+                Total Members
+              </span>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function GivingTrendCard({
+  trend,
+  isLoading,
+  isError,
+  canSee,
+}: {
+  trend: DashboardSummary["givingTrend"];
+  isLoading: boolean;
+  isError: boolean;
+  canSee: boolean;
+}) {
+  const maxCents = Math.max(...trend.map((t) => t.totalCents), 1);
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between gap-4">
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            <BadgeDollarSign className="h-5 w-5" /> Giving per Service
+          </CardTitle>
+          <CardDescription>Total giving collected on each of the last 8 service dates.</CardDescription>
+        </div>
+        <Button asChild size="sm" variant="outline">
+          <Link href="/admin/giving">View All</Link>
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {!canSee && <EmptyState message="Giving permissions required to view trend." />}
+        {canSee && isLoading && (
+          <div className="flex items-end gap-1.5 h-28 pt-2">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div
+                key={i}
+                className="flex-1 rounded-t bg-muted animate-pulse"
+                style={{ height: `${20 + (i % 4) * 18}%` }}
+              />
+            ))}
+          </div>
+        )}
+        {canSee && isError && <EmptyState message="Could not load giving trend." isError />}
+        {canSee && !isLoading && !isError && trend.length === 0 && (
+          <EmptyState
+            message="No regular service sessions recorded yet."
+            actionHref="/admin/attendance"
+            actionLabel="Record Attendance"
+          />
+        )}
+        {canSee && !isLoading && !isError && trend.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-end gap-1.5 h-28">
+              {trend.map((session, i) => {
+                const pct = (session.totalCents / maxCents) * 100;
+                const label = new Date(session.sessionDate).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                });
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center group relative">
+                    <div className="w-full flex flex-col justify-end h-24 relative">
+                      <div
+                        className="w-full rounded-t-sm bg-emerald-500 absolute bottom-0"
+                        style={{ height: `${Math.max(pct, session.totalCents > 0 ? 3 : 0)}%` }}
+                      />
+                    </div>
+                    <span className="text-[9px] text-muted-foreground truncate w-full text-center mt-1">
+                      {label}
+                    </span>
+                    <div className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 hidden group-hover:flex bg-popover text-popover-foreground text-xs rounded px-2 py-1 shadow border whitespace-nowrap z-10 flex-col items-center">
+                      <span className="font-medium">{session.sessionName}</span>
+                      <span>{session.totalCents > 0 ? dollars(session.totalCents) : "No giving recorded"}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-sm bg-emerald-500" />
+                Giving collected
               </span>
             </div>
           </div>
@@ -600,7 +699,7 @@ function EmptyState({
     <div
       className={`rounded-md border border-dashed p-5 text-center ${isError ? "border-destructive/30 bg-destructive/5" : ""}`}
     >
-      <p className={`text-sm ${isError ? "text-destructive/70" : "text-muted-foreground"}`}>
+      <p className={`text-sm ${isError ? "text-destructive" : "text-muted-foreground"}`}>
         {message}
       </p>
       {actionHref && actionLabel && (
@@ -616,14 +715,7 @@ function SkeletonList({ rows }: { rows: number }) {
   return (
     <div className="space-y-2">
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="rounded-md border p-3 flex items-center gap-3">
-          <div className="h-2.5 w-2.5 rounded-full bg-muted animate-pulse shrink-0" />
-          <div className="flex-1 space-y-1.5">
-            <div className="h-3 w-32 rounded bg-muted animate-pulse" />
-            <div className="h-2.5 w-48 rounded bg-muted animate-pulse" />
-          </div>
-          <div className="h-5 w-14 rounded-full bg-muted animate-pulse shrink-0" />
-        </div>
+        <div key={i} className="h-14 rounded-md bg-muted animate-pulse" />
       ))}
     </div>
   );
