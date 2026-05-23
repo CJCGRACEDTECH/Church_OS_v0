@@ -26,6 +26,7 @@ type AttendanceSummary = {
   activeSessions: number;
   weeklyAttendance: number;
   discipleshipAttendance: number;
+  discipleshipMemberCount: number;
   membersPresent: number;
   visitorsCount: number;
   regularSessionCount: number;
@@ -164,7 +165,7 @@ function AttendanceDashboard() {
           <StatCard label="Total Today" value={summary ? `${summary.totalToday} / ${summary.totalMembers}` : "—"} trend="Members present today" />
           <StatCard label="Active Sessions" value={String(summary?.activeSessions ?? 0)} trend="Open now" />
           <StatCard label="Avg. Attendance" value={summary ? `${summary.regularAvgAttendance} / ${summary.totalMembers}` : "—"} trend="Per regular service session" />
-          <StatCard label="Discipleship" value={String(summary?.discipleshipAttendance ?? 0)} trend="Friday groups" />
+          <StatCard label="Disciples" value={summary ? `${summary.discipleshipMemberCount}` : "—"} trend={summary ? `${summary.discipleshipAvgAttendance} avg · ${summary.discipleshipSessionCount} sessions` : "Discipleship groups"} />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -181,9 +182,12 @@ function AttendanceDashboard() {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Discipleship</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-2">
               <p className="text-2xl font-bold">{summary?.discipleshipSessionCount ?? 0} <span className="text-sm font-normal text-muted-foreground">sessions</span></p>
-              <p className="text-xs text-muted-foreground mt-1">Avg {summary?.discipleshipAvgAttendance ?? 0} present per session</p>
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span><span className="text-foreground font-medium">{summary?.discipleshipMemberCount ?? 0}</span> unique disciples</span>
+                <span><span className="text-foreground font-medium">{summary?.discipleshipAvgAttendance ?? 0}</span> avg per session</span>
+              </div>
             </CardContent>
           </Card>
         </div>

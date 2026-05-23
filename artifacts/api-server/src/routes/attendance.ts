@@ -152,7 +152,9 @@ router.get("/admin/attendance/summary", requireAttendanceManagement, async (req,
   const discipleshipSessionIds = new Set(discipleshipSessions.map((session) => session.id));
 
   const regularPresentCount = records.filter((r) => regularSessionIds.has(r.sessionId) && r.attendanceStatus === "present").length;
-  const discipleshipPresentCount = records.filter((r) => discipleshipSessionIds.has(r.sessionId) && r.attendanceStatus === "present").length;
+  const discipleshipPresentRecords = records.filter((r) => discipleshipSessionIds.has(r.sessionId) && r.attendanceStatus === "present");
+  const discipleshipPresentCount = discipleshipPresentRecords.length;
+  const discipleshipMemberCount = new Set(discipleshipPresentRecords.map((r) => r.memberId)).size;
 
   res.json({
     totalMembers,
@@ -160,6 +162,7 @@ router.get("/admin/attendance/summary", requireAttendanceManagement, async (req,
     activeSessions: sessions.filter((s) => s.sessionStatus === "active").length,
     weeklyAttendance: records.filter((r) => r.attendanceStatus === "present").length,
     discipleshipAttendance: discipleshipPresentCount,
+    discipleshipMemberCount,
     membersPresent: records.filter((r) => r.attendanceStatus === "present").length,
     visitorsCount: 0,
     regularSessionCount: regularSessions.length,
