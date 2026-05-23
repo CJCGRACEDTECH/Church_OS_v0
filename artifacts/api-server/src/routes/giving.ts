@@ -174,9 +174,17 @@ router.get("/giving/history", requireAuth, async (req, res): Promise<void> => {
     filters.push(gte(donationsTable.donationDate, new Date(`${year}-01-01T00:00:00Z`)));
     filters.push(lte(donationsTable.donationDate, new Date(`${year}-12-31T23:59:59Z`)));
   }
-  const donations = await db.select().from(donationsTable).where(and(...filters)).orderBy(desc(donationsTable.donationDate));
+  const donationRows = await db
+    .select({ donation: donationsTable, campaignName: givingCampaignsTable.campaignName })
+    .from(donationsTable)
+    .leftJoin(givingCampaignsTable, eq(donationsTable.campaignId, givingCampaignsTable.id))
+    .where(and(...filters))
+    .orderBy(desc(donationsTable.donationDate));
   const recurring = await db.select().from(recurringDonationsTable).where(eq(recurringDonationsTable.memberId, req.localUserId)).orderBy(desc(recurringDonationsTable.createdAt));
-  res.json({ donations: donations.map(serializeDonation), recurring: recurring.map(serializeRecurring) });
+  res.json({
+    donations: donationRows.map((row) => ({ ...serializeDonation(row.donation), campaignName: row.campaignName ?? null })),
+    recurring: recurring.map(serializeRecurring),
+  });
 });
 
 router.post("/giving/checkout", requireAuth, async (req, res): Promise<void> => {
@@ -352,6 +360,16 @@ router.get("/admin/giving/campaigns", requireGivingManagement, async (req, res) 
 router.post("/admin/giving/campaigns", requireCampaignManagement, async (req, res): Promise<void> => {
   const name = typeof req.body?.campaignName === "string" ? req.body.campaignName.trim() : "";
   if (!name) { res.status(400).json({ error: "Campaign name is required." }); return; }
+  const goalAmountDollars = Number(req.body?.goalAmount);
+  if (!Number.isFinite(goalAmountDollars) || goalAmountDollars <= 0) {
+    res.status(400).json({ error: "Goal amount must be greater than $0." }); return;
+  }
+  if (req.body?.endDate) {
+    const endDate = new Date(req.body.endDate);
+    if (isNaN(endDate.getTime())) { res.status(400).json({ error: "End date is invalid." }); return; }
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (endDate < today) { res.status(400).json({ error: "End date must be today or in the future." }); return; }
+  }
   const [campaign] = await db.insert(givingCampaignsTable).values({
     churchId: req.localChurchId,
     campaignName: name,
@@ -370,6 +388,18 @@ router.post("/admin/giving/campaigns", requireCampaignManagement, async (req, re
 router.patch("/admin/giving/campaigns/:id", requireCampaignManagement, async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) { res.status(400).json({ error: "Invalid campaign." }); return; }
+  if ("goalAmount" in req.body) {
+    const goalAmountDollars = Number(req.body.goalAmount);
+    if (!Number.isFinite(goalAmountDollars) || goalAmountDollars <= 0) {
+      res.status(400).json({ error: "Goal amount must be greater than $0." }); return;
+    }
+  }
+  if ("endDate" in req.body && req.body.endDate) {
+    const endDate = new Date(req.body.endDate);
+    if (isNaN(endDate.getTime())) { res.status(400).json({ error: "End date is invalid." }); return; }
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (endDate < today) { res.status(400).json({ error: "End date must be today or in the future." }); return; }
+  }
   const [campaign] = await db.update(givingCampaignsTable).set({
     campaignName: typeof req.body?.campaignName === "string" ? req.body.campaignName.trim() : undefined,
     description: textOrNull(req.body?.description),

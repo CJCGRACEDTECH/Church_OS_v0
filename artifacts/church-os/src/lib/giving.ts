@@ -14,6 +14,7 @@ export type Donation = {
   donationType: DonationType;
   givingCategory: GivingCategory;
   campaignId: number | null;
+  campaignName?: string | null;
   stripePaymentIntentId: string | null;
   stripeCheckoutSessionId: string | null;
   stripeCustomerId: string | null;

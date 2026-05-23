@@ -55,6 +55,15 @@ export default function MemberGive() {
     return params.get("checkout");
   }, []);
 
+  const lastCheckoutIntent = React.useMemo(() => {
+    try {
+      const raw = sessionStorage.getItem("last_checkout_intent");
+      return raw ? (JSON.parse(raw) as { amount: number; campaignName: string | null }) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
   React.useEffect(() => {
     if (checkoutStatus === "cancelled") setShowCancelledBanner(true);
   }, [checkoutStatus]);
@@ -96,6 +105,11 @@ export default function MemberGive() {
     }),
     onSuccess: (result) => {
       if (result.checkoutUrl) {
+        const selectedCampaign = campaigns.find((c) => String(c.id) === form.campaignId);
+        sessionStorage.setItem("last_checkout_intent", JSON.stringify({
+          amount: Number(form.amount),
+          campaignName: selectedCampaign?.campaignName ?? null,
+        }));
         window.location.href = result.checkoutUrl;
         return;
       }
@@ -120,6 +134,14 @@ export default function MemberGive() {
               <CheckCircle className="h-16 w-16 text-green-500" />
             </div>
             <h1 className="text-2xl font-semibold">Thank You for Giving!</h1>
+            {lastCheckoutIntent && (
+              <div className="rounded-md border bg-muted/50 px-4 py-3 text-sm space-y-1">
+                <p><span className="font-medium">Amount:</span> ${lastCheckoutIntent.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                {lastCheckoutIntent.campaignName && (
+                  <p><span className="font-medium">Campaign:</span> {lastCheckoutIntent.campaignName}</p>
+                )}
+              </div>
+            )}
             <p className="text-muted-foreground">
               Your generous gift has been received. We appreciate your faithfulness and stewardship. A receipt will be sent to your email.
             </p>
@@ -309,12 +331,13 @@ export default function MemberGive() {
             </CardHeader>
             <CardContent>
               <Table>
-                <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Category</TableHead><TableHead>Type</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Category</TableHead><TableHead>Campaign</TableHead><TableHead>Type</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {donations.map((donation) => (
                     <TableRow key={donation.id}>
                       <TableCell>{formatDate(donation.donationDate)}</TableCell>
                       <TableCell>{labelize(donation.givingCategory)}</TableCell>
+                      <TableCell>{donation.campaignName ?? <span className="text-muted-foreground">—</span>}</TableCell>
                       <TableCell>{labelize(donation.donationType)}</TableCell>
                       <TableCell><Badge variant={donation.paymentStatus === "succeeded" ? "default" : "secondary"}>{labelize(donation.paymentStatus)}</Badge></TableCell>
                       <TableCell className="text-right font-medium">{dollars(donation.amountCents)}</TableCell>

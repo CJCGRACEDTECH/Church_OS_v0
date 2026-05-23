@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { and, desc, eq, isNull } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { Router, type IRouter } from "express";
 import {
   childGuardianRelationshipsTable,
@@ -122,6 +123,8 @@ router.get("/admin/checkin/history", requireCheckInAccess, async (req, res): Pro
     return;
   }
 
+  const checkedOutUserAlias = alias(usersTable, "checked_out_by_user");
+
   const records = await db
     .select({
       id: checkinRecordsTable.id,
@@ -134,11 +137,14 @@ router.get("/admin/checkin/history", requireCheckInAccess, async (req, res): Pro
       childLastName: childrenTable.lastName,
       checkedInByFirstName: usersTable.firstName,
       checkedInByLastName: usersTable.lastName,
+      checkedOutByFirstName: checkedOutUserAlias.firstName,
+      checkedOutByLastName: checkedOutUserAlias.lastName,
       pickedUpByName: parentGuardiansTable.name,
     })
     .from(checkinRecordsTable)
     .innerJoin(childrenTable, eq(checkinRecordsTable.childId, childrenTable.id))
     .innerJoin(usersTable, eq(checkinRecordsTable.checkedInByUserId, usersTable.id))
+    .leftJoin(checkedOutUserAlias, eq(checkinRecordsTable.checkedOutByUserId, checkedOutUserAlias.id))
     .leftJoin(parentGuardiansTable, eq(checkinRecordsTable.pickedUpByGuardianId, parentGuardiansTable.id))
     .where(eq(childrenTable.churchId, churchId))
     .orderBy(desc(checkinRecordsTable.checkinTime))
@@ -154,6 +160,9 @@ router.get("/admin/checkin/history", requireCheckInAccess, async (req, res): Pro
       classroom: record.classroom,
       status: record.status,
       checkedInByName: `${record.checkedInByFirstName} ${record.checkedInByLastName}`,
+      checkedOutByName: record.checkedOutByFirstName && record.checkedOutByLastName
+        ? `${record.checkedOutByFirstName} ${record.checkedOutByLastName}`
+        : null,
       pickedUpByName: record.pickedUpByName,
     })),
   });
@@ -170,6 +179,12 @@ router.post("/admin/checkin/children", requireCheckInAccess, async (req, res): P
   const lastName = requiredText(req.body?.lastName);
   if (!firstName || !lastName) {
     res.status(400).json({ error: "Child first and last name are required." });
+    return;
+  }
+
+  const guardianName = requiredText(req.body?.guardianName);
+  if (!guardianName) {
+    res.status(400).json({ error: "At least one guardian contact is required to register a child." });
     return;
   }
 
@@ -190,17 +205,15 @@ router.post("/admin/checkin/children", requireCheckInAccess, async (req, res): P
     })
     .returning();
 
-  if (req.body?.guardianName) {
-    await createGuardianRelationship({
-      churchId,
-      childId: child.id,
-      name: req.body.guardianName,
-      email: req.body.guardianEmail,
-      phoneNumber: req.body.guardianPhoneNumber,
-      relationship: req.body.guardianRelationship,
-      authorizedPickup: req.body.authorizedPickup,
-    });
-  }
+  await createGuardianRelationship({
+    churchId,
+    childId: child.id,
+    name: guardianName,
+    email: req.body.guardianEmail,
+    phoneNumber: req.body.guardianPhoneNumber,
+    relationship: req.body.guardianRelationship,
+    authorizedPickup: req.body.authorizedPickup,
+  });
 
   res.status(201).json({ child: await serializeChild(child) });
 });

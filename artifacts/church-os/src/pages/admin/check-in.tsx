@@ -63,6 +63,7 @@ type MinistryCheckinHistoryRecord = {
   classroom: string | null;
   status: "active" | "checked_out";
   checkedInByName: string;
+  checkedOutByName: string | null;
   pickedUpByName: string | null;
 };
 
@@ -241,24 +242,45 @@ export default function AdminCheckIn() {
           </CardHeader>
           <CardContent>
             {activeChildren.length > 0 ? (
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {activeChildren.map((child) => (
-                  <div key={child.id} className="rounded-md border p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <ChildAvatar child={child} />
-                        <div className="min-w-0">
-                          <p className="truncate font-medium">{childName(child)}</p>
-                          <p className="truncate text-sm text-muted-foreground">
-                            {child.activeCheckIn?.classroom || child.classroom || "Unassigned"}
-                          </p>
-                        </div>
-                      </div>
-                      <CheckoutDialog child={child} isPending={checkOut.isPending} onCheckout={(guardianId) => checkOut.mutate({ childId: child.id, guardianId })} />
+              <>
+                {(() => {
+                  const classroomGroups = activeChildren.reduce<Record<string, number>>((acc, child) => {
+                    const room = child.activeCheckIn?.classroom || child.classroom || "Unassigned";
+                    acc[room] = (acc[room] ?? 0) + 1;
+                    return acc;
+                  }, {});
+                  return (
+                    <div className="mb-4 flex flex-wrap gap-2">
+                      {Object.entries(classroomGroups).map(([room, count]) => (
+                        <Badge key={room} variant="secondary">{room}: {count}</Badge>
+                      ))}
                     </div>
-                  </div>
-                ))}
-              </div>
+                  );
+                })()}
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {activeChildren.map((child) => (
+                    <div key={child.id} className="rounded-md border p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <ChildAvatar child={child} />
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">{childName(child)}</p>
+                            <p className="truncate text-sm text-muted-foreground">
+                              {child.activeCheckIn?.classroom || child.classroom || "Unassigned"}
+                            </p>
+                            {child.activeCheckIn?.checkinTime && (
+                              <p className="text-xs text-muted-foreground">
+                                In at {new Date(child.activeCheckIn.checkinTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <CheckoutDialog child={child} isPending={checkOut.isPending} onCheckout={(guardianId) => checkOut.mutate({ childId: child.id, guardianId })} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             ) : (
               <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
                 No active check-ins yet.
@@ -575,6 +597,7 @@ function MinistryCheckinHistory({
                         <TableHead>Checked In By</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Pickup</TableHead>
+                        <TableHead>Checked Out By</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -601,6 +624,13 @@ function MinistryCheckinHistory({
                                   {record.checkoutTime ? formatDateTime(record.checkoutTime) : "No checkout time"}
                                 </div>
                               </div>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {record.checkedOutByName ? (
+                              <span className="text-sm">{record.checkedOutByName}</span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
                             )}
                           </TableCell>
                         </TableRow>
