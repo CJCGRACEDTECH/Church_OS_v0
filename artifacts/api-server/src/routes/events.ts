@@ -74,8 +74,12 @@ function expandOccurrences(event: Event, rangeStart: Date, rangeEnd: Date) {
 
   const occurrences = [];
   const start = new Date(event.startDatetime);
-  while (start < rangeStart) start.setDate(start.getDate() + 7);
-  while (start <= rangeEnd) {
+  // Advance to first occurrence within range — cap iterations to prevent DoS
+  let advanceSteps = 0;
+  while (start < rangeStart && advanceSteps++ < MAX_OCCURRENCES_PER_EVENT) {
+    start.setDate(start.getDate() + 7);
+  }
+  while (start <= rangeEnd && occurrences.length < MAX_OCCURRENCES_PER_EVENT) {
     const end = new Date(start.getTime() + duration);
     occurrences.push({
       ...serializeEvent(event),
@@ -120,12 +124,18 @@ function eventPayload(body: unknown) {
 }
 
 const MAX_RANGE_MS = 366 * 24 * 60 * 60 * 1000;
+const MAX_PAST_MS = 2 * 365 * 24 * 60 * 60 * 1000;
+const MAX_OCCURRENCES_PER_EVENT = 200;
 
 async function listEvents(churchId: number, includeDrafts: boolean, query: Record<string, unknown>) {
   const search = typeof query.search === "string" ? query.search.trim() : "";
   const eventType = typeof query.eventType === "string" ? query.eventType : "";
-  const rangeStart = dateFromValue(query.start) ?? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const rawRangeEnd = dateFromValue(query.end) ?? new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+  const now = Date.now();
+  const rawRangeStart = dateFromValue(query.start) ?? new Date(now - 7 * 24 * 60 * 60 * 1000);
+  // Clamp rangeStart: no earlier than 2 years ago, no later than 366 days from now
+  const rangeStart = new Date(Math.max(now - MAX_PAST_MS, Math.min(rawRangeStart.getTime(), now + MAX_RANGE_MS)));
+  const rawRangeEnd = dateFromValue(query.end) ?? new Date(now + 90 * 24 * 60 * 60 * 1000);
+  // Clamp rangeEnd: no more than 366 days after the (already-clamped) rangeStart
   const rangeEnd = new Date(Math.min(rawRangeEnd.getTime(), rangeStart.getTime() + MAX_RANGE_MS));
   const limit = typeof query.limit === "string" ? Number(query.limit) : 250;
 
