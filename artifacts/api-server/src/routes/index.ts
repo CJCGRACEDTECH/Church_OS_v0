@@ -9,6 +9,7 @@ import eventsRouter from "./events";
 import attendanceRouter from "./attendance";
 import givingRouter from "./giving";
 import settingsRouter from "./settings";
+import memberHouseholdRouter from "./member-household";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(eventsRouter);
 router.use(attendanceRouter);
 router.use(givingRouter);
 router.use(settingsRouter);
+router.use(memberHouseholdRouter);
 
 export default router;

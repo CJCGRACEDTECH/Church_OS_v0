@@ -5,6 +5,7 @@ export * from "./children";
 export * from "./churches";
 export * from "./events";
 export * from "./giving";
+export * from "./household-requests";
 export * from "./oauth-accounts";
 export * from "./settings";
 export * from "./users";

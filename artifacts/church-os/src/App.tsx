@@ -14,6 +14,7 @@ import AttendanceCheckIn from "@/pages/attendance-check-in";
 import AdminDashboard from "@/pages/admin-dashboard";
 import AdminProfile from "@/pages/admin/profile";
 import AdminMembers from "@/pages/admin/members";
+import AdminHouseholdInbox from "@/pages/admin/household-inbox";
 import AdminServices from "@/pages/admin/services";
 import AdminAttendance from "@/pages/admin/attendance";
 import AdminCheckIn from "@/pages/admin/check-in";
@@ -26,7 +27,6 @@ import MemberProfile from "@/pages/member/profile";
 import MemberHousehold from "@/pages/member/household";
 import MemberGive from "@/pages/member/give";
 import MemberServices from "@/pages/member/services";
-import MemberSettings from "@/pages/member/settings";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -158,7 +158,7 @@ function AuthPageShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <footer className="py-4 text-center text-xs text-gray-400">
-        Church OS &middot; Internal Platform &middot; CJC International
+        Church OS &middot; CJC International
       </footer>
     </div>
   );
@@ -299,6 +299,7 @@ function Router() {
       {/* Admin routes */}
       <Route path="/admin">{() => <AdminRoute component={AdminDashboard} />}</Route>
       <Route path="/admin/profile">{() => <AdminRoute component={AdminProfile} />}</Route>
+      <Route path="/admin/household-inbox">{() => <AdminRoute component={AdminHouseholdInbox} />}</Route>
       <Route path="/admin/members/:id">{() => <AdminRoute component={AdminMembers} />}</Route>
       <Route path="/admin/members">{() => <AdminRoute component={AdminMembers} />}</Route>
       <Route path="/admin/households">{() => <Redirect to="/admin/members" />}</Route>
@@ -319,7 +320,7 @@ function Router() {
       <Route path="/member/give">{() => <MemberRoute component={MemberGive} />}</Route>
       <Route path="/member/services/:id">{() => <MemberRoute component={MemberServices} />}</Route>
       <Route path="/member/services">{() => <MemberRoute component={MemberServices} />}</Route>
-      <Route path="/member/settings">{() => <MemberRoute component={MemberSettings} />}</Route>
+      <Route path="/member/settings">{() => <Redirect to="/member/profile" />}</Route>
 
       <Route component={NotFound} />
     </Switch>
