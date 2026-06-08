@@ -451,11 +451,22 @@ router.delete("/admin/giving/campaigns/:id", requireCampaignManagement, async (r
 
 router.post("/giving/stripe/webhook", async (req, res): Promise<void> => {
   const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body ?? {}));
-  const signature = req.headers["stripe-signature"];
-  if (process.env.STRIPE_WEBHOOK_SECRET && !validStripeSignature(rawBody, signature, process.env.STRIPE_WEBHOOK_SECRET)) {
-    res.status(400).json({ error: "Invalid Stripe signature." });
-    return;
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!webhookSecret) {
+    if (process.env.NODE_ENV === "production") {
+      res.status(503).json({ error: "Stripe webhook secret is not configured." });
+      return;
+    }
+    // Development only: allow unsigned test webhooks when secret is absent
+  } else {
+    const signature = req.headers["stripe-signature"];
+    if (!validStripeSignature(rawBody, signature, webhookSecret)) {
+      res.status(400).json({ error: "Invalid Stripe signature." });
+      return;
+    }
   }
+
   const event = JSON.parse(rawBody.toString()) as { type?: string; data?: { object?: Record<string, unknown> } };
   await syncStripeEvent(event.type ?? "", event.data?.object ?? {});
   res.json({ received: true });

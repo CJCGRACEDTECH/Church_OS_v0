@@ -119,11 +119,14 @@ function eventPayload(body: unknown) {
   };
 }
 
+const MAX_RANGE_MS = 366 * 24 * 60 * 60 * 1000;
+
 async function listEvents(churchId: number, includeDrafts: boolean, query: Record<string, unknown>) {
   const search = typeof query.search === "string" ? query.search.trim() : "";
   const eventType = typeof query.eventType === "string" ? query.eventType : "";
   const rangeStart = dateFromValue(query.start) ?? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const rangeEnd = dateFromValue(query.end) ?? new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+  const rawRangeEnd = dateFromValue(query.end) ?? new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+  const rangeEnd = new Date(Math.min(rawRangeEnd.getTime(), rangeStart.getTime() + MAX_RANGE_MS));
   const limit = typeof query.limit === "string" ? Number(query.limit) : 250;
 
   const filters = [
