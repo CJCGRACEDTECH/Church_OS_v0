@@ -165,8 +165,10 @@ function AuthPageShell({ children }: { children: React.ReactNode }) {
 }
 
 const DEMO_ACCOUNTS = [
-  { label: "Demo Admin", role: "admin", color: "bg-indigo-600 hover:bg-indigo-700" },
-  { label: "Demo Member", role: "member", color: "bg-slate-600 hover:bg-slate-700" },
+  { label: "Super Admin Access", role: "super_admin", color: "bg-indigo-600 hover:bg-indigo-700" },
+  { label: "Admin Access", role: "admin", color: "bg-sky-600 hover:bg-sky-700" },
+  { label: "Children Ministry Access", role: "children_ministry", color: "bg-amber-600 hover:bg-amber-700" },
+  { label: "Member Access", role: "member", color: "bg-slate-600 hover:bg-slate-700" },
 ];
 
 function DemoLoginButtons() {
@@ -186,7 +188,7 @@ function DemoLoginButtons() {
       });
       const data = await res.json() as { ok?: boolean; role?: string; token?: string; error?: string };
       if (!res.ok || !data.ok) {
-        setError(data.error ?? "Demo login failed.");
+        setError(data.error ?? "Could not start session.");
         return;
       }
       sessionStorage.setItem("demo_mode", "true");
@@ -194,7 +196,7 @@ function DemoLoginButtons() {
       setLocation(data.role === "admin" ? "/admin" : "/member");
       window.location.reload();
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Demo login failed.";
+      const msg = e instanceof Error ? e.message : "Could not start session.";
       setError(msg);
     } finally {
       setLoadingIdx(null);
@@ -202,10 +204,10 @@ function DemoLoginButtons() {
   }
 
   return (
-    <div className="w-[440px] max-w-full mt-3">
+    <div className="w-[560px] max-w-full mt-3">
       <div className="bg-white rounded-2xl shadow-xl border border-gray-100 px-6 py-4">
-        <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-3">Quick Demo Access</p>
-        <div className="flex gap-3">
+        <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-3">Quick Access</p>
+        <div className="grid gap-3 sm:grid-cols-2">
           {DEMO_ACCOUNTS.map((acct, idx) => (
             <button
               key={acct.role}
@@ -257,8 +259,8 @@ function SignUpPage() {
     return (
       <AuthPageShell>
         <div className="w-[440px] max-w-full rounded-2xl border border-gray-100 bg-white px-6 py-5 text-center shadow-xl">
-          <h1 className="text-lg font-semibold text-gray-900">Signup needs auth setup</h1>
-          <p className="mt-2 text-sm text-gray-500">Add Clerk or OAuth environment variables in Replit to enable public account creation.</p>
+          <h1 className="text-lg font-semibold text-gray-900">Account creation is not available</h1>
+          <p className="mt-2 text-sm text-gray-500">Please contact church administration for access.</p>
           <DemoLoginButtons />
         </div>
       </AuthPageShell>

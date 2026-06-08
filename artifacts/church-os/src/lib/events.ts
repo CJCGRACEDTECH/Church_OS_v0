@@ -1,4 +1,4 @@
-export type EventType = "service" | "bible_study" | "prayer" | "baptism" | "fasting_season" | "special_event" | "announcement";
+export type EventType = "service" | "discipleship" | "bible_study" | "prayer" | "baptism" | "fasting_season" | "special_event" | "announcement";
 export type EventMode = "in_person" | "online" | "hybrid";
 export type EventStatus = "draft" | "published" | "cancelled";
 export type RecurrencePattern = "weekly" | "one_time" | "custom";
@@ -136,6 +136,10 @@ export function eventTypeCalendarClasses(eventType: EventType) {
     service: {
       single: "bg-indigo-100 text-indigo-800 hover:bg-indigo-200",
       span: "bg-indigo-500 text-white hover:bg-indigo-600",
+    },
+    discipleship: {
+      single: "bg-emerald-100 text-emerald-800 hover:bg-emerald-200",
+      span: "bg-emerald-600 text-white hover:bg-emerald-700",
     },
     bible_study: {
       single: "bg-sky-100 text-sky-800 hover:bg-sky-200",

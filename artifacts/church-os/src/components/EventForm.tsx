@@ -82,6 +82,7 @@ export default function EventForm({
         <TextInput label="Event Title" value={form.title} onChange={(value) => set("title", value)} required />
         <SelectField label="Event Type" value={form.eventType} onChange={(value) => set("eventType", value)}>
           <option value="service">Service</option>
+          <option value="discipleship">Discipleship</option>
           <option value="bible_study">Bible Study</option>
           <option value="prayer">Prayer</option>
           <option value="baptism">Baptism</option>

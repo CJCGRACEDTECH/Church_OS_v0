@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { and, count, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, or } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   attendanceRecordsTable,
@@ -11,8 +11,9 @@ import {
   type AttendanceSession,
 } from "@workspace/db";
 import { ADMIN_PERMISSIONS } from "../lib/admin-permissions";
+import { getDiscipleMembers, isDiscipleMember } from "../lib/discipleship";
+import { getActiveMemberIdsForMonth } from "../lib/member-engagement";
 import { requireAdminPermission, requireAuth } from "../middlewares/auth";
-import { formatFollowUpMessage, sendSms, SMS_ENABLED } from "../lib/sms";
 
 const router: IRouter = Router();
 const requireAttendanceManagement = requireAdminPermission(ADMIN_PERMISSIONS.ATTENDANCE_MANAGEMENT);
@@ -20,7 +21,7 @@ const requireAttendanceManagement = requireAdminPermission(ADMIN_PERMISSIONS.ATT
 const ATTENDANCE_TYPES = new Set(["regular_service", "discipleship"]);
 const SESSION_STATUSES = new Set(["upcoming", "active", "closed"]);
 const ATTENDANCE_STATUSES = new Set(["present", "absent", "excused", "late"]);
-const COMPLETION_STATUSES = new Set(["attended", "missed", "make_up_needed"]);
+const COMPLETION_STATUSES = new Set(["attended", "missed"]);
 
 function textOrNull(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -125,56 +126,107 @@ function recordPayload(body: unknown) {
   };
 }
 
+function shouldFinalizeDiscipleshipAbsences(session: AttendanceSession) {
+  return session.attendanceType === "discipleship"
+    && (session.sessionStatus === "closed" || session.qrExpiration <= new Date());
+}
+
+async function finalizeDiscipleshipAbsences(session: AttendanceSession, churchId: number, actorId: number | null = null) {
+  if (!shouldFinalizeDiscipleshipAbsences(session)) return 0;
+
+  const discipleMembers = await getDiscipleMembers(churchId);
+  if (!discipleMembers.length) return 0;
+
+  const existingRecords = await db
+    .select({ memberId: attendanceRecordsTable.memberId })
+    .from(attendanceRecordsTable)
+    .where(eq(attendanceRecordsTable.sessionId, session.id));
+  const existingMemberIds = new Set(existingRecords.map((record) => record.memberId));
+  const missingDiscipleIds = discipleMembers.map((member) => member.id).filter((id) => !existingMemberIds.has(id));
+  if (!missingDiscipleIds.length) return 0;
+
+  await db.insert(attendanceRecordsTable).values(
+    missingDiscipleIds.map((memberId) => ({
+      sessionId: session.id,
+      memberId,
+      attendanceStatus: "absent" as const,
+      checkinSource: "manual_admin" as const,
+      checkedInByUserId: actorId,
+      checkinTime: session.qrExpiration,
+      completionStatus: "missed" as const,
+      followUpNeeded: false,
+      notes: "Auto-marked absent after discipleship session ended.",
+    })),
+  ).onConflictDoNothing();
+
+  return missingDiscipleIds.length;
+}
+
+async function finalizeEndedDiscipleshipAbsences(churchId: number, actorId: number | null = null) {
+  const sessions = await db.select().from(attendanceSessionsTable).where(and(
+    eq(attendanceSessionsTable.churchId, churchId),
+    eq(attendanceSessionsTable.attendanceType, "discipleship"),
+  ));
+  let finalized = 0;
+  for (const session of sessions) {
+    finalized += await finalizeDiscipleshipAbsences(session, churchId, actorId);
+  }
+  return finalized;
+}
+
 router.get("/admin/attendance/summary", requireAttendanceManagement, async (req, res): Promise<void> => {
   const churchId = await getRequesterChurchId(req.localUserId);
   if (!churchId) { res.status(401).json({ error: "User church not found." }); return; }
+  await finalizeEndedDiscipleshipAbsences(churchId, req.localUserId);
 
-  const [memberCountRow, sessions] = await Promise.all([
-    db.select({ c: count() }).from(usersTable).where(and(
-      eq(usersTable.churchId, churchId),
-      eq(usersTable.role, "member"),
-      sql`${usersTable.memberStatus} in ('member', 'active_member')`,
-    )),
-    db.select().from(attendanceSessionsTable).where(eq(attendanceSessionsTable.churchId, churchId)).orderBy(desc(attendanceSessionsTable.sessionDate)),
-  ]);
-  const totalMembers = memberCountRow[0]?.c ?? 0;
-
+  const sessions = await db.select().from(attendanceSessionsTable).where(eq(attendanceSessionsTable.churchId, churchId)).orderBy(desc(attendanceSessionsTable.sessionDate));
+  const discipleMembers = await getDiscipleMembers(churchId);
   const sessionIds = sessions.map((session) => session.id);
   const records = sessionIds.length
-    ? await db.select().from(attendanceRecordsTable).where(inArray(attendanceRecordsTable.sessionId, sessionIds))
+    ? await db.select().from(attendanceRecordsTable).where(or(...sessionIds.map((id) => eq(attendanceRecordsTable.sessionId, id))))
     : [];
-
   const today = new Date().toDateString();
   const todaySessionIds = new Set(sessions.filter((session) => session.sessionDate.toDateString() === today).map((session) => session.id));
-  const regularSessions = sessions.filter((session) => session.attendanceType === "regular_service");
-  const discipleshipSessions = sessions.filter((session) => session.attendanceType === "discipleship");
-  const regularSessionIds = new Set(regularSessions.map((session) => session.id));
-  const discipleshipSessionIds = new Set(discipleshipSessions.map((session) => session.id));
-
-  const regularPresentCount = records.filter((r) => regularSessionIds.has(r.sessionId) && r.attendanceStatus === "present").length;
-  const discipleshipPresentRecords = records.filter((r) => discipleshipSessionIds.has(r.sessionId) && r.attendanceStatus === "present");
-  const discipleshipPresentCount = discipleshipPresentRecords.length;
-  const discipleshipMemberCount = new Set(discipleshipPresentRecords.map((r) => r.memberId)).size;
+  const serviceSessions = sessions.filter((session) => session.attendanceType === "regular_service").slice(0, 8);
+  const discipleshipSessions = sessions.filter((session) => session.attendanceType === "discipleship").slice(0, 8);
+  const serviceSessionIds = new Set(serviceSessions.map((session) => session.id));
+  const discipleIds = new Set(discipleMembers.map((member) => member.id));
+  const servicePresentCount = records.filter((record) => serviceSessionIds.has(record.sessionId) && record.attendanceStatus === "present").length;
+  const averagePerService = serviceSessions.length ? Math.round(servicePresentCount / serviceSessions.length) : 0;
+  const latestService = serviceSessions[0];
+  const latestDiscipleship = discipleshipSessions[0];
+  const latestServiceCount = latestService ? records.filter((record) => record.sessionId === latestService.id && record.attendanceStatus === "present").length : 0;
+  const latestDiscipleshipCheckedIn = latestDiscipleship
+    ? records.filter((record) => record.sessionId === latestDiscipleship.id && record.attendanceStatus === "present" && discipleIds.has(record.memberId)).length
+    : 0;
+  const discipleshipPresentCount = records.filter((record) => discipleshipSessions.some((session) => session.id === record.sessionId) && record.attendanceStatus === "present" && discipleIds.has(record.memberId)).length;
+  const averageDiscipleship = discipleshipSessions.length ? Math.round(discipleshipPresentCount / discipleshipSessions.length) : 0;
+  const discipleshipRate = discipleIds.size ? Math.round((latestDiscipleshipCheckedIn / discipleIds.size) * 100) : 0;
 
   res.json({
-    totalMembers,
-    totalToday: records.filter((r) => todaySessionIds.has(r.sessionId) && r.attendanceStatus === "present").length,
-    activeSessions: sessions.filter((s) => s.sessionStatus === "active").length,
-    weeklyAttendance: records.filter((r) => r.attendanceStatus === "present").length,
-    discipleshipAttendance: discipleshipPresentCount,
-    discipleshipMemberCount,
-    membersPresent: records.filter((r) => r.attendanceStatus === "present").length,
+    totalToday: records.filter((record) => todaySessionIds.has(record.sessionId) && record.attendanceStatus === "present").length,
+    activeSessions: sessions.filter((session) => session.sessionStatus === "active").length,
+    weeklyAttendance: averagePerService,
+    discipleshipAttendance: latestDiscipleshipCheckedIn,
+    membersPresent: records.filter((record) => record.attendanceStatus === "present").length,
     visitorsCount: 0,
-    regularSessionCount: regularSessions.length,
-    regularAvgAttendance: regularSessions.length > 0 ? Math.round(regularPresentCount / regularSessions.length) : 0,
-    discipleshipSessionCount: discipleshipSessions.length,
-    discipleshipAvgAttendance: discipleshipSessions.length > 0 ? Math.round(discipleshipPresentCount / discipleshipSessions.length) : 0,
+    regularService: {
+      averagePerSession: averagePerService,
+      latestSessionCount: latestServiceCount,
+    },
+    discipleship: {
+      totalTaggedDisciples: discipleIds.size,
+      latestCheckedIn: latestDiscipleshipCheckedIn,
+      latestAttendanceRate: discipleshipRate,
+      averagePerSession: averageDiscipleship,
+    },
   });
 });
 
 router.get("/admin/attendance/sessions", requireAttendanceManagement, async (req, res): Promise<void> => {
   const churchId = await getRequesterChurchId(req.localUserId);
   if (!churchId) { res.status(401).json({ error: "User church not found." }); return; }
+  await finalizeEndedDiscipleshipAbsences(churchId, req.localUserId);
   const type = typeof req.query.type === "string" ? req.query.type : "";
   const status = typeof req.query.status === "string" ? req.query.status : "";
   const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
@@ -184,38 +236,8 @@ router.get("/admin/attendance/sessions", requireAttendanceManagement, async (req
     ...(SESSION_STATUSES.has(status) ? [eq(attendanceSessionsTable.sessionStatus, status as typeof attendanceSessionsTable.$inferSelect.sessionStatus)] : []),
     ...(search ? [or(ilike(attendanceSessionsTable.sessionName, `%${search}%`), ilike(attendanceSessionsTable.discipleshipGroup, `%${search}%`))] : []),
   ];
-
-  const [sessions, memberCountRow] = await Promise.all([
-    db.select().from(attendanceSessionsTable).where(and(...filters)).orderBy(desc(attendanceSessionsTable.sessionDate)),
-    db.select({ c: count() }).from(usersTable).where(and(
-      eq(usersTable.churchId, churchId),
-      eq(usersTable.role, "member"),
-      sql`${usersTable.memberStatus} in ('member', 'active_member')`,
-    )),
-  ]);
-  const memberCount = memberCountRow[0]?.c ?? 0;
-
-  const sessionIds = sessions.map((s) => s.id);
-  const countRows = sessionIds.length
-    ? await db
-        .select({
-          sessionId: attendanceRecordsTable.sessionId,
-          present: sql<number>`count(*) filter (where ${attendanceRecordsTable.attendanceStatus} = 'present')`,
-        })
-        .from(attendanceRecordsTable)
-        .where(inArray(attendanceRecordsTable.sessionId, sessionIds))
-        .groupBy(attendanceRecordsTable.sessionId)
-    : [];
-
-  const presentMap = new Map(countRows.map((row) => [row.sessionId, Number(row.present)]));
-
-  res.json({
-    sessions: sessions.map((session) => ({
-      ...serializeSession(session),
-      presentCount: presentMap.get(session.id) ?? 0,
-      memberCount,
-    })),
-  });
+  const sessions = await db.select().from(attendanceSessionsTable).where(and(...filters)).orderBy(desc(attendanceSessionsTable.sessionDate));
+  res.json({ sessions: sessions.map(serializeSession) });
 });
 
 router.post("/admin/attendance/sessions", requireAttendanceManagement, async (req, res): Promise<void> => {
@@ -224,10 +246,6 @@ router.post("/admin/attendance/sessions", requireAttendanceManagement, async (re
   const payload = sessionPayload(req.body);
   if (!payload.sessionName || !payload.sessionDate || !payload.qrExpiration) {
     res.status(400).json({ error: "Session name, date, and QR expiration are required." });
-    return;
-  }
-  if (payload.sessionName.length > 255) {
-    res.status(400).json({ error: "Session name must be 255 characters or fewer." });
     return;
   }
   const values = { ...payload, sessionDate: payload.sessionDate, qrExpiration: payload.qrExpiration };
@@ -246,23 +264,35 @@ router.get("/admin/attendance/sessions/:id", requireAttendanceManagement, async 
   if (!Number.isInteger(sessionId) || !churchId) { res.status(400).json({ error: "Invalid session." }); return; }
   const [session] = await db.select().from(attendanceSessionsTable).where(and(eq(attendanceSessionsTable.id, sessionId), eq(attendanceSessionsTable.churchId, churchId)));
   if (!session) { res.status(404).json({ error: "Session not found." }); return; }
-  const [records, memberCountRow] = await Promise.all([
-    db
-      .select({ record: attendanceRecordsTable, firstName: usersTable.firstName, lastName: usersTable.lastName, email: usersTable.email })
-      .from(attendanceRecordsTable)
-      .innerJoin(usersTable, eq(attendanceRecordsTable.memberId, usersTable.id))
-      .where(eq(attendanceRecordsTable.sessionId, session.id))
-      .orderBy(desc(attendanceRecordsTable.checkinTime)),
-    db.select({ c: count() }).from(usersTable).where(and(
-      eq(usersTable.churchId, churchId),
-      eq(usersTable.role, "member"),
-      sql`${usersTable.memberStatus} in ('member', 'active_member')`,
-    )),
-  ]);
+  await finalizeDiscipleshipAbsences(session, churchId, req.localUserId);
+
+  const discipleMembers = session.attendanceType === "discipleship" ? await getDiscipleMembers(churchId) : [];
+  const discipleIds = new Set(discipleMembers.map((member) => member.id));
+  const refreshedRecords = await db
+    .select({ record: attendanceRecordsTable, firstName: usersTable.firstName, lastName: usersTable.lastName, email: usersTable.email, memberStatus: usersTable.memberStatus, smallGroup: usersTable.smallGroup, ministryDepartment: usersTable.ministryDepartment })
+    .from(attendanceRecordsTable)
+    .innerJoin(usersTable, eq(attendanceRecordsTable.memberId, usersTable.id))
+    .where(eq(attendanceRecordsTable.sessionId, session.id))
+    .orderBy(desc(attendanceRecordsTable.checkinTime));
+
+  const activeMemberIds = await getActiveMemberIdsForMonth(churchId, session.sessionDate);
+  const serviceBreakdown = {
+    activeMember: refreshedRecords.filter((row) => row.record.attendanceStatus === "present" && (activeMemberIds.has(row.record.memberId) || row.memberStatus === "active_member")).length,
+    member: refreshedRecords.filter((row) => row.record.attendanceStatus === "present" && row.memberStatus === "member" && !activeMemberIds.has(row.record.memberId)).length,
+    visitor: refreshedRecords.filter((row) => row.record.attendanceStatus === "present" && row.memberStatus === "visitor").length,
+  };
+  const disciplesTotal = session.attendanceType === "discipleship" ? discipleIds.size : 0;
+  const checkedInDisciples = session.attendanceType === "discipleship"
+    ? refreshedRecords.filter((row) => row.record.attendanceStatus === "present" && discipleIds.has(row.record.memberId)).length
+    : 0;
+
   res.json({
     session: serializeSession(session),
-    memberCount: memberCountRow[0]?.c ?? 0,
-    records: records.map((row) => serializeRecord(row.record, { firstName: row.firstName, lastName: row.lastName, email: row.email })),
+    serviceBreakdown,
+    disciplesTotal,
+    checkedInDisciples,
+    discipleshipAttendanceRate: disciplesTotal > 0 ? Math.round((checkedInDisciples / disciplesTotal) * 100) : 0,
+    records: refreshedRecords.map((row) => serializeRecord(row.record, { firstName: row.firstName, lastName: row.lastName, email: row.email })),
   });
 });
 
@@ -275,26 +305,10 @@ router.patch("/admin/attendance/sessions/:id", requireAttendanceManagement, asyn
     res.status(400).json({ error: "Session name, date, and QR expiration are required." });
     return;
   }
-  if (payload.sessionName.length > 255) {
-    res.status(400).json({ error: "Session name must be 255 characters or fewer." });
-    return;
-  }
   const values = { ...payload, sessionDate: payload.sessionDate, qrExpiration: payload.qrExpiration };
   const [session] = await db.update(attendanceSessionsTable).set(values).where(and(eq(attendanceSessionsTable.id, sessionId), eq(attendanceSessionsTable.churchId, churchId))).returning();
   if (!session) { res.status(404).json({ error: "Session not found." }); return; }
-  res.json({ session: serializeSession(session) });
-});
-
-router.patch("/admin/attendance/sessions/:id/close", requireAttendanceManagement, async (req, res): Promise<void> => {
-  const sessionId = Number(req.params.id);
-  const churchId = await getRequesterChurchId(req.localUserId);
-  if (!Number.isInteger(sessionId) || !churchId) { res.status(400).json({ error: "Invalid session." }); return; }
-  const [session] = await db
-    .update(attendanceSessionsTable)
-    .set({ sessionStatus: "closed" })
-    .where(and(eq(attendanceSessionsTable.id, sessionId), eq(attendanceSessionsTable.churchId, churchId)))
-    .returning();
-  if (!session) { res.status(404).json({ error: "Session not found." }); return; }
+  await finalizeDiscipleshipAbsences(session, churchId, req.localUserId);
   res.json({ session: serializeSession(session) });
 });
 
@@ -311,21 +325,25 @@ router.post("/admin/attendance/sessions/:id/records", requireAttendanceManagemen
   const [record] = await db.insert(attendanceRecordsTable).values({
     sessionId,
     memberId: payload.memberId,
-    attendanceStatus: payload.attendanceStatus,
+    attendanceStatus: session.attendanceType === "discipleship" ? payload.attendanceStatus : "present",
     checkinSource: "manual_admin",
     checkedInByUserId: req.localUserId,
     notes: payload.notes,
-    completionStatus: session.attendanceType === "discipleship" ? payload.completionStatus : null,
-    followUpNeeded: payload.followUpNeeded,
+    completionStatus: session.attendanceType === "discipleship"
+      ? (payload.attendanceStatus === "present" ? "attended" : "missed")
+      : null,
+    followUpNeeded: false,
   }).onConflictDoUpdate({
     target: [attendanceRecordsTable.sessionId, attendanceRecordsTable.memberId],
     set: {
-      attendanceStatus: payload.attendanceStatus,
+      attendanceStatus: session.attendanceType === "discipleship" ? payload.attendanceStatus : "present",
       checkinSource: "manual_admin",
       checkedInByUserId: req.localUserId,
       notes: payload.notes,
-      completionStatus: session.attendanceType === "discipleship" ? payload.completionStatus : null,
-      followUpNeeded: payload.followUpNeeded,
+      completionStatus: session.attendanceType === "discipleship"
+        ? (payload.attendanceStatus === "present" ? "attended" : "missed")
+        : null,
+      followUpNeeded: false,
       checkinTime: new Date(),
     },
   }).returning();
@@ -363,35 +381,6 @@ router.get("/admin/attendance/events", requireAttendanceManagement, async (req, 
   res.json({ events: events.map((event) => ({ ...event, startDatetime: event.startDatetime.toISOString() })) });
 });
 
-router.post("/admin/attendance/sessions/:id/follow-up-sms", requireAttendanceManagement, async (req, res): Promise<void> => {
-  if (!SMS_ENABLED) {
-    res.json({ sent: 0, failed: 0, notConfigured: true });
-    return;
-  }
-  const sessionId = Number(req.params.id);
-  const churchId = await getRequesterChurchId(req.localUserId);
-  if (!Number.isInteger(sessionId) || !churchId) { res.status(400).json({ error: "Invalid session." }); return; }
-  const [session] = await db.select().from(attendanceSessionsTable).where(and(eq(attendanceSessionsTable.id, sessionId), eq(attendanceSessionsTable.churchId, churchId)));
-  if (!session) { res.status(404).json({ error: "Session not found." }); return; }
-  const records = await db.select({
-    memberId: attendanceRecordsTable.memberId,
-    firstName: usersTable.firstName,
-    lastName: usersTable.lastName,
-    phoneNumber: usersTable.phoneNumber,
-  }).from(attendanceRecordsTable)
-    .innerJoin(usersTable, eq(attendanceRecordsTable.memberId, usersTable.id))
-    .where(and(eq(attendanceRecordsTable.sessionId, sessionId), eq(attendanceRecordsTable.followUpNeeded, true)));
-  let sent = 0;
-  let failed = 0;
-  for (const record of records) {
-    if (!record.phoneNumber) { failed++; continue; }
-    const msg = formatFollowUpMessage(`${record.firstName} ${record.lastName}`, session.sessionName);
-    const result = await sendSms(record.phoneNumber, msg);
-    if (result.ok) sent++; else failed++;
-  }
-  res.json({ sent, failed, notConfigured: false });
-});
-
 router.get("/attendance/qr/:token", requireAuth, async (req, res): Promise<void> => {
   const token = String(req.params.token);
   const [session] = await db.select().from(attendanceSessionsTable).where(eq(attendanceSessionsTable.qrToken, token));
@@ -420,11 +409,89 @@ router.post("/attendance/qr/:token/check-in", requireAuth, async (req, res): Pro
       checkinSource: "qr_self_checkin",
       checkedInByUserId: member.id,
       completionStatus: session.attendanceType === "discipleship" ? "attended" : null,
+    }).onConflictDoUpdate({
+      target: [attendanceRecordsTable.sessionId, attendanceRecordsTable.memberId],
+      set: {
+        attendanceStatus: "present",
+        checkinSource: "qr_self_checkin",
+        checkedInByUserId: member.id,
+        completionStatus: session.attendanceType === "discipleship" ? "attended" : null,
+        followUpNeeded: false,
+        notes: null,
+        checkinTime: new Date(),
+      },
     }).returning();
     res.status(201).json({ record: serializeRecord(record, { firstName: member.firstName, lastName: member.lastName, email: member.email }) });
   } catch {
     res.status(409).json({ error: "You are already checked in for this session." });
   }
+});
+
+router.get("/member/attendance/history", requireAuth, async (req, res): Promise<void> => {
+  const [member] = await db
+    .select({
+      smallGroup: usersTable.smallGroup,
+      ministryDepartment: usersTable.ministryDepartment,
+    })
+    .from(usersTable)
+    .where(and(
+      eq(usersTable.id, req.localUserId),
+      eq(usersTable.churchId, req.localChurchId),
+      eq(usersTable.role, "member"),
+    ));
+
+  if (!member) {
+    res.status(404).json({ error: "Member not found." });
+    return;
+  }
+
+  const isDisciple = isDiscipleMember(member.smallGroup, member.ministryDepartment);
+  const records = await db
+    .select({
+      id: attendanceRecordsTable.id,
+      attendanceStatus: attendanceRecordsTable.attendanceStatus,
+      checkinSource: attendanceRecordsTable.checkinSource,
+      checkinTime: attendanceRecordsTable.checkinTime,
+      sessionId: attendanceSessionsTable.id,
+      sessionName: attendanceSessionsTable.sessionName,
+      attendanceType: attendanceSessionsTable.attendanceType,
+      sessionDate: attendanceSessionsTable.sessionDate,
+      location: attendanceSessionsTable.location,
+    })
+    .from(attendanceRecordsTable)
+    .innerJoin(attendanceSessionsTable, eq(attendanceRecordsTable.sessionId, attendanceSessionsTable.id))
+    .where(and(
+      eq(attendanceRecordsTable.memberId, req.localUserId),
+      eq(attendanceSessionsTable.churchId, req.localChurchId),
+    ))
+    .orderBy(desc(attendanceSessionsTable.sessionDate))
+    .limit(40);
+
+  const serialized = records.map((record) => ({
+    id: record.id,
+    sessionId: record.sessionId,
+    sessionName: record.sessionName,
+    attendanceType: record.attendanceType,
+    sessionDate: record.sessionDate.toISOString(),
+    location: record.location,
+    attendanceStatus: record.attendanceStatus,
+    checkinSource: record.checkinSource,
+    checkinTime: record.checkinTime.toISOString(),
+  }));
+  const serviceRecords = serialized.filter((record) => record.attendanceType === "regular_service");
+  const discipleshipRecords = serialized.filter((record) => record.attendanceType === "discipleship");
+
+  res.json({
+    summary: {
+      isDisciple,
+      servicePresent: serviceRecords.filter((record) => record.attendanceStatus === "present").length,
+      serviceTotal: serviceRecords.length,
+      discipleshipPresent: discipleshipRecords.filter((record) => record.attendanceStatus === "present").length,
+      discipleshipTotal: discipleshipRecords.length,
+    },
+    serviceRecords: serviceRecords.slice(0, 8),
+    discipleshipRecords: discipleshipRecords.slice(0, 8),
+  });
 });
 
 export default router;

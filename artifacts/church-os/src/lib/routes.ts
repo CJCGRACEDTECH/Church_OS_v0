@@ -7,6 +7,7 @@ export const ADMIN_ROUTES = {
   DASHBOARD: "/admin",
   PROFILE: "/admin/profile",
   MEMBERS: "/admin/members",
+  HOUSEHOLD_INBOX: "/admin/household-inbox",
   HOUSEHOLDS: "/admin/households",
   SERVICES: "/admin/services",
   ATTENDANCE: "/admin/attendance",
@@ -23,5 +24,4 @@ export const MEMBER_ROUTES = {
   HOUSEHOLD: "/member/household",
   GIVE: "/member/give",
   SERVICES: "/member/services",
-  SETTINGS: "/member/settings",
 } as const;

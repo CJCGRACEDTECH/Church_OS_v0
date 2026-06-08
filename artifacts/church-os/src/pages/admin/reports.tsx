@@ -7,7 +7,7 @@ export default function AdminReports() {
     <AdminLayout>
       <ComingSoonPage
         title="Reports"
-        description="Generate and export reports on membership, attendance, giving, and growth trends. Planned for a future sprint."
+        description="Reporting access is not enabled for this workspace."
         icon={BarChart3}
       />
     </AdminLayout>

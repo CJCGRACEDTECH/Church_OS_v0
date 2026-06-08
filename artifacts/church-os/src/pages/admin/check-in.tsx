@@ -2,10 +2,12 @@ import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import AdminLayout from "@/components/AdminLayout";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogContent,
@@ -19,9 +21,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { readProfilePhotoFile } from "@/lib/profile-photo";
-import { CalendarCheck, History, LogOut, Pencil, Plus, ShieldCheck, UserRound } from "lucide-react";
+import { CalendarCheck, ChevronDown, CircleHelp, History, LogOut, Pencil, Plus, ShieldCheck, Trash2, UserRound, X } from "lucide-react";
 
 type Guardian = {
   id: number;
@@ -65,6 +68,13 @@ type MinistryCheckinHistoryRecord = {
   checkedInByName: string;
   checkedOutByName: string | null;
   pickedUpByName: string | null;
+};
+
+type MemberContact = {
+  id: number;
+  name: string;
+  email: string;
+  phoneNumber: string | null;
 };
 
 async function apiJson<T>(path: string, options?: RequestInit): Promise<T> {
@@ -124,6 +134,8 @@ export default function AdminCheckIn() {
   const [search, setSearch] = React.useState("");
   const [selectedChildId, setSelectedChildId] = React.useState<number | null>(null);
   const [registerOpen, setRegisterOpen] = React.useState(false);
+  const [activeExpanded, setActiveExpanded] = React.useState(false);
+  const [historyOpen, setHistoryOpen] = React.useState(false);
 
   const childrenQuery = useQuery({
     queryKey: ["children-checkin"],
@@ -135,6 +147,11 @@ export default function AdminCheckIn() {
     queryFn: () => apiJson<{ history: MinistryCheckinHistoryRecord[] }>("/admin/checkin/history"),
   });
 
+  const memberContactsQuery = useQuery({
+    queryKey: ["children-ministry-member-contacts"],
+    queryFn: () => apiJson<{ members: MemberContact[] }>("/admin/checkin/member-contacts"),
+  });
+
   const children = childrenQuery.data?.children ?? [];
   const checkinHistory = historyQuery.data?.history ?? [];
   const filteredChildren = children.filter((child) => {
@@ -144,6 +161,14 @@ export default function AdminCheckIn() {
   });
   const activeChildren = children.filter((child) => child.checkinStatus === "checked_in");
   const selectedChild = selectedChildId ? children.find((child) => child.id === selectedChildId) ?? null : null;
+  const todayKey = dateGroupKey(new Date().toISOString());
+  const todaysCheckins = checkinHistory.filter((record) => dateGroupKey(record.checkinTime) === todayKey);
+  const activeClassrooms = new Set(activeChildren.map((child) => child.activeCheckIn?.classroom || child.classroom || "Unassigned"));
+  const pickupContacts = children.reduce((sum, child) => sum + child.guardians.filter((guardian) => guardian.authorizedPickup).length, 0);
+
+  React.useEffect(() => {
+    if (activeChildren.length > 0) setActiveExpanded(true);
+  }, [activeChildren.length]);
 
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ["children-checkin"] });
@@ -191,6 +216,19 @@ export default function AdminCheckIn() {
     onError: (error) => toast({ title: "Check-out failed", description: error.message, variant: "destructive" }),
   });
 
+  const removeActiveCheckIn = useMutation({
+    mutationFn: (childId: number) =>
+      apiJson<{ child: Child }>(`/admin/checkin/children/${childId}/active-check-in`, {
+        method: "DELETE",
+      }),
+    onSuccess: (data) => {
+      setSelectedChildId(data.child.id);
+      toast({ title: "Accidental check-in removed" });
+      void refresh();
+    },
+    onError: (error) => toast({ title: "Could not remove check-in", description: error.message, variant: "destructive" }),
+  });
+
   const updateChild = useMutation({
     mutationFn: ({ childId, formData }: { childId: number; formData: FormData }) =>
       apiJson<{ child: Child }>(`/admin/checkin/children/${childId}`, {
@@ -227,20 +265,52 @@ export default function AdminCheckIn() {
             <h1 className="text-3xl font-bold tracking-tight">Children Ministry</h1>
             <p className="text-muted-foreground">Register children, manage pickup contacts, and track active check-ins.</p>
           </div>
+          <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <History className="h-4 w-4" />
+                Check-In History
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[88vh] max-w-6xl overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Check-In History</DialogTitle>
+                <DialogDescription>Review Children Ministry attendance by date, child, classroom, and check-in person.</DialogDescription>
+              </DialogHeader>
+              <MinistryCheckinHistory records={checkinHistory} isLoading={historyQuery.isLoading} expanded onExpandedChange={() => undefined} />
+            </DialogContent>
+          </Dialog>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <MetricCard icon={UserRound} label="Children" value={String(children.length)} />
-          <MetricCard icon={CalendarCheck} label="Active Check-ins" value={String(activeChildren.length)} />
-          <MetricCard icon={ShieldCheck} label="Authorized Contacts" value={String(children.reduce((sum, child) => sum + child.guardians.filter((guardian) => guardian.authorizedPickup).length, 0))} />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard icon={UserRound} label="Registered Children" value={String(children.length)} tooltip="Total children currently registered in Children Ministry." />
+          <MetricCard icon={CalendarCheck} label="Checked In Now" value={String(activeChildren.length)} tooltip="Children currently checked in and waiting for authorized pickup." />
+          <MetricCard icon={History} label="Today's Check-ins" value={String(todaysCheckins.length)} tooltip="Total Children Ministry check-ins recorded today, including children already checked out." />
+          <MetricCard icon={ShieldCheck} label="Pickup Contacts" value={String(pickupContacts)} tooltip="Authorized pickup contacts linked across all child profiles." />
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Active Check-ins</CardTitle>
-            <CardDescription>Children currently checked in and awaiting authorized pickup.</CardDescription>
-          </CardHeader>
-          <CardContent>
+        {activeChildren.length > 0 && (
+          <div className="flex flex-wrap gap-2 rounded-md border bg-muted/20 p-3 text-sm">
+            <span className="font-medium">Active classrooms:</span>
+            {[...activeClassrooms].map((room) => <Badge key={room} variant="secondary">{room}</Badge>)}
+          </div>
+        )}
+
+        <Collapsible open={activeExpanded} onOpenChange={setActiveExpanded}>
+          <Card>
+            <CardHeader>
+              <CollapsibleTrigger asChild>
+                <button type="button" className="flex w-full items-start justify-between gap-4 text-left">
+                  <div>
+                    <CardTitle>Active Check-ins</CardTitle>
+                    <CardDescription>Children currently checked in and awaiting authorized pickup.</CardDescription>
+                  </div>
+                  <ChevronDown className={`mt-1 h-4 w-4 text-muted-foreground transition-transform ${activeExpanded ? "rotate-180" : ""}`} />
+                </button>
+              </CollapsibleTrigger>
+            </CardHeader>
+            <CollapsibleContent>
+              <CardContent>
             {activeChildren.length > 0 ? (
               <>
                 {(() => {
@@ -286,10 +356,10 @@ export default function AdminCheckIn() {
                 No active check-ins yet.
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        <MinistryCheckinHistory records={checkinHistory} isLoading={historyQuery.isLoading} />
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
 
         <div className="grid gap-6">
           <Card>
@@ -311,6 +381,7 @@ export default function AdminCheckIn() {
                     <DialogDescription>Add a child profile and one parent or guardian contact.</DialogDescription>
                   </DialogHeader>
                   <ChildRegistrationForm
+                    memberContacts={memberContactsQuery.data?.members ?? []}
                     isPending={registerChild.isPending}
                     onSubmit={(formData) => registerChild.mutate(formData)}
                   />
@@ -387,8 +458,10 @@ export default function AdminCheckIn() {
                                 child={child}
                                 isUpdating={updateChild.isPending}
                                 isAddingGuardian={addGuardian.isPending}
+                                isRemovingCheckIn={removeActiveCheckIn.isPending}
                                 onUpdate={(formData) => updateChild.mutateAsync({ childId: child.id, formData }).then(() => undefined)}
                                 onAddGuardian={(formData) => addGuardian.mutateAsync({ childId: child.id, formData }).then(() => undefined)}
+                                onRemoveActiveCheckIn={() => removeActiveCheckIn.mutate(child.id)}
                               />
                             </TableCell>
                           </TableRow>
@@ -428,14 +501,18 @@ function ChildProfileDetails({
   child,
   isUpdating,
   isAddingGuardian,
+  isRemovingCheckIn,
   onUpdate,
   onAddGuardian,
+  onRemoveActiveCheckIn,
 }: {
   child: Child;
   isUpdating: boolean;
   isAddingGuardian: boolean;
+  isRemovingCheckIn: boolean;
   onUpdate: (formData: FormData) => Promise<void>;
   onAddGuardian: (formData: FormData) => Promise<void>;
+  onRemoveActiveCheckIn: () => void;
 }) {
   return (
     <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
@@ -471,6 +548,32 @@ function ChildProfileDetails({
           <Info label="Medical Notes" value={child.medicalNotes || "None listed"} />
           <Info label="Special Instructions" value={child.specialInstructions || "None listed"} />
         </div>
+
+        {child.checkinStatus === "checked_in" && child.activeCheckIn && (
+          <Collapsible>
+            <div className="rounded-md border bg-muted/20 p-3">
+              <CollapsibleTrigger asChild>
+                <button type="button" className="flex w-full items-center justify-between text-left text-sm font-medium text-muted-foreground">
+                  Correction tools
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-3 space-y-3">
+                <div className="rounded-md border border-destructive/20 bg-background p-3">
+                  <p className="text-sm font-medium">Accidental check-in</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Use this only if the child was checked in by mistake. Normal pickup should use Check Out.
+                  </p>
+                  <RemoveCheckInConfirmDialog
+                    child={child}
+                    isPending={isRemovingCheckIn}
+                    onConfirm={onRemoveActiveCheckIn}
+                  />
+                </div>
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
+        )}
       </div>
 
       <div className="space-y-4">
@@ -505,12 +608,61 @@ function ChildProfileDetails({
   );
 }
 
+function RemoveCheckInConfirmDialog({
+  child,
+  isPending,
+  onConfirm,
+}: {
+  child: Child;
+  isPending: boolean;
+  onConfirm: () => void;
+}) {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button type="button" variant="outline" size="sm" className="mt-3 border-destructive/30 text-destructive hover:bg-destructive/10">
+          <Trash2 className="h-4 w-4" />
+          Remove Accidental Check-In
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remove this check-in?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will remove the active check-in for {childName(child)} and mark the child as checked out. Use this only for accidental check-ins, not normal pickup.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="rounded-md border bg-muted/30 p-3 text-sm">
+          <p className="font-medium">{childName(child)}</p>
+          <p className="text-xs text-muted-foreground">
+            Checked in at {child.activeCheckIn?.checkinTime ? formatDateTime(child.activeCheckIn.checkinTime) : "unknown time"}
+          </p>
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={isPending}
+            onClick={onConfirm}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {isPending ? "Removing..." : "Yes, Remove Check-In"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 function MinistryCheckinHistory({
   records,
   isLoading,
+  expanded,
+  onExpandedChange,
 }: {
   records: MinistryCheckinHistoryRecord[];
   isLoading: boolean;
+  expanded: boolean;
+  onExpandedChange: (open: boolean) => void;
 }) {
   const [nameSearch, setNameSearch] = React.useState("");
   const [fromDate, setFromDate] = React.useState("");
@@ -542,15 +694,24 @@ function MinistryCheckinHistory({
   }, [filteredByFilters]);
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <History className="h-5 w-5 text-primary" />
-          <CardTitle>Check-In History</CardTitle>
-        </div>
-        <CardDescription>Attendance log for Children Ministry by date, time, child, and check-in person.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <Collapsible open={expanded} onOpenChange={onExpandedChange}>
+      <Card>
+        <CardHeader>
+          <CollapsibleTrigger asChild>
+            <button type="button" className="flex w-full items-start justify-between gap-4 text-left">
+              <div>
+                <div className="flex items-center gap-2">
+                  <History className="h-5 w-5 text-primary" />
+                  <CardTitle>Check-In History</CardTitle>
+                </div>
+                <CardDescription>Attendance log for Children Ministry by date, time, child, and check-in person.</CardDescription>
+              </div>
+              <ChevronDown className={`mt-1 h-4 w-4 text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`} />
+            </button>
+          </CollapsibleTrigger>
+        </CardHeader>
+        <CollapsibleContent>
+          <CardContent className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-[1fr_160px_160px]">
           <div className="relative">
             <Input
@@ -646,8 +807,10 @@ function MinistryCheckinHistory({
             No check-in history yet.
           </div>
         )}
-      </CardContent>
-    </Card>
+          </CardContent>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
   );
 }
 
@@ -755,7 +918,7 @@ function EditChildProfileForm({
                 {child.lastName[0]}
               </AvatarFallback>
             </Avatar>
-            <Input id={`editChildProfilePhoto-${child.id}`} type="file" accept="image/*" onChange={handlePhotoFile} />
+            <Input id={`editChildProfilePhoto-${child.id}`} type="file" accept="image/*" capture="user" onChange={handlePhotoFile} />
           </div>
           <input type="hidden" name="profilePhotoUrl" value={photoValue} />
           {photoError && <p className="text-sm text-destructive">{photoError}</p>}
@@ -821,14 +984,75 @@ function AddGuardianForm({
 }
 
 function ChildRegistrationForm({
+  memberContacts,
   isPending,
   onSubmit,
 }: {
+  memberContacts: MemberContact[];
   isPending: boolean;
   onSubmit: (formData: FormData) => void;
 }) {
   const [photoValue, setPhotoValue] = React.useState("");
   const [photoError, setPhotoError] = React.useState<string | null>(null);
+  const [guardianDrafts, setGuardianDrafts] = React.useState<Array<{
+    id: number;
+    source: "member" | "manual";
+    memberId: string;
+    name: string;
+    email: string;
+    phoneNumber: string;
+    relationship: "parent" | "guardian" | "emergency_contact";
+    authorizedPickup: boolean;
+  }>>([
+    {
+      id: 1,
+      source: "member",
+      memberId: "",
+      name: "",
+      email: "",
+      phoneNumber: "",
+      relationship: "parent",
+      authorizedPickup: true,
+    },
+  ]);
+
+  const memberById = React.useMemo(() => new Map(memberContacts.map((member) => [String(member.id), member])), [memberContacts]);
+
+  const guardiansJson = React.useMemo(() => JSON.stringify(guardianDrafts.map((guardian) => {
+    const selectedMember = guardian.source === "member" ? memberById.get(guardian.memberId) : null;
+    return {
+      memberId: selectedMember ? selectedMember.id : null,
+      name: selectedMember?.name ?? guardian.name,
+      email: selectedMember?.email ?? guardian.email,
+      phoneNumber: selectedMember?.phoneNumber ?? guardian.phoneNumber,
+      relationship: guardian.relationship,
+      authorizedPickup: guardian.authorizedPickup,
+    };
+  })), [guardianDrafts, memberById]);
+
+  function updateGuardian(id: number, updates: Partial<(typeof guardianDrafts)[number]>) {
+    setGuardianDrafts((current) => current.map((guardian) => guardian.id === id ? { ...guardian, ...updates } : guardian));
+  }
+
+  function addGuardianDraft() {
+    setGuardianDrafts((current) => [
+      ...current,
+      {
+        id: Date.now(),
+        source: "manual",
+        memberId: "",
+        name: "",
+        email: "",
+        phoneNumber: "",
+        relationship: "guardian",
+        authorizedPickup: true,
+      },
+    ]);
+  }
+
+  function removeGuardianDraft(id: number) {
+    setGuardianDrafts((current) => current.length > 1 ? current.filter((guardian) => guardian.id !== id) : current);
+  }
 
   const handlePhotoFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -849,51 +1073,162 @@ function ChildRegistrationForm({
       className="space-y-5"
       onSubmit={(event) => {
         event.preventDefault();
+        const validGuardian = guardianDrafts.some((guardian) => {
+          if (guardian.source === "member") return Boolean(guardian.memberId);
+          return Boolean(guardian.name.trim());
+        });
+        if (!validGuardian) return;
         onSubmit(new FormData(event.currentTarget));
         setPhotoValue("");
+        setGuardianDrafts([{
+          id: 1,
+          source: "member",
+          memberId: "",
+          name: "",
+          email: "",
+          phoneNumber: "",
+          relationship: "parent",
+          authorizedPickup: true,
+        }]);
         event.currentTarget.reset();
       }}
     >
-      <div className="grid gap-4 md:grid-cols-2">
-        <Field name="firstName" label="First Name" />
-        <Field name="lastName" label="Last Name" />
-        <div className="space-y-2 md:col-span-2">
-          <Label htmlFor="childProfilePhoto">Profile Picture</Label>
-          <div className="flex items-center gap-3">
-            <Avatar className="h-14 w-14 border bg-primary/10">
-              {photoValue && <AvatarImage src={photoValue} alt="Child profile preview" />}
-              <AvatarFallback className="bg-transparent text-primary">CH</AvatarFallback>
-            </Avatar>
-            <Input id="childProfilePhoto" type="file" accept="image/*" onChange={handlePhotoFile} />
+      <section className="rounded-md border p-4">
+        <div className="mb-4">
+          <h3 className="font-medium">Child Information</h3>
+          <p className="text-sm text-muted-foreground">Basic profile details used for check-in and classroom assignment.</p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field name="firstName" label="First Name" />
+          <Field name="lastName" label="Last Name" />
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="childProfilePhoto">Profile Picture</Label>
+            <div className="flex items-center gap-3">
+              <Avatar className="h-14 w-14 border bg-primary/10">
+                {photoValue && <AvatarImage src={photoValue} alt="Child profile preview" />}
+                <AvatarFallback className="bg-transparent text-primary">CH</AvatarFallback>
+              </Avatar>
+              <Input id="childProfilePhoto" type="file" accept="image/*" capture="user" onChange={handlePhotoFile} />
+            </div>
+            <input type="hidden" name="profilePhotoUrl" value={photoValue} />
+            {photoError && <p className="text-sm text-destructive">{photoError}</p>}
           </div>
-          <input type="hidden" name="profilePhotoUrl" value={photoValue} />
-          {photoError && <p className="text-sm text-destructive">{photoError}</p>}
+          <Field name="dateOfBirth" label="Date of Birth" type="date" required={false} />
+          <Field name="gender" label="Gender" required={false} />
+          <Field name="classroom" label="Classroom / Group" required={false} />
         </div>
-        <Field name="dateOfBirth" label="Date of Birth" type="date" required={false} />
-        <Field name="gender" label="Gender" required={false} />
-        <Field name="classroom" label="Classroom / Group" required={false} />
-        <Field name="guardianName" label="Parent / Guardian Name" />
-        <Field name="guardianPhoneNumber" label="Guardian Phone" required={false} />
-        <Field name="guardianEmail" label="Guardian Email" type="email" required={false} />
-        <div className="space-y-2">
-          <Label htmlFor="guardianRelationship">Relationship</Label>
-          <select id="guardianRelationship" name="guardianRelationship" className="h-10 w-full rounded-md border bg-background px-3 text-sm">
-            <option value="parent">Parent</option>
-            <option value="guardian">Guardian</option>
-            <option value="emergency_contact">Emergency Contact</option>
-          </select>
+      </section>
+
+      <section className="rounded-md border p-4">
+        <div className="mb-4">
+          <h3 className="font-medium">Health & Instructions</h3>
+          <p className="text-sm text-muted-foreground">Information visible to authorized check-in volunteers.</p>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="authorizedPickup">Authorized Pickup</Label>
-          <select id="authorizedPickup" name="authorizedPickup" className="h-10 w-full rounded-md border bg-background px-3 text-sm">
-            <option value="true">Yes</option>
-            <option value="false">No</option>
-          </select>
+        <div className="space-y-4">
+          <TextAreaField name="allergyInformation" label="Allergy Information" />
+          <TextAreaField name="medicalNotes" label="Medical Notes" />
+          <TextAreaField name="specialInstructions" label="Special Instructions" />
         </div>
-      </div>
-      <TextAreaField name="allergyInformation" label="Allergy Information" />
-      <TextAreaField name="medicalNotes" label="Medical Notes" />
-      <TextAreaField name="specialInstructions" label="Special Instructions" />
+      </section>
+
+      <section className="rounded-md border p-4">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h3 className="font-medium">Parent, Guardian & Pickup Contacts</h3>
+            <p className="text-sm text-muted-foreground">Select registered members when possible, or add a manual contact.</p>
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={addGuardianDraft}>
+            <Plus className="h-4 w-4" />
+            Add Contact
+          </Button>
+        </div>
+        <input type="hidden" name="guardiansJson" value={guardiansJson} />
+        <div className="space-y-3">
+          {guardianDrafts.map((guardian, index) => {
+            const selectedMember = guardian.source === "member" ? memberById.get(guardian.memberId) : null;
+            return (
+              <div key={guardian.id} className="rounded-md border bg-muted/20 p-3">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <p className="text-sm font-medium">Contact {index + 1}</p>
+                  <Button type="button" variant="ghost" size="sm" disabled={guardianDrafts.length === 1} onClick={() => removeGuardianDraft(guardian.id)}>
+                    <X className="h-4 w-4" />
+                    Remove
+                  </Button>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Contact Source</Label>
+                    <select
+                      value={guardian.source}
+                      onChange={(event) => updateGuardian(guardian.id, { source: event.target.value as "member" | "manual", memberId: "", name: "", email: "", phoneNumber: "" })}
+                      className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                    >
+                      <option value="member">Registered Member</option>
+                      <option value="manual">Manual Contact</option>
+                    </select>
+                  </div>
+
+                  {guardian.source === "member" ? (
+                    <div className="space-y-2">
+                      <Label>Registered Member</Label>
+                      <select
+                        value={guardian.memberId}
+                        required
+                        onChange={(event) => updateGuardian(guardian.id, { memberId: event.target.value })}
+                        className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                      >
+                        <option value="">Select a member</option>
+                        {memberContacts.map((member) => (
+                          <option key={member.id} value={member.id}>
+                            {member.name} · {member.phoneNumber || member.email}
+                          </option>
+                        ))}
+                      </select>
+                      {selectedMember && (
+                        <p className="text-xs text-muted-foreground">
+                          {selectedMember.email} · {selectedMember.phoneNumber || "No phone listed"}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Contact Name</Label>
+                        <Input value={guardian.name} required onChange={(event) => updateGuardian(guardian.id, { name: event.target.value })} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Phone Number</Label>
+                        <Input value={guardian.phoneNumber} onChange={(event) => updateGuardian(guardian.id, { phoneNumber: event.target.value })} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Email</Label>
+                        <Input type="email" value={guardian.email} onChange={(event) => updateGuardian(guardian.id, { email: event.target.value })} />
+                      </div>
+                    </>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label>Relationship</Label>
+                    <select value={guardian.relationship} onChange={(event) => updateGuardian(guardian.id, { relationship: event.target.value as "parent" | "guardian" | "emergency_contact" })} className="h-10 w-full rounded-md border bg-background px-3 text-sm">
+                      <option value="parent">Parent</option>
+                      <option value="guardian">Guardian</option>
+                      <option value="emergency_contact">Emergency Contact</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Authorized Pickup</Label>
+                    <select value={guardian.authorizedPickup ? "true" : "false"} onChange={(event) => updateGuardian(guardian.id, { authorizedPickup: event.target.value === "true" })} className="h-10 w-full rounded-md border bg-background px-3 text-sm">
+                      <option value="true">Yes</option>
+                      <option value="false">No</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       <DialogFooter>
         <Button type="submit" disabled={isPending}>
           {isPending ? "Saving..." : "Register Child"}
@@ -939,13 +1274,13 @@ function CheckinConfirmDialog({
             </div>
           </div>
           {hasAlerts && (
-            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-1">
+            <div className="rounded-md border border-amber-200 bg-white p-3 space-y-1">
               <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Health Alerts</p>
               {child.allergyInformation && (
-                <p className="text-sm text-amber-900"><span className="font-medium">Allergies:</span> {child.allergyInformation}</p>
+                <p className="text-sm text-slate-900"><span className="font-medium">Allergies:</span> {child.allergyInformation}</p>
               )}
               {child.medicalNotes && (
-                <p className="text-sm text-amber-900"><span className="font-medium">Medical:</span> {child.medicalNotes}</p>
+                <p className="text-sm text-slate-900"><span className="font-medium">Medical:</span> {child.medicalNotes}</p>
               )}
             </div>
           )}
@@ -1050,12 +1385,24 @@ function CheckoutDialog({
   );
 }
 
-function MetricCard({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string }) {
+function MetricCard({ icon: Icon, label, value, tooltip }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; tooltip: string }) {
   return (
     <Card>
       <CardContent className="flex items-center justify-between p-5">
         <div>
-          <p className="text-sm text-muted-foreground">{label}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-sm text-muted-foreground">{label}</p>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" title={tooltip} className="rounded-full text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring" aria-label={`${label} details`}>
+                  <CircleHelp className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-64">
+                {tooltip}
+              </TooltipContent>
+            </Tooltip>
+          </div>
           <p className="text-2xl font-semibold">{value}</p>
         </div>
         <Icon className="h-5 w-5 text-primary" />
@@ -1104,11 +1451,20 @@ function TextAreaField({ name, label, defaultValue }: { name: string; label: str
 }
 
 function formPayload(formData: FormData) {
-  return Object.fromEntries(Array.from(formData.entries()).map(([key, value]) => {
+  const payload = Object.fromEntries(Array.from(formData.entries()).map(([key, value]) => {
     if (value === "true") return [key, true];
     if (value === "false") return [key, false];
     return [key, value];
   }));
+  if (typeof payload.guardiansJson === "string") {
+    try {
+      payload.guardians = JSON.parse(payload.guardiansJson);
+    } catch {
+      payload.guardians = [];
+    }
+    delete payload.guardiansJson;
+  }
+  return payload;
 }
 
 function ChildAvatar({ child, size = "sm" }: { child: Child; size?: "sm" | "lg" }) {

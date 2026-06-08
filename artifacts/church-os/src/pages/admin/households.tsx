@@ -7,7 +7,7 @@ export default function AdminHouseholds() {
     <AdminLayout>
       <ComingSoonPage
         title="Households"
-        description="Group and manage church families together under a single household record. Planned for Sprint 2."
+        description="Household administration is not enabled for this workspace."
         icon={Home}
       />
     </AdminLayout>

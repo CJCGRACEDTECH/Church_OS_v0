@@ -8,11 +8,41 @@ import {
   db,
   donationsTable,
   givingCampaignsTable,
+  systemSettingsTable,
   usersTable,
 } from "@workspace/db";
+import { getDiscipleMembers } from "../lib/discipleship";
+import { getActiveMemberIdsForMonth } from "../lib/member-engagement";
 import { requireRole } from "../middlewares/auth";
+import { ADMIN_PERMISSIONS, getStoredAdminPermissions, isAdminLevel } from "../lib/admin-permissions";
 
 const router: IRouter = Router();
+const DEFAULT_MONTHLY_GIVING_GOAL_CENTS = 25000000;
+
+function dateKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function monthKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function objectValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function monthlyGoalCents(settings: unknown, key: string) {
+  const giving = objectValue(settings);
+  const records = Array.isArray(giving.monthlyGivingGoals) ? giving.monthlyGivingGoals : [];
+  const current = records.find((record) => {
+    const item = objectValue(record);
+    return item.month === key;
+  });
+  const currentGoal = objectValue(current).goalCents;
+  if (typeof currentGoal === "number" && Number.isFinite(currentGoal)) return Math.max(0, currentGoal);
+  const fallback = giving.monthlyGivingGoalCents;
+  return typeof fallback === "number" && Number.isFinite(fallback) ? Math.max(0, fallback) : DEFAULT_MONTHLY_GIVING_GOAL_CENTS;
+}
 
 async function getChurchId(userId: number): Promise<number | null> {
   const [user] = await db
@@ -23,11 +53,25 @@ async function getChurchId(userId: number): Promise<number | null> {
 }
 
 router.get("/admin/dashboard/summary", requireRole("admin"), async (req, res): Promise<void> => {
+  const [requester] = await db
+    .select({ adminLevel: usersTable.adminLevel })
+    .from(usersTable)
+    .where(eq(usersTable.id, req.localUserId));
+  const requesterPermissions = await getStoredAdminPermissions(
+    req.localUserId,
+    isAdminLevel(requester?.adminLevel) ? requester.adminLevel : null,
+  );
+  if (requesterPermissions.length === 1 && requesterPermissions.includes(ADMIN_PERMISSIONS.ATTENDANCE_CHECKIN)) {
+    res.status(403).json({ error: "Dashboard access is not available for Children Ministry-only admins." });
+    return;
+  }
+
   const churchId = await getChurchId(req.localUserId);
   if (!churchId) { res.status(401).json({ error: "Requester not found." }); return; }
 
   const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const yearStart = new Date(`${now.getFullYear()}-01-01T00:00:00Z`);
+  const givingMonthStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
@@ -35,107 +79,350 @@ router.get("/admin/dashboard/summary", requireRole("admin"), async (req, res): P
     [totalMembersRow],
     [newMembersRow],
     [visitorsRow],
-    [memberCountRow],
-    mtdDonations,
+    memberRows,
+    ytdDonations,
     [activeCampaignsRow],
     [checkedInRow],
-    trendSessions,
+    [totalChildrenRow],
+    regularTrendSessions,
+    discipleshipTrendSessions,
     givingTrendSessions,
+    childrenCheckinRows,
     recentNewMembers,
+    [givingSettingsRow],
   ] = await Promise.all([
-    db.select({ c: count() }).from(usersTable).where(and(eq(usersTable.churchId, churchId), eq(usersTable.role, "member"))),
-    db.select({ c: count() }).from(usersTable).where(and(eq(usersTable.churchId, churchId), eq(usersTable.role, "member"), gte(usersTable.createdAt, thirtyDaysAgo))),
-    db.select({ c: count() }).from(usersTable).where(and(eq(usersTable.churchId, churchId), eq(usersTable.role, "member"), eq(usersTable.memberStatus, "visitor"))),
     db.select({ c: count() }).from(usersTable).where(and(
       eq(usersTable.churchId, churchId),
       eq(usersTable.role, "member"),
       inArray(usersTable.memberStatus, ["member", "active_member"]),
     )),
-    db.select({ amountCents: donationsTable.amountCents }).from(donationsTable).where(and(eq(donationsTable.churchId, churchId), eq(donationsTable.paymentStatus, "succeeded"), gte(donationsTable.createdAt, startOfMonth))),
+    db.select({ c: count() }).from(usersTable).where(and(
+      eq(usersTable.churchId, churchId),
+      eq(usersTable.role, "member"),
+      inArray(usersTable.memberStatus, ["member", "active_member"]),
+      gte(usersTable.createdAt, thirtyDaysAgo),
+    )),
+    db.select({ c: count() }).from(usersTable).where(and(eq(usersTable.churchId, churchId), eq(usersTable.role, "member"), eq(usersTable.memberStatus, "visitor"))),
+    db.select({
+      id: usersTable.id,
+      memberStatus: usersTable.memberStatus,
+      servingStatus: usersTable.servingStatus,
+    }).from(usersTable).where(and(
+      eq(usersTable.churchId, churchId),
+      eq(usersTable.role, "member"),
+      inArray(usersTable.memberStatus, ["member", "active_member"]),
+    )),
+    db.select({ amountCents: donationsTable.amountCents, donationDate: donationsTable.donationDate })
+      .from(donationsTable)
+      .where(and(
+        eq(donationsTable.churchId, churchId),
+        eq(donationsTable.paymentStatus, "succeeded"),
+        gte(donationsTable.donationDate, yearStart),
+      )),
     db.select({ c: count() }).from(givingCampaignsTable).where(and(eq(givingCampaignsTable.churchId, churchId), eq(givingCampaignsTable.status, "active"))),
     db.select({ c: count() }).from(checkinRecordsTable).innerJoin(childrenTable, eq(checkinRecordsTable.childId, childrenTable.id)).where(and(eq(childrenTable.churchId, churchId), eq(checkinRecordsTable.status, "active"), gte(checkinRecordsTable.checkinTime, startOfToday), isNull(checkinRecordsTable.checkoutTime))),
+    db.select({ c: count() }).from(childrenTable).where(eq(childrenTable.churchId, churchId)),
     db.select({
       id: attendanceSessionsTable.id,
       sessionName: attendanceSessionsTable.sessionName,
       sessionDate: attendanceSessionsTable.sessionDate,
       attendanceType: attendanceSessionsTable.attendanceType,
-    }).from(attendanceSessionsTable).where(eq(attendanceSessionsTable.churchId, churchId)).orderBy(desc(attendanceSessionsTable.sessionDate)).limit(8),
+    }).from(attendanceSessionsTable).where(and(eq(attendanceSessionsTable.churchId, churchId), eq(attendanceSessionsTable.attendanceType, "regular_service"))).orderBy(desc(attendanceSessionsTable.sessionDate)).limit(8),
+    db.select({
+      id: attendanceSessionsTable.id,
+      sessionName: attendanceSessionsTable.sessionName,
+      sessionDate: attendanceSessionsTable.sessionDate,
+      attendanceType: attendanceSessionsTable.attendanceType,
+    }).from(attendanceSessionsTable).where(and(eq(attendanceSessionsTable.churchId, churchId), eq(attendanceSessionsTable.attendanceType, "discipleship"))).orderBy(desc(attendanceSessionsTable.sessionDate)).limit(8),
     db.select({ id: attendanceSessionsTable.id, sessionName: attendanceSessionsTable.sessionName, sessionDate: attendanceSessionsTable.sessionDate })
       .from(attendanceSessionsTable).where(and(eq(attendanceSessionsTable.churchId, churchId), eq(attendanceSessionsTable.attendanceType, "regular_service"))).orderBy(desc(attendanceSessionsTable.sessionDate)).limit(8),
+    db.select({
+      childId: checkinRecordsTable.childId,
+      checkinTime: checkinRecordsTable.checkinTime,
+    })
+      .from(checkinRecordsTable)
+      .innerJoin(childrenTable, eq(checkinRecordsTable.childId, childrenTable.id))
+      .where(eq(childrenTable.churchId, churchId))
+      .orderBy(desc(checkinRecordsTable.checkinTime))
+      .limit(500),
     db.select({ id: usersTable.id, firstName: usersTable.firstName, lastName: usersTable.lastName, memberStatus: usersTable.memberStatus, ministryDepartment: usersTable.ministryDepartment, createdAt: usersTable.createdAt })
       .from(usersTable).where(and(eq(usersTable.churchId, churchId), eq(usersTable.role, "member"), gte(usersTable.createdAt, thirtyDaysAgo))).orderBy(desc(usersTable.createdAt)).limit(8),
+    db.select({ settings: systemSettingsTable.settings })
+      .from(systemSettingsTable)
+      .where(and(eq(systemSettingsTable.churchId, churchId), eq(systemSettingsTable.settingGroup, "giving"))),
   ]);
 
-  const memberCount = Number(memberCountRow?.c ?? 0);
-  const givingMtdCents = mtdDonations.reduce((sum, d) => sum + d.amountCents, 0);
+  const memberCount = memberRows.length;
+  const activeMemberIds = await getActiveMemberIdsForMonth(churchId, now);
+  const activeMembers = activeMemberIds.size;
+  const givingYtdCents = ytdDonations.reduce((sum, d) => sum + d.amountCents, 0);
+  const givingMtdCents = ytdDonations
+    .filter((donation) => donation.donationDate >= givingMonthStart)
+    .reduce((sum, d) => sum + d.amountCents, 0);
+  const givingMonthlyGoalCents = monthlyGoalCents(givingSettingsRow?.settings, monthKey(now));
+  const givingMonthlyGoalPercent = givingMonthlyGoalCents > 0
+    ? Math.min(Math.round((givingMtdCents / givingMonthlyGoalCents) * 100), 999)
+    : 0;
 
-  const trendSessionIds = trendSessions.map((s) => s.id);
+  const childrenByDate = new Map<string, Set<number>>();
+  for (const row of childrenCheckinRows) {
+    const key = dateKey(row.checkinTime);
+    const childIds = childrenByDate.get(key) ?? new Set<number>();
+    childIds.add(row.childId);
+    childrenByDate.set(key, childIds);
+  }
+  const recentChildrenCheckinDates = [...childrenByDate.keys()]
+    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+    .slice(0, 8);
+  const latestChildrenAttendance = recentChildrenCheckinDates[0]
+    ? (childrenByDate.get(recentChildrenCheckinDates[0])?.size ?? 0)
+    : 0;
+  const averageChildrenCheckedIn = recentChildrenCheckinDates.length > 0
+    ? Math.round(recentChildrenCheckinDates.reduce((sum, key) => sum + (childrenByDate.get(key)?.size ?? 0), 0) / recentChildrenCheckinDates.length)
+    : 0;
+  const totalChildren = Number(totalChildrenRow?.c ?? 0);
+  const childrenAttendanceRate = totalChildren > 0
+    ? Math.round((averageChildrenCheckedIn / totalChildren) * 100)
+    : 0;
+
+  const discipleMembers = await getDiscipleMembers(churchId);
+  const totalTaggedDisciples = discipleMembers.length;
+
+  const regularTrendSessionIds = regularTrendSessions.map((s) => s.id);
+  const discipleshipTrendSessionIds = discipleshipTrendSessions.map((s) => s.id);
+  const trendSessionIds = [...new Set([...regularTrendSessionIds, ...discipleshipTrendSessionIds])];
   const trendRecords = trendSessionIds.length > 0
     ? await db
-        .select({ sessionId: attendanceRecordsTable.sessionId, attendanceStatus: attendanceRecordsTable.attendanceStatus })
+        .select({ sessionId: attendanceRecordsTable.sessionId, attendanceStatus: attendanceRecordsTable.attendanceStatus, memberId: attendanceRecordsTable.memberId })
         .from(attendanceRecordsTable)
         .where(inArray(attendanceRecordsTable.sessionId, trendSessionIds))
     : [];
+  const trendMemberIds = [...new Set(trendRecords.map((record) => record.memberId))];
+  const trendMembers = trendMemberIds.length > 0
+    ? await db
+        .select({ id: usersTable.id, memberStatus: usersTable.memberStatus })
+        .from(usersTable)
+        .where(and(eq(usersTable.churchId, churchId), inArray(usersTable.id, trendMemberIds)))
+    : [];
+  const memberStatusById = new Map(trendMembers.map((member) => [member.id, member.memberStatus]));
 
   const presentBySession = new Map<number, number>();
+  const serviceBreakdownBySession = new Map<number, { activeMember: number; member: number; visitor: number }>();
+  const discipleIds = new Set(discipleMembers.map((member) => member.id));
+  const disciplesPresentBySession = new Map<number, number>();
   for (const r of trendRecords) {
     if (r.attendanceStatus === "present") {
       presentBySession.set(r.sessionId, (presentBySession.get(r.sessionId) ?? 0) + 1);
+      const memberStatus = memberStatusById.get(r.memberId);
+      const category = memberStatus === "visitor"
+        ? "visitor"
+        : activeMemberIds.has(r.memberId) || memberStatus === "active_member"
+          ? "activeMember"
+          : "member";
+      const breakdown = serviceBreakdownBySession.get(r.sessionId) ?? { activeMember: 0, member: 0, visitor: 0 };
+      breakdown[category] += 1;
+      serviceBreakdownBySession.set(r.sessionId, breakdown);
+      if (discipleIds.has(r.memberId)) {
+        disciplesPresentBySession.set(r.sessionId, (disciplesPresentBySession.get(r.sessionId) ?? 0) + 1);
+      }
     }
   }
 
-  const recentSessionIds = new Set(trendSessions.slice(0, 4).map((s) => s.id));
-  const recentPresent = trendRecords.filter((r) => recentSessionIds.has(r.sessionId) && r.attendanceStatus === "present").length;
-  const attendanceRateLast4 = recentSessionIds.size > 0 && memberCount > 0
-    ? Math.round((recentPresent / (memberCount * recentSessionIds.size)) * 100)
+  const recentServiceSessionIds = new Set(regularTrendSessions.slice(0, 4).map((s) => s.id));
+  const recentPresent = trendRecords.filter((r) => recentServiceSessionIds.has(r.sessionId) && r.attendanceStatus === "present").length;
+  const attendanceRateLast4 = recentServiceSessionIds.size > 0 && memberCount > 0
+    ? Math.round((recentPresent / (memberCount * recentServiceSessionIds.size)) * 100)
     : null;
 
-  const attendanceTrend = [...trendSessions].reverse().map((session) => ({
+  const orderedRegularTrendSessions = [...regularTrendSessions].reverse();
+  const orderedDiscipleshipTrendSessions = [...discipleshipTrendSessions].reverse();
+  const regularAttendanceTrend = orderedRegularTrendSessions.map((session) => ({
+    sessionId: session.id,
     sessionName: session.sessionName,
     sessionDate: session.sessionDate.toISOString(),
-    attendanceType: session.attendanceType,
+    attendanceType: "regular_service",
     present: presentBySession.get(session.id) ?? 0,
     memberCount,
+    breakdown: serviceBreakdownBySession.get(session.id) ?? { activeMember: 0, member: 0, visitor: 0 },
   }));
+  const discipleshipAttendanceTrend = orderedDiscipleshipTrendSessions.map((session) => {
+    const checkedInDisciples = disciplesPresentBySession.get(session.id) ?? 0;
+    return {
+      sessionId: session.id,
+      sessionName: session.sessionName,
+      sessionDate: session.sessionDate.toISOString(),
+      attendanceType: "discipleship",
+      present: checkedInDisciples,
+      memberCount: totalTaggedDisciples,
+      checkedInDisciples,
+      totalTaggedDisciples,
+      attendanceRate: totalTaggedDisciples > 0 ? Math.round((checkedInDisciples / totalTaggedDisciples) * 100) : 0,
+    };
+  });
+  const attendanceTrend = [...regularAttendanceTrend, ...discipleshipAttendanceTrend];
+
+  const regularLatest = regularTrendSessions[0];
+  const latestRegularCount = regularLatest ? (presentBySession.get(regularLatest.id) ?? 0) : 0;
+  const regularAveragePerSession = regularTrendSessions.length > 0
+    ? Math.round(regularTrendSessions.reduce((sum, session) => sum + (presentBySession.get(session.id) ?? 0), 0) / regularTrendSessions.length)
+    : 0;
+  const regularAverageAttendanceRate = memberCount > 0
+    ? Math.round((regularAveragePerSession / memberCount) * 100)
+    : 0;
+
+  const discipleshipLatest = discipleshipTrendSessions[0];
+  const latestCheckedIn = discipleshipLatest ? (disciplesPresentBySession.get(discipleshipLatest.id) ?? 0) : 0;
+  const latestAttendanceRate = totalTaggedDisciples > 0 ? Math.round((latestCheckedIn / totalTaggedDisciples) * 100) : 0;
+  const discipleshipAveragePerSession = discipleshipTrendSessions.length > 0
+    ? Math.round(discipleshipTrendSessions.reduce((sum, session) => sum + (disciplesPresentBySession.get(session.id) ?? 0), 0) / discipleshipTrendSessions.length)
+    : 0;
 
   const orderedGivingSessions = [...givingTrendSessions].reverse();
   let givingTrend: Array<{ sessionName: string; sessionDate: string; totalCents: number }> = [];
+  let givingByServiceLast8: Array<{
+    sessionId: number;
+    sessionName: string;
+    sessionDate: string;
+    totalGiving: number;
+    tithe: number;
+    giftOffering: number;
+    buildingFund: number;
+  }> = [];
   if (orderedGivingSessions.length > 0) {
+    const serviceSessionIds = orderedGivingSessions.map((session) => session.id);
     const minDate = orderedGivingSessions[0].sessionDate;
     const maxDate = new Date(orderedGivingSessions[orderedGivingSessions.length - 1].sessionDate);
     maxDate.setDate(maxDate.getDate() + 1);
-    const sessionDonations = await db
-      .select({ donationDate: donationsTable.donationDate, amountCents: donationsTable.amountCents })
+    const linkedSessionDonations = serviceSessionIds.length > 0 ? await db
+      .select({
+        serviceSessionId: donationsTable.serviceSessionId,
+        donationDate: donationsTable.donationDate,
+        amountCents: donationsTable.amountCents,
+        givingCategory: donationsTable.givingCategory,
+      })
       .from(donationsTable)
       .where(and(
         eq(donationsTable.churchId, churchId),
         eq(donationsTable.paymentStatus, "succeeded"),
+        inArray(donationsTable.serviceSessionId, serviceSessionIds),
+      )) : [];
+    const legacyUnlinkedDonations = await db
+      .select({
+        serviceSessionId: donationsTable.serviceSessionId,
+        donationDate: donationsTable.donationDate,
+        amountCents: donationsTable.amountCents,
+        givingCategory: donationsTable.givingCategory,
+      })
+      .from(donationsTable)
+      .where(and(
+        eq(donationsTable.churchId, churchId),
+        eq(donationsTable.paymentStatus, "succeeded"),
+        isNull(donationsTable.serviceSessionId),
         gte(donationsTable.donationDate, minDate),
         lte(donationsTable.donationDate, maxDate),
       ));
-    givingTrend = orderedGivingSessions.map((session) => {
-      const sessionDateStr = session.sessionDate.toDateString();
-      const totalCents = sessionDonations
-        .filter((d) => new Date(d.donationDate).toDateString() === sessionDateStr)
-        .reduce((sum, d) => sum + d.amountCents, 0);
+    const donationsByServiceId = new Map<number, typeof linkedSessionDonations>();
+    for (const donation of linkedSessionDonations) {
+      if (!donation.serviceSessionId) continue;
+      const existing = donationsByServiceId.get(donation.serviceSessionId) ?? [];
+      existing.push(donation);
+      donationsByServiceId.set(donation.serviceSessionId, existing);
+    }
+
+    // Legacy fallback for older dev/Replit rows created before donations had service_session_id.
+    // New donations should be linked directly to a service session and will skip this date match.
+    const orderedServiceDates = orderedGivingSessions.map((session) => ({
+      ...session,
+      key: dateKey(session.sessionDate),
+      time: new Date(dateKey(session.sessionDate)).getTime(),
+    }));
+    for (const donation of legacyUnlinkedDonations) {
+      const donationTime = new Date(dateKey(new Date(donation.donationDate))).getTime();
+      const matchedService = [...orderedServiceDates]
+        .reverse()
+        .find((session) => session.time <= donationTime);
+      if (!matchedService) continue;
+      const existing = donationsByServiceId.get(matchedService.id) ?? [];
+      existing.push(donation);
+      donationsByServiceId.set(matchedService.id, existing);
+    }
+    givingByServiceLast8 = orderedGivingSessions.map((session) => {
+      const sessionDateStr = dateKey(session.sessionDate);
+      const matching = donationsByServiceId.get(session.id) ?? [];
+      const tithe = matching.filter((d) => d.givingCategory === "tithe").reduce((sum, d) => sum + d.amountCents, 0);
+      const giftOffering = matching.filter((d) => d.givingCategory === "offering").reduce((sum, d) => sum + d.amountCents, 0);
+      const buildingFund = matching.filter((d) => d.givingCategory === "building_fund").reduce((sum, d) => sum + d.amountCents, 0);
+      const totalCents = tithe + giftOffering + buildingFund;
       return {
+        sessionId: session.id,
         sessionName: session.sessionName,
         sessionDate: session.sessionDate.toISOString(),
-        totalCents,
+        serviceDate: sessionDateStr,
+        totalGiving: totalCents,
+        tithe,
+        giftOffering,
+        buildingFund,
       };
     });
+    givingTrend = givingByServiceLast8.map((session) => ({
+      sessionName: session.sessionName,
+      sessionDate: session.sessionDate,
+      totalCents: session.totalGiving,
+    }));
   }
 
   res.json({
     totalMembers: Number(totalMembersRow?.c ?? 0),
+    activeMembers,
     newMembersLast30Days: Number(newMembersRow?.c ?? 0),
     visitors: Number(visitorsRow?.c ?? 0),
     givingMtdCents,
+    givingYtdCents,
+    givingMonthlyGoalCents,
+    givingMonthlyGoalPercent,
     activeCampaigns: Number(activeCampaignsRow?.c ?? 0),
     checkedInChildren: Number(checkedInRow?.c ?? 0),
+    totalChildren,
+    childrenMinistryAttendance: {
+      averageCheckedIn: averageChildrenCheckedIn,
+      attendanceRate: childrenAttendanceRate,
+      latestCheckedIn: latestChildrenAttendance,
+      totalRegistered: totalChildren,
+    },
     attendanceRateLast4,
     attendanceTrend,
     givingTrend,
+    regularServiceAttendance: {
+      averagePerSession: regularAveragePerSession,
+      averageAttendanceRate: regularAverageAttendanceRate,
+      latestSessionCount: latestRegularCount,
+      last8Sessions: regularAttendanceTrend.map((session) => ({
+        sessionId: session.sessionId,
+        sessionName: session.sessionName,
+        sessionDate: session.sessionDate,
+        attendeeCount: session.present,
+        memberCount,
+        attendanceRate: memberCount > 0 ? Math.round((session.present / memberCount) * 100) : 0,
+        breakdown: session.breakdown,
+      })),
+    },
+    discipleshipAttendance: {
+      totalTaggedDisciples,
+      latestCheckedIn,
+      latestAttendanceRate,
+      averagePerSession: discipleshipAveragePerSession,
+      last8Sessions: discipleshipAttendanceTrend.map((session) => ({
+        sessionId: session.sessionId,
+        sessionName: session.sessionName,
+        sessionDate: session.sessionDate,
+        checkedInDisciples: session.checkedInDisciples,
+        totalTaggedDisciples: session.totalTaggedDisciples,
+        attendanceRate: session.attendanceRate,
+      })),
+    },
+    givingByService: {
+      last8RegularServices: givingByServiceLast8,
+    },
     recentNewMembers: recentNewMembers.map((m) => ({
       id: m.id,
       firstName: m.firstName,

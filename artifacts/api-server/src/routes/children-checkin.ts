@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, ilike, isNull, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { Router, type IRouter } from "express";
 import {
@@ -168,6 +168,52 @@ router.get("/admin/checkin/history", requireCheckInAccess, async (req, res): Pro
   });
 });
 
+router.get("/admin/checkin/member-contacts", requireCheckInAccess, async (req, res): Promise<void> => {
+  const churchId = await getRequesterChurchId(req.localUserId);
+  if (!churchId) {
+    res.status(401).json({ error: "User church not found." });
+    return;
+  }
+
+  const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
+  const filters = [
+    eq(usersTable.churchId, churchId),
+    eq(usersTable.role, "member"),
+    ...(search
+      ? [
+          or(
+            ilike(usersTable.firstName, `%${search}%`),
+            ilike(usersTable.lastName, `%${search}%`),
+            ilike(usersTable.email, `%${search}%`),
+            ilike(usersTable.phoneNumber, `%${search}%`),
+          ),
+        ]
+      : []),
+  ];
+
+  const members = await db
+    .select({
+      id: usersTable.id,
+      firstName: usersTable.firstName,
+      lastName: usersTable.lastName,
+      email: usersTable.email,
+      phoneNumber: usersTable.phoneNumber,
+    })
+    .from(usersTable)
+    .where(and(...filters))
+    .orderBy(usersTable.lastName, usersTable.firstName)
+    .limit(100);
+
+  res.json({
+    members: members.map((member) => ({
+      id: member.id,
+      name: `${member.firstName} ${member.lastName}`,
+      email: member.email,
+      phoneNumber: member.phoneNumber,
+    })),
+  });
+});
+
 router.post("/admin/checkin/children", requireCheckInAccess, async (req, res): Promise<void> => {
   const churchId = await getRequesterChurchId(req.localUserId);
   if (!churchId) {
@@ -182,8 +228,8 @@ router.post("/admin/checkin/children", requireCheckInAccess, async (req, res): P
     return;
   }
 
-  const guardianName = requiredText(req.body?.guardianName);
-  if (!guardianName) {
+  const guardians = normalizeGuardianInputs(req.body);
+  if (guardians.length === 0) {
     res.status(400).json({ error: "At least one guardian contact is required to register a child." });
     return;
   }
@@ -205,15 +251,23 @@ router.post("/admin/checkin/children", requireCheckInAccess, async (req, res): P
     })
     .returning();
 
-  await createGuardianRelationship({
-    churchId,
-    childId: child.id,
-    name: guardianName,
-    email: req.body.guardianEmail,
-    phoneNumber: req.body.guardianPhoneNumber,
-    relationship: req.body.guardianRelationship,
-    authorizedPickup: req.body.authorizedPickup,
-  });
+  try {
+    for (const guardian of guardians) {
+      await createGuardianRelationship({
+        churchId,
+        childId: child.id,
+        memberId: guardian.memberId,
+        name: guardian.name,
+        email: guardian.email,
+        phoneNumber: guardian.phoneNumber,
+        relationship: guardian.relationship,
+        authorizedPickup: guardian.authorizedPickup,
+      });
+    }
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "Could not add pickup contacts." });
+    return;
+  }
 
   res.status(201).json({ child: await serializeChild(child) });
 });
@@ -393,16 +447,70 @@ router.post("/admin/checkin/children/:childId/check-out", requireCheckInAccess, 
   res.json({ child: await serializeChild(updatedChild) });
 });
 
+router.delete("/admin/checkin/children/:childId/active-check-in", requireCheckInAccess, async (req, res): Promise<void> => {
+  const childId = Number(req.params.childId);
+  const churchId = await getRequesterChurchId(req.localUserId);
+  if (!Number.isInteger(childId) || !churchId) {
+    res.status(400).json({ error: "Invalid child." });
+    return;
+  }
+
+  const [child] = await db
+    .select()
+    .from(childrenTable)
+    .where(and(eq(childrenTable.id, childId), eq(childrenTable.churchId, churchId)));
+
+  if (!child) {
+    res.status(404).json({ error: "Child not found." });
+    return;
+  }
+
+  const [activeRecord] = await db
+    .select()
+    .from(checkinRecordsTable)
+    .where(and(eq(checkinRecordsTable.childId, childId), eq(checkinRecordsTable.status, "active"), isNull(checkinRecordsTable.checkoutTime)))
+    .orderBy(desc(checkinRecordsTable.checkinTime));
+
+  if (!activeRecord) {
+    res.status(409).json({ error: "Child is not currently checked in." });
+    return;
+  }
+
+  await db.delete(checkinRecordsTable).where(eq(checkinRecordsTable.id, activeRecord.id));
+
+  const [updatedChild] = await db
+    .update(childrenTable)
+    .set({ checkinStatus: "checked_out" })
+    .where(and(eq(childrenTable.id, childId), eq(childrenTable.churchId, churchId)))
+    .returning();
+
+  res.json({ child: await serializeChild(updatedChild) });
+});
+
 async function createGuardianRelationship(params: {
   churchId: number;
   childId: number;
+  memberId?: unknown;
   name: unknown;
   email: unknown;
   phoneNumber: unknown;
   relationship: unknown;
   authorizedPickup: unknown;
 }) {
-  const name = requiredText(params.name);
+  const memberId = Number(params.memberId);
+  const member = Number.isInteger(memberId) && memberId > 0
+    ? (await db
+        .select({
+          firstName: usersTable.firstName,
+          lastName: usersTable.lastName,
+          email: usersTable.email,
+          phoneNumber: usersTable.phoneNumber,
+        })
+        .from(usersTable)
+        .where(and(eq(usersTable.id, memberId), eq(usersTable.churchId, params.churchId), eq(usersTable.role, "member"))))[0]
+    : null;
+
+  const name = member ? `${member.firstName} ${member.lastName}` : requiredText(params.name);
   if (!name) throw new Error("Guardian name is required.");
 
   const relationship = isRelationship(params.relationship) ? params.relationship : "parent";
@@ -411,8 +519,8 @@ async function createGuardianRelationship(params: {
     .values({
       churchId: params.churchId,
       name,
-      email: textOrNull(params.email),
-      phoneNumber: textOrNull(params.phoneNumber),
+      email: textOrNull(params.email) ?? member?.email ?? null,
+      phoneNumber: textOrNull(params.phoneNumber) ?? member?.phoneNumber ?? null,
     })
     .returning();
 
@@ -424,6 +532,43 @@ async function createGuardianRelationship(params: {
   });
 
   return guardian;
+}
+
+function normalizeGuardianInputs(body: unknown): Array<{
+  memberId?: unknown;
+  name: unknown;
+  email: unknown;
+  phoneNumber: unknown;
+  relationship: unknown;
+  authorizedPickup: unknown;
+}> {
+  const record = typeof body === "object" && body ? body as Record<string, unknown> : {};
+  if (Array.isArray(record.guardians)) {
+    return record.guardians
+      .filter((item) => item && typeof item === "object")
+      .map((item) => {
+        const guardian = item as Record<string, unknown>;
+        return {
+          memberId: guardian.memberId,
+          name: guardian.name,
+          email: guardian.email,
+          phoneNumber: guardian.phoneNumber,
+          relationship: guardian.relationship,
+          authorizedPickup: guardian.authorizedPickup,
+        };
+      });
+  }
+
+  const guardianName = requiredText(record.guardianName);
+  return guardianName
+    ? [{
+        name: guardianName,
+        email: record.guardianEmail,
+        phoneNumber: record.guardianPhoneNumber,
+        relationship: record.guardianRelationship,
+        authorizedPickup: record.authorizedPickup,
+      }]
+    : [];
 }
 
 export default router;

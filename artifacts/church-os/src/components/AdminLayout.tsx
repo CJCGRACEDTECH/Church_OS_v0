@@ -12,6 +12,7 @@ import {
   Settings,
   LogOut,
   Menu,
+  Inbox,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
   { label: "Dashboard", icon: LayoutDashboard, href: ADMIN_ROUTES.DASHBOARD },
   { label: "Profile", icon: CircleUserRound, href: ADMIN_ROUTES.PROFILE },
   { label: "Members", icon: Users, href: ADMIN_ROUTES.MEMBERS, permission: PERMISSIONS.MEMBER_DIRECTORY },
+  { label: "Household Inbox", icon: Inbox, href: ADMIN_ROUTES.HOUSEHOLD_INBOX, superAdminOnly: true },
   { label: "Services", icon: CalendarDays, href: ADMIN_ROUTES.SERVICES, permission: PERMISSIONS.EVENT_MANAGEMENT },
   { label: "Attendance", icon: BarChart3, href: ADMIN_ROUTES.ATTENDANCE, permission: PERMISSIONS.ATTENDANCE_MANAGEMENT },
   { label: "Children Ministry", icon: Smile, href: ADMIN_ROUTES.CHECK_IN, permission: PERMISSIONS.ATTENDANCE_CHECKIN },
@@ -33,11 +35,14 @@ const NAV_ITEMS = [
   icon: React.ComponentType<{ size?: number; className?: string }>;
   href: string;
   permission?: Permission;
+  superAdminOnly?: boolean;
 }>;
 
 function SidebarNav() {
   const { user, logout } = useAuth();
   const [location] = useLocation();
+  const permissions = user?.adminPermissions ?? [];
+  const isChildrenMinistryOnly = permissions.length === 1 && permissions.includes(PERMISSIONS.ATTENDANCE_CHECKIN);
 
   return (
     <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground">
@@ -56,6 +61,8 @@ function SidebarNav() {
       <div className="flex-1 overflow-y-auto py-4">
         <nav className="space-y-1 px-3">
           {NAV_ITEMS.filter((item) => {
+            if (isChildrenMinistryOnly && item.href === ADMIN_ROUTES.DASHBOARD) return false;
+            if (item.superAdminOnly && user?.adminLevel !== "super_admin") return false;
             if (!item.permission) return true;
             return hasPermission("admin", item.permission, user?.adminPermissions);
           }).map((item) => {
@@ -112,9 +119,6 @@ function SidebarNav() {
           <LogOut size={16} className="mr-2" />
           Sign out
         </Button>
-        <p className="text-center text-[10px] text-sidebar-foreground/30 mt-3">
-          powered by Church OS
-        </p>
       </div>
     </div>
   );

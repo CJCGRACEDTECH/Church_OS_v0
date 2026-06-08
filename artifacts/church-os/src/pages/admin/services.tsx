@@ -44,10 +44,11 @@ import { ArrowLeft, Ban, CalendarDays, ExternalLink, Pencil, Plus, Search, Trash
 
 const EVENT_TYPE_BADGE_CLASSES: Record<EventType, string> = {
   service: "bg-indigo-100 text-indigo-800 border-indigo-200",
+  discipleship: "bg-emerald-100 text-emerald-800 border-emerald-200",
   bible_study: "bg-sky-100 text-sky-800 border-sky-200",
   prayer: "bg-violet-100 text-violet-800 border-violet-200",
   baptism: "bg-cyan-100 text-cyan-800 border-cyan-200",
-  fasting_season: "bg-amber-100 text-amber-900 border-amber-200",
+  fasting_season: "bg-white text-amber-800 border-amber-200",
   special_event: "bg-rose-100 text-rose-800 border-rose-200",
   announcement: "bg-slate-100 text-slate-700 border-slate-200",
 };
@@ -180,6 +181,7 @@ function AdminServicesCalendar() {
                 <select value={eventType} onChange={(event) => setEventType(event.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
                   <option value="">All types</option>
                   <option value="service">Service</option>
+                  <option value="discipleship">Discipleship</option>
                   <option value="bible_study">Bible Study</option>
                   <option value="prayer">Prayer</option>
                   <option value="baptism">Baptism</option>
@@ -349,7 +351,7 @@ function AdminEventDetail({ eventId }: { eventId: number }) {
               {event.status !== "cancelled" && (
                 <Button
                   variant="outline"
-                  className="border-amber-300 text-amber-800 hover:bg-amber-50"
+                  className="border-amber-300 bg-white text-amber-800 hover:bg-blue-50"
                   onClick={() => cancelEvent.mutate()}
                   disabled={cancelEvent.isPending}
                 >
@@ -400,6 +402,17 @@ function AdminEventDetail({ eventId }: { eventId: number }) {
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+function formatTime12(value: string | null | undefined): string {
+  if (!value) return "—";
+  const [hourString, minuteString] = value.split(":");
+  const hour = Number(hourString);
+  const minute = Number(minuteString ?? "0");
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return value;
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+  return `${hour12}:${String(minute).padStart(2, "0")} ${suffix}`;
+}
+
 function EventDetailCard({ event }: { event: ChurchEvent }) {
   return (
     <Card className="overflow-hidden">
@@ -420,7 +433,7 @@ function EventDetailCard({ event }: { event: ChurchEvent }) {
           <p className="text-sm leading-6 text-muted-foreground">{event.description ?? "No description provided."}</p>
           {event.isRecurring && (
             <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
-              Recurring weekly — every {WEEKDAYS[event.recurrenceDay ?? 0] ?? "?"} at {event.recurrenceTime ?? "—"}
+              Recurring weekly — every {WEEKDAYS[event.recurrenceDay ?? 0] ?? "?"} at {formatTime12(event.recurrenceTime)}
             </p>
           )}
           {(event.zoomLink || event.youtubeLink) && (

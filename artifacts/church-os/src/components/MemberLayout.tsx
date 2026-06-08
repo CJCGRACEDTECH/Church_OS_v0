@@ -7,7 +7,6 @@ import {
   Users,
   BadgeDollarSign,
   CalendarDays,
-  Settings,
   LogOut,
   Menu,
 } from "lucide-react";
@@ -19,10 +18,9 @@ import { MEMBER_ROUTES } from "@/lib/routes";
 const NAV_ITEMS = [
   { label: "Home", icon: Home, href: MEMBER_ROUTES.DASHBOARD },
   { label: "Profile", icon: User, href: MEMBER_ROUTES.PROFILE },
-  { label: "Household", icon: Users, href: MEMBER_ROUTES.HOUSEHOLD, comingSoon: true },
+  { label: "Household", icon: Users, href: MEMBER_ROUTES.HOUSEHOLD },
   { label: "Give", icon: BadgeDollarSign, href: MEMBER_ROUTES.GIVE },
   { label: "Services", icon: CalendarDays, href: MEMBER_ROUTES.SERVICES },
-  { label: "Settings", icon: Settings, href: MEMBER_ROUTES.SETTINGS, comingSoon: true },
 ];
 
 function SidebarNav() {
@@ -54,8 +52,6 @@ function SidebarNav() {
                 className={`flex items-center justify-between px-3 py-2 rounded-md font-medium text-sm transition-colors ${
                   isActive
                     ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : item.comingSoon
-                    ? "text-sidebar-foreground/50 hover:text-sidebar-foreground/70 hover:bg-sidebar-foreground/5"
                     : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-foreground/10"
                 }`}
               >
@@ -63,11 +59,6 @@ function SidebarNav() {
                   <item.icon size={18} />
                   <span>{item.label}</span>
                 </div>
-                {item.comingSoon && !isActive && (
-                  <span className="text-[10px] uppercase font-bold bg-sidebar-foreground/10 px-1.5 py-0.5 rounded text-sidebar-foreground/50">
-                    Soon
-                  </span>
-                )}
               </Link>
             );
           })}
@@ -98,9 +89,6 @@ function SidebarNav() {
           <LogOut size={16} className="mr-2" />
           Sign out
         </Button>
-        <p className="text-center text-[10px] text-sidebar-foreground/30 mt-3">
-          powered by Church OS
-        </p>
       </div>
     </div>
   );

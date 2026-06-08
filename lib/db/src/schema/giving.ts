@@ -1,6 +1,7 @@
 import { boolean, integer, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { attendanceSessionsTable } from "./attendance";
 import { churchesTable } from "./churches";
 import { usersTable } from "./users";
 
@@ -29,7 +30,8 @@ export const donationsTable = pgTable("donations", {
   amountCents: integer("amount_cents").notNull(),
   donationDate: timestamp("donation_date", { withTimezone: true }).notNull().defaultNow(),
   donationType: text("donation_type", { enum: ["one_time", "recurring"] }).notNull().default("one_time"),
-  givingCategory: text("giving_category", { enum: ["tithe", "offering", "building_fund", "missions", "special_campaign", "other"] }).notNull().default("tithe"),
+  givingCategory: text("giving_category", { enum: ["tithe", "offering", "building_fund"] }).notNull().default("tithe"),
+  serviceSessionId: integer("service_session_id").references(() => attendanceSessionsTable.id),
   campaignId: integer("campaign_id").references(() => givingCampaignsTable.id),
   stripePaymentIntentId: text("stripe_payment_intent_id"),
   stripeCheckoutSessionId: text("stripe_checkout_session_id"),
@@ -50,7 +52,7 @@ export const recurringDonationsTable = pgTable("recurring_donations", {
   stripeSubscriptionId: text("stripe_subscription_id"),
   stripeCustomerId: text("stripe_customer_id"),
   amountCents: integer("amount_cents").notNull(),
-  givingCategory: text("giving_category", { enum: ["tithe", "offering", "building_fund", "missions", "special_campaign", "other"] }).notNull().default("tithe"),
+  givingCategory: text("giving_category", { enum: ["tithe", "offering", "building_fund"] }).notNull().default("tithe"),
   campaignId: integer("campaign_id").references(() => givingCampaignsTable.id),
   frequency: text("frequency", { enum: ["weekly", "biweekly", "monthly", "yearly"] }).notNull().default("monthly"),
   status: text("status", { enum: ["active", "past_due", "cancelled", "incomplete"] }).notNull().default("incomplete"),

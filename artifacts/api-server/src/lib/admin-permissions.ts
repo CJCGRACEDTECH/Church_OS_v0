@@ -61,49 +61,14 @@ export const PERMISSION_CATALOG: Array<{
     description: "View and manage services, events, and attendance contexts.",
   },
   {
-    key: ADMIN_PERMISSIONS.FOLLOWUP_NOTES,
-    label: "Follow-Up Notes",
-    description: "Create and view basic member follow-up notes.",
-  },
-  {
-    key: ADMIN_PERMISSIONS.PASTORAL_NOTES,
-    label: "Pastoral Notes",
-    description: "Access sensitive pastoral care notes.",
-  },
-  {
-    key: ADMIN_PERMISSIONS.GIVING_SUMMARY,
-    label: "Giving Summary",
-    description: "View approved giving summaries without transaction-level details.",
-  },
-  {
-    key: ADMIN_PERMISSIONS.GIVING_DETAILS,
-    label: "Giving Details",
-    description: "View donation history and giving transaction details.",
-  },
-  {
-    key: ADMIN_PERMISSIONS.GIVING_VIEW_OWN,
-    label: "Giving: View Own",
-    description: "View personal giving history in member contexts.",
-  },
-  {
     key: ADMIN_PERMISSIONS.GIVING_MANAGEMENT,
     label: "Giving Management",
     description: "View and manage giving records, tax status, and recurring giving.",
   },
   {
-    key: ADMIN_PERMISSIONS.GIVING_REPORTS,
-    label: "Giving Reports",
-    description: "Export giving records and generate donor tax receipts.",
-  },
-  {
     key: ADMIN_PERMISSIONS.CAMPAIGN_MANAGEMENT,
     label: "Campaign Management",
     description: "Create and manage giving campaigns.",
-  },
-  {
-    key: ADMIN_PERMISSIONS.REPORTS,
-    label: "Reports",
-    description: "View ministry, attendance, and financial reports.",
   },
   {
     key: ADMIN_PERMISSIONS.ADMIN_MANAGEMENT,
@@ -126,7 +91,6 @@ export const DEFAULT_ADMIN_LEVEL_PERMISSIONS: Record<AdminLevel, AdminPermission
     ADMIN_PERMISSIONS.MEMBER_DIRECTORY,
     ADMIN_PERMISSIONS.MEMBER_PROFILES,
     ADMIN_PERMISSIONS.EVENT_MANAGEMENT,
-    ADMIN_PERMISSIONS.FOLLOWUP_NOTES,
   ],
   [ADMIN_LEVELS.PASTOR]: [
     ADMIN_PERMISSIONS.ATTENDANCE_CHECKIN,
@@ -134,12 +98,18 @@ export const DEFAULT_ADMIN_LEVEL_PERMISSIONS: Record<AdminLevel, AdminPermission
     ADMIN_PERMISSIONS.MEMBER_DIRECTORY,
     ADMIN_PERMISSIONS.MEMBER_PROFILES,
     ADMIN_PERMISSIONS.EVENT_MANAGEMENT,
-    ADMIN_PERMISSIONS.FOLLOWUP_NOTES,
-    ADMIN_PERMISSIONS.PASTORAL_NOTES,
-    ADMIN_PERMISSIONS.GIVING_SUMMARY,
   ],
   [ADMIN_LEVELS.SUPER_ADMIN]: VALID_ADMIN_PERMISSIONS,
 };
+
+export const ADMIN_PERMISSION_PRESETS = {
+  CHILDREN_MINISTRY_ONLY: {
+    key: "children_ministry_only",
+    label: "Children Ministry Only",
+    description: "Limits a regular admin to Children Ministry check-in tools only.",
+    permissions: [ADMIN_PERMISSIONS.ATTENDANCE_CHECKIN],
+  },
+} as const;
 
 export function isAdminLevel(value: unknown): value is AdminLevel {
   return value === ADMIN_LEVELS.MINISTER || value === ADMIN_LEVELS.PASTOR || value === ADMIN_LEVELS.SUPER_ADMIN;

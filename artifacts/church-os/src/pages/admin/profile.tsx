@@ -214,10 +214,10 @@ export default function AdminProfile() {
   return (
     <AdminLayout>
       <div className="mx-auto max-w-6xl space-y-6">
-        <section className="rounded-lg border bg-card p-5 shadow-sm">
+        <section className="rounded-lg border border-blue-100 bg-blue-50/70 p-5 shadow-sm">
           <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
             <div className="flex min-w-0 items-center gap-4">
-              <Avatar className="h-16 w-16 shrink-0 border bg-primary/10">
+              <Avatar className="h-16 w-16 shrink-0 border border-blue-200 bg-white">
                 {user?.profilePhotoUrl && (
                   <AvatarImage src={user.profilePhotoUrl} alt={`${user.firstName} ${user.lastName}`} />
                 )}
@@ -270,7 +270,7 @@ export default function AdminProfile() {
                                 </AvatarFallback>
                               </Avatar>
                               <FormControl>
-                                <Input type="file" accept="image/*" onChange={handleProfilePhotoFile} />
+                                <Input type="file" accept="image/*" capture="user" onChange={handleProfilePhotoFile} />
                               </FormControl>
                             </div>
                             <Input placeholder="https://..." {...field} />
@@ -378,7 +378,8 @@ export default function AdminProfile() {
 
         <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-6">
-            <Card className="border-border/70">
+            <Card className="overflow-hidden border-blue-100 bg-blue-50/45 shadow-sm">
+              <div className="h-1 bg-blue-500" />
               <CardHeader>
                 <CardTitle>Basic Account Information</CardTitle>
                 <CardDescription>Identity, sign-in context, admin title, and day-to-day contact details.</CardDescription>
@@ -395,7 +396,8 @@ export default function AdminProfile() {
               </CardContent>
             </Card>
 
-            <Card className="border-border/70">
+            <Card className="overflow-hidden border-blue-100 bg-blue-50/45 shadow-sm">
+              <div className="h-1 bg-amber-400" />
               <CardHeader>
                 <CardTitle>Personal Information</CardTitle>
                 <CardDescription>Helpful CRM details for care, communication, and personal context.</CardDescription>
@@ -413,7 +415,8 @@ export default function AdminProfile() {
           </div>
 
           <div className="space-y-6">
-            <Card className="border-border/70">
+            <Card className="overflow-hidden border-blue-100 bg-blue-50/45 shadow-sm">
+              <div className="h-1 bg-amber-400" />
               <CardHeader>
                 <CardTitle>Address Information</CardTitle>
                 <CardDescription>Mailing and location details for church CRM context.</CardDescription>
@@ -430,7 +433,8 @@ export default function AdminProfile() {
               </CardContent>
             </Card>
 
-            <Card id="account-info" className="border-border/70">
+            <Card id="account-info" className="overflow-hidden border-blue-100 bg-blue-50/45 shadow-sm">
+              <div className="h-1 bg-blue-500" />
               <CardHeader>
                 <CardTitle>Account Info</CardTitle>
                 <CardDescription>Security and backend-managed admin context.</CardDescription>
@@ -441,7 +445,7 @@ export default function AdminProfile() {
                 <InfoRow icon={ShieldCheck} label="Permission Tier" value={user?.adminTitle} />
                 <InfoRow icon={UserRound} label="User ID" value={user?.id ? String(user.id) : null} />
                 <InfoRow icon={UserRound} label="Created By" value={user?.createdByUserId ? `User ${user.createdByUserId}` : "Seed/database"} />
-                <div className="rounded-lg border p-4">
+                <div className="rounded-lg border border-blue-100 bg-white/75 p-4">
                   <div className="text-sm font-medium">Authentication Provider</div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {providerLabels.map((provider) => (
@@ -451,7 +455,7 @@ export default function AdminProfile() {
                     ))}
                   </div>
                 </div>
-                <div className="rounded-lg border p-4 text-sm text-muted-foreground">
+                <div className="rounded-lg border border-amber-100 bg-white/75 p-4 text-sm text-muted-foreground">
                   Admin title, account status, role, and feature permissions are managed by Super Admins or trusted backend/database operations. They cannot be changed from this profile form.
                 </div>
               </CardContent>
@@ -499,7 +503,7 @@ function InfoRow({
   className?: string;
 }) {
   return (
-    <div className={`rounded-lg border p-4 ${className}`}>
+    <div className={`rounded-lg border border-blue-100 bg-white/75 p-4 ${className}`}>
       <div className="flex items-center gap-2 text-sm font-medium">
         <Icon className="h-4 w-4 text-primary" />
         {label}

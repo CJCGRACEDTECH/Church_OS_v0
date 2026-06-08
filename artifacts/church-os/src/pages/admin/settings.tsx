@@ -6,23 +6,22 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { ADMIN_LEVELS, PERMISSIONS, type AdminLevel } from "@/lib/permissions";
 import {
-  Bell,
   CalendarDays,
   Church,
   CreditCard,
   Lock,
-  Mail,
   Save,
-  Settings,
   ShieldCheck,
   SlidersHorizontal,
   UserCog,
@@ -30,6 +29,7 @@ import {
 } from "lucide-react";
 
 type PermissionCatalogItem = { key: string; label: string; description: string };
+type PermissionPreset = { key: string; label: string; description: string; permissions: string[] };
 type AdminUser = {
   id: number;
   email: string;
@@ -56,6 +56,12 @@ type AdminInvitation = {
   sentAt: string;
   expiresAt: string;
 };
+type PermissionChangeRequest = {
+  admin: AdminUser;
+  permissions: string[];
+  title: string;
+  description: string;
+};
 type ChurchProfile = {
   churchName: string;
   churchLogoUrl: string | null;
@@ -81,10 +87,7 @@ const NAV = [
   { id: "attendance", label: "Attendance", icon: SlidersHorizontal },
   { id: "giving", label: "Giving", icon: CreditCard },
   { id: "children", label: "Children Ministry", icon: UserCog },
-  { id: "notifications", label: "Notifications", icon: Bell },
-  { id: "integrations", label: "Integrations", icon: Mail },
   { id: "security", label: "Security", icon: Lock },
-  { id: "system", label: "System", icon: Settings },
 ] as const;
 
 const GROUP_LABELS: Record<string, string> = {
@@ -92,11 +95,35 @@ const GROUP_LABELS: Record<string, string> = {
   attendance: "Attendance Settings",
   giving: "Giving & Stripe Settings",
   children: "Children Ministry Settings",
-  notifications: "Notifications",
-  integrations: "Integrations",
   security: "Security",
-  system: "System Preferences",
 };
+
+const PERMISSION_GROUPS = [
+  {
+    id: "operations",
+    label: "Operations",
+    keys: [
+      "attendance_checkin",
+      "attendance_management",
+      "member_directory",
+      "member_profiles",
+      "event_management",
+    ],
+  },
+  {
+    id: "giving",
+    label: "Giving",
+    keys: [
+      "giving_management",
+      "campaign_management",
+    ],
+  },
+  {
+    id: "system",
+    label: "System",
+    keys: ["admin_management", "system_settings"],
+  },
+] as const;
 
 async function apiJson<T>(path: string, options?: RequestInit): Promise<T> {
   const demoToken = sessionStorage.getItem("demo_token");
@@ -145,6 +172,7 @@ export default function AdminSettings() {
   );
   const [selectedAdminId, setSelectedAdminId] = React.useState<number | null>(null);
   const [draftPermissions, setDraftPermissions] = React.useState<string[]>([]);
+  const [pendingPermissionChange, setPendingPermissionChange] = React.useState<PermissionChangeRequest | null>(null);
 
   const isSuperAdmin = user?.adminLevel === ADMIN_LEVELS.SUPER_ADMIN;
   const canManageAdmins = isSuperAdmin && user?.adminPermissions?.includes(PERMISSIONS.ADMIN_MANAGEMENT);
@@ -155,7 +183,7 @@ export default function AdminSettings() {
   });
   const catalogQuery = useQuery({
     queryKey: ["admin-permission-catalog"],
-    queryFn: () => apiJson<{ permissions: PermissionCatalogItem[]; defaults: Record<AdminLevel, string[]> }>("/admin/permission-catalog"),
+    queryFn: () => apiJson<{ permissions: PermissionCatalogItem[]; defaults: Record<AdminLevel, string[]>; presets: PermissionPreset[] }>("/admin/permission-catalog"),
   });
   const adminsQuery = useQuery({
     queryKey: ["admin-users"],
@@ -186,6 +214,7 @@ export default function AdminSettings() {
     onSuccess: () => {
       toast({ title: "Settings saved" });
       void queryClient.invalidateQueries({ queryKey: ["admin-settings"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
     },
     onError: (error) => toast({ title: "Could not save settings", description: error.message, variant: "destructive" }),
   });
@@ -198,6 +227,8 @@ export default function AdminSettings() {
     onSuccess: () => {
       toast({ title: "Permissions updated" });
       void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      void queryClient.invalidateQueries({ queryKey: ["/auth/me"] });
+      void queryClient.invalidateQueries({ queryKey: ["getMe"] });
     },
     onError: (error) => toast({ title: "Permission update failed", description: error.message, variant: "destructive" }),
   });
@@ -248,9 +279,17 @@ export default function AdminSettings() {
   const selectedAdmin = admins.find((admin) => admin.id === selectedAdminId) ?? admins[0];
   const settings = settingsQuery.data?.settings ?? {};
 
-  function togglePermission(admin: AdminUser, permission: string, checked: boolean) {
-    const next = checked ? Array.from(new Set([...admin.permissions, permission])) : admin.permissions.filter((item) => item !== permission);
-    updatePermissions.mutate({ adminId: admin.id, permissions: next });
+  function requestPermissionChange(request: PermissionChangeRequest) {
+    setPendingPermissionChange(request);
+  }
+
+  function confirmPermissionChange() {
+    if (!pendingPermissionChange) return;
+    updatePermissions.mutate({
+      adminId: pendingPermissionChange.admin.id,
+      permissions: pendingPermissionChange.permissions,
+    });
+    setPendingPermissionChange(null);
   }
 
   return (
@@ -306,13 +345,19 @@ export default function AdminSettings() {
                 selectedAdminId={selectedAdminId}
                 setSelectedAdminId={setSelectedAdminId}
                 permissions={catalogQuery.data?.permissions ?? []}
+                presets={catalogQuery.data?.presets ?? []}
                 canManage={canManageAdmins}
-                onToggle={togglePermission}
+                onRequestSave={(admin, permissions) => requestPermissionChange({
+                  admin,
+                  permissions,
+                  title: "Confirm permission changes?",
+                  description: `Save ${permissions.length} enabled permissions for ${admin.firstName} ${admin.lastName}. This takes effect the next time that admin loads the app or logs in.`,
+                })}
                 draftPermissions={draftPermissions}
                 setDraftPermissions={setDraftPermissions}
               />
             )}
-            {["services", "attendance", "giving", "children", "notifications", "integrations", "security", "system"].includes(active) && (
+            {["services", "attendance", "giving", "children", "security"].includes(active) && (
               <SettingsGroupSection
                 group={active}
                 settings={settings[active] ?? {}}
@@ -324,6 +369,29 @@ export default function AdminSettings() {
           </div>
         </div>
       </div>
+      <AlertDialog open={Boolean(pendingPermissionChange)} onOpenChange={(open) => !open && setPendingPermissionChange(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{pendingPermissionChange?.title ?? "Confirm permission change"}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingPermissionChange?.description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {pendingPermissionChange && (
+            <div className="rounded-md border bg-muted/30 p-3 text-sm">
+              <p className="font-medium">{pendingPermissionChange.admin.firstName} {pendingPermissionChange.admin.lastName}</p>
+              <p className="text-xs text-muted-foreground">{pendingPermissionChange.admin.email}</p>
+              <p className="mt-2 text-xs text-muted-foreground">{pendingPermissionChange.permissions.length} permissions will be enabled.</p>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={updatePermissions.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmPermissionChange} disabled={updatePermissions.isPending}>
+              Confirm Change
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }
@@ -334,10 +402,10 @@ function ChurchProfileSection({ profile, onSave, isSaving }: { profile: ChurchPr
   const set = (key: keyof ChurchProfile, value: string) => setForm((current) => ({ ...current, [key]: value }));
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Church Profile</CardTitle>
-        <CardDescription>Branding and church details used across receipts, emails, and future public pages.</CardDescription>
+      <Card>
+        <CardHeader>
+          <CardTitle>Church Profile</CardTitle>
+        <CardDescription>Branding and church details used across receipts, emails, and ministry communication.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="grid gap-4 md:grid-cols-2">
@@ -436,7 +504,7 @@ function AdminsSection({
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Admin Activity</CardTitle><CardDescription>v0 activity summary from login and invite records.</CardDescription></CardHeader>
+        <CardHeader><CardTitle>Admin Activity</CardTitle><CardDescription>Recent account and invitation activity.</CardDescription></CardHeader>
         <CardContent className="space-y-3">
           {activity.map((item, index) => <div key={`${item.type}-${index}`} className="rounded-md border p-3"><div className="flex items-center justify-between"><p className="font-medium">{item.label}</p><Badge variant="outline">{item.status}</Badge></div><p className="text-sm text-muted-foreground">{item.detail}</p></div>)}
           {!activity.length && <p className="text-sm text-muted-foreground">No activity available.</p>}
@@ -452,8 +520,9 @@ function PermissionsSection({
   selectedAdminId,
   setSelectedAdminId,
   permissions,
+  presets,
   canManage,
-  onToggle,
+  onRequestSave,
   draftPermissions,
   setDraftPermissions,
 }: {
@@ -462,40 +531,190 @@ function PermissionsSection({
   selectedAdminId: number | null;
   setSelectedAdminId: (id: number) => void;
   permissions: PermissionCatalogItem[];
+  presets: PermissionPreset[];
   canManage: boolean;
-  onToggle: (admin: AdminUser, permission: string, checked: boolean) => void;
+  onRequestSave: (admin: AdminUser, permissions: string[]) => void;
   draftPermissions: string[];
   setDraftPermissions: React.Dispatch<React.SetStateAction<string[]>>;
 }) {
+  const [stagedPermissions, setStagedPermissions] = React.useState<string[]>(selectedAdmin?.permissions ?? []);
+  const permissionByKey = new Map(permissions.map((permission) => [permission.key, permission]));
+  const savedPermissions = selectedAdmin?.permissions ?? [];
+  const stagedPermissionLabels = stagedPermissions
+    .map((key) => permissionByKey.get(key)?.label ?? key)
+    .sort((a, b) => a.localeCompare(b)) ?? [];
+  const savedKey = [...savedPermissions].sort().join("|");
+  const stagedKey = [...stagedPermissions].sort().join("|");
+  const hasChanges = savedKey !== stagedKey;
+  const groupedPermissionKeys = new Set<string>(PERMISSION_GROUPS.flatMap((group) => [...group.keys]));
+  const ungroupedPermissions = permissions.filter((permission) => !groupedPermissionKeys.has(permission.key));
+  const groupedPermissions = [
+    ...PERMISSION_GROUPS.map((group) => ({
+      ...group,
+      permissions: group.keys
+        .map((key) => permissionByKey.get(key))
+        .filter((permission): permission is PermissionCatalogItem => Boolean(permission)),
+    })).filter((group) => group.permissions.length > 0),
+    ...(ungroupedPermissions.length > 0 ? [{ id: "other", label: "Other", keys: [], permissions: ungroupedPermissions }] : []),
+  ];
+
+  React.useEffect(() => {
+    setStagedPermissions(selectedAdmin?.permissions ?? []);
+  }, [selectedAdmin?.id, savedKey]);
+
+  function setPermission(permission: string, checked: boolean) {
+    setStagedPermissions((current) => checked
+      ? Array.from(new Set([...current, permission]))
+      : current.filter((item) => item !== permission));
+  }
+
   return (
-    <div className="grid gap-6 xl:grid-cols-[320px_1fr]">
-      <Card>
-        <CardHeader><CardTitle>Admins</CardTitle><CardDescription>Select an admin to review database-backed permissions.</CardDescription></CardHeader>
-        <CardContent className="space-y-2">
-          {admins.map((admin) => <button key={admin.id} className={`w-full rounded-md border p-3 text-left ${selectedAdminId === admin.id || (!selectedAdminId && selectedAdmin?.id === admin.id) ? "border-primary bg-primary/5" : "hover:bg-muted"}`} onClick={() => setSelectedAdminId(admin.id)}><p className="font-medium">{admin.firstName} {admin.lastName}</p><p className="text-xs text-muted-foreground">{admin.adminTitle}</p></button>)}
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader><CardTitle>Permissions & Roles</CardTitle><CardDescription>{canManage ? "Super Admin permission editing is enabled." : "Read-only. Only Super Admins can edit permissions."}</CardDescription></CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-2">
-            {permissions.map((permission) => (
-              <label key={permission.key} className="flex items-start gap-3 rounded-md border p-3">
-                <Checkbox checked={selectedAdmin?.permissions.includes(permission.key) ?? false} disabled={!canManage || !selectedAdmin} onCheckedChange={(checked) => selectedAdmin && onToggle(selectedAdmin, permission.key, checked === true)} />
-                <span><span className="block text-sm font-medium">{permission.label}</span><span className="block text-xs text-muted-foreground">{permission.description}</span></span>
-              </label>
-            ))}
+    <Card>
+      <CardHeader className="space-y-1">
+        <CardTitle>Permissions & Roles</CardTitle>
+        <CardDescription>{canManage ? "Select an admin, apply a preset, or tune individual access." : "Read-only. Only Super Admins can edit permissions."}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="grid gap-3 lg:grid-cols-[minmax(240px,360px)_1fr]">
+          <div className="space-y-2">
+            <Label>Admin Account</Label>
+            <Select
+              value={String(selectedAdmin?.id ?? selectedAdminId ?? "")}
+              onValueChange={(value) => setSelectedAdminId(Number(value))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Choose an admin" />
+              </SelectTrigger>
+              <SelectContent>
+                {admins.map((admin) => (
+                  <SelectItem key={admin.id} value={String(admin.id)}>
+                    {admin.firstName} {admin.lastName} - {admin.adminTitle}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <Separator />
-          <div>
-            <p className="mb-3 text-sm font-medium">Initial Invite Permission Draft</p>
-            <div className="grid gap-3 md:grid-cols-3">
-              {permissions.map((permission) => <label key={permission.key} className="flex items-center gap-2 rounded-md border p-3 text-sm"><Checkbox checked={draftPermissions.includes(permission.key)} onCheckedChange={(checked) => setDraftPermissions((current) => checked ? Array.from(new Set([...current, permission.key])) : current.filter((item) => item !== permission.key))} />{permission.label}</label>)}
+
+          <div className="rounded-md border bg-muted/20 p-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium">{selectedAdmin ? `${selectedAdmin.firstName} ${selectedAdmin.lastName}` : "No admin selected"}</p>
+                <p className="text-xs text-muted-foreground">{selectedAdmin?.email ?? "Select an account to manage permissions."}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {hasChanges && <Badge variant="secondary">Unsaved</Badge>}
+                <Badge variant="outline">{stagedPermissionLabels.length} enabled</Badge>
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {stagedPermissionLabels.slice(0, 6).map((label) => (
+                <Badge key={label} variant="secondary" className="text-xs">{label}</Badge>
+              ))}
+              {stagedPermissionLabels.length > 6 && <Badge variant="outline" className="text-xs">+{stagedPermissionLabels.length - 6} more</Badge>}
+              {selectedAdmin && stagedPermissionLabels.length === 0 && <span className="text-xs text-muted-foreground">No permissions enabled.</span>}
             </div>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+
+        {presets.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/20 p-3">
+            <span className="mr-1 text-sm font-medium">Presets</span>
+            {presets.map((preset) => (
+              <Button
+                key={preset.key}
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!canManage || !selectedAdmin}
+                onClick={() => setStagedPermissions(preset.permissions)}
+                title={preset.description}
+              >
+                Stage {preset.label}
+              </Button>
+            ))}
+          </div>
+        )}
+
+        <Accordion type="multiple" defaultValue={["operations"]} className="rounded-md border">
+          {groupedPermissions.map((group) => {
+            const enabledCount = group.permissions.filter((permission) => stagedPermissions.includes(permission.key)).length;
+            return (
+              <AccordionItem key={group.id} value={group.id} className="border-b last:border-b-0">
+                <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                  <span className="flex w-full items-center justify-between pr-3">
+                    <span className="text-sm font-medium">{group.label}</span>
+                    <Badge variant="outline" className="ml-3">{enabledCount}/{group.permissions.length}</Badge>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="px-4 pb-4">
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {group.permissions.map((permission) => (
+                      <label key={permission.key} className="flex items-start gap-3 rounded-md border bg-background p-3">
+                        <Checkbox checked={stagedPermissions.includes(permission.key)} disabled={!canManage || !selectedAdmin} onCheckedChange={(checked) => setPermission(permission.key, checked === true)} />
+                        <span><span className="block text-sm font-medium">{permission.label}</span><span className="block text-xs text-muted-foreground">{permission.description}</span></span>
+                      </label>
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            );
+          })}
+        </Accordion>
+
+        {canManage && selectedAdmin && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/20 p-3">
+            <p className="text-sm text-muted-foreground">
+              {hasChanges ? "Review staged permission changes before saving." : "Select permissions above, then confirm changes when ready."}
+            </p>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" disabled={!hasChanges} onClick={() => setStagedPermissions(savedPermissions)}>
+                Discard Changes
+              </Button>
+              <Button type="button" disabled={!hasChanges} onClick={() => onRequestSave(selectedAdmin, stagedPermissions)}>
+                Confirm Changes
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <Accordion type="single" collapsible className="rounded-md border">
+          <AccordionItem value="invite-draft" className="border-b-0">
+            <AccordionTrigger className="px-4 py-3 hover:no-underline">
+              <span className="flex w-full items-center justify-between pr-3">
+                <span className="text-sm font-medium">Initial Invite Permissions</span>
+                <Badge variant="outline">{draftPermissions.length} selected</Badge>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="px-4 pb-4">
+              {presets.length > 0 && (
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {presets.map((preset) => (
+                    <Button
+                      key={preset.key}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDraftPermissions(preset.permissions)}
+                      title={preset.description}
+                    >
+                      Use {preset.label}
+                    </Button>
+                  ))}
+                </div>
+              )}
+              <div className="grid gap-2 md:grid-cols-3">
+                {permissions.map((permission) => (
+                  <label key={permission.key} className="flex items-center gap-2 rounded-md border p-3 text-sm">
+                    <Checkbox checked={draftPermissions.includes(permission.key)} onCheckedChange={(checked) => setDraftPermissions((current) => checked ? Array.from(new Set([...current, permission.key])) : current.filter((item) => item !== permission.key))} />
+                    {permission.label}
+                  </label>
+                ))}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -504,15 +723,21 @@ function SettingsGroupSection({ group, settings, canSave, onSave, isSaving }: { 
   React.useEffect(() => setForm(settings), [settings]);
   const set = (key: string, value: unknown) => setForm((current) => ({ ...current, [key]: value }));
 
-  const fields = Object.entries(form);
+  const fields = Object.entries(form).filter(([key]) => !(group === "giving" && key === "monthlyGivingGoals"));
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>{GROUP_LABELS[group]}</CardTitle>
-        <CardDescription>{group === "giving" ? "Stripe secret keys are configured in Replit Secrets and only configuration status is shown here." : "Configure defaults for this Church OS module."}</CardDescription>
+        <CardDescription>{group === "giving" ? "Payment credentials are managed securely outside this screen. Only connection status is shown here." : "Configure defaults for this Church OS module."}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
+        {group === "giving" && (
+          <MonthlyGivingGoalsEditor
+            value={form.monthlyGivingGoals}
+            onChange={(next) => set("monthlyGivingGoals", next)}
+          />
+        )}
         <div className="grid gap-4 md:grid-cols-2">
           {fields.map(([key, value]) => (
             <SettingControl key={key} name={key} value={value} onChange={(next) => set(key, next)} />
@@ -525,6 +750,82 @@ function SettingsGroupSection({ group, settings, canSave, onSave, isSaving }: { 
   );
 }
 
+function dollarsFromCents(cents: number) {
+  return (cents / 100).toFixed(2);
+}
+
+function centsFromDollars(value: string) {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? Math.max(0, Math.round(amount * 100)) : 0;
+}
+
+function currentMonthValue() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function MonthlyGivingGoalsEditor({ value, onChange }: { value: unknown; onChange: (value: unknown) => void }) {
+  const records = React.useMemo(() => {
+    const raw = Array.isArray(value) ? value : [];
+    return raw
+      .map((item) => {
+        const record = item && typeof item === "object" && !Array.isArray(item) ? item as Record<string, unknown> : {};
+        return {
+          month: typeof record.month === "string" ? record.month : currentMonthValue(),
+          goalCents: typeof record.goalCents === "number" ? record.goalCents : 0,
+        };
+      })
+      .sort((a, b) => b.month.localeCompare(a.month));
+  }, [value]);
+
+  const updateAt = (index: number, next: { month: string; goalCents: number }) => {
+    onChange(records.map((record, i) => (i === index ? next : record)));
+  };
+  const removeAt = (index: number) => onChange(records.filter((_, i) => i !== index));
+  const addMonth = () => {
+    const month = currentMonthValue();
+    onChange([{ month, goalCents: 25000000 }, ...records]);
+  };
+
+  return (
+    <div className="rounded-md border p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="font-medium">Monthly Giving Goals</p>
+          <p className="text-xs text-muted-foreground">Set one goal per month. Previous months remain in the record.</p>
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={addMonth}>Add Month</Button>
+      </div>
+      <div className="mt-4 space-y-3">
+        {records.map((record, index) => (
+          <div key={`${record.month}-${index}`} className="grid gap-3 rounded-md border p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+            <div className="space-y-2">
+              <Label>Month</Label>
+              <Input
+                type="month"
+                value={record.month}
+                onChange={(event) => updateAt(index, { ...record, month: event.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Goal Amount</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={dollarsFromCents(record.goalCents)}
+                onChange={(event) => updateAt(index, { ...record, goalCents: centsFromDollars(event.target.value) })}
+              />
+            </div>
+            <Button type="button" variant="outline" onClick={() => removeAt(index)}>Remove</Button>
+          </div>
+        ))}
+        {records.length === 0 && <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">No monthly goals yet.</p>}
+      </div>
+    </div>
+  );
+}
+
 function SettingControl({ name, value, onChange }: { name: string; value: unknown; onChange: (value: unknown) => void }) {
   const label = labelize(name);
   const isConfigStatus = name.endsWith("Configured");
@@ -533,7 +834,7 @@ function SettingControl({ name, value, onChange }: { name: string; value: unknow
       <label className="flex items-center justify-between rounded-md border p-3">
         <span>
           <span className="block text-sm font-medium">{label}</span>
-          {isConfigStatus && <span className="block text-xs text-muted-foreground">Read from Replit environment variables.</span>}
+          {isConfigStatus && <span className="block text-xs text-muted-foreground">Managed through secure environment settings.</span>}
         </span>
         <Checkbox checked={bool(value)} disabled={isConfigStatus} onCheckedChange={(checked) => onChange(checked === true)} />
       </label>

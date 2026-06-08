@@ -236,16 +236,23 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     const email = normalizeEmail(primaryEmail);
 
     const [byEmail] = await db
-      .select({ id: usersTable.id, isActive: usersTable.isActive, accountStatus: usersTable.accountStatus })
+      .select({ id: usersTable.id, role: usersTable.role, isActive: usersTable.isActive, accountStatus: usersTable.accountStatus })
       .from(usersTable)
       .where(eq(usersTable.email, email));
 
     if (byEmail) {
       await db
         .update(usersTable)
-        .set({ clerkUserId })
+        .set({
+          clerkUserId,
+          ...(byEmail.role === "member" && byEmail.accountStatus === "pending" ? { accountStatus: "active" as const } : {}),
+        })
         .where(eq(usersTable.id, byEmail.id));
-      localUser = byEmail;
+      localUser = {
+        id: byEmail.id,
+        isActive: byEmail.isActive,
+        accountStatus: byEmail.role === "member" && byEmail.accountStatus === "pending" ? "active" : byEmail.accountStatus,
+      };
     } else {
       const church = await getDefaultChurch();
       if (!church) {
@@ -332,8 +339,10 @@ router.patch("/auth/profile", requireAuth, async (req, res): Promise<void> => {
   res.json(serializeUser(profile));
 });
 
-const DEMO_EMAILS: Record<string, string> = {
-  admin: "admin@churchos.test",
+const DEMO_EMAILS: Record<string, string | string[]> = {
+  super_admin: "superadmin@churchos.test",
+  admin: "admin4@churchos.test",
+  children_ministry: "admin5@churchos.test",
   member: "member@churchos.test",
 };
 
@@ -344,11 +353,12 @@ router.post("/auth/demo-session", async (req, res) => {
   }
 
   const role = typeof req.body?.role === "string" ? req.body.role : "";
-  const email = DEMO_EMAILS[role];
-  if (!email) {
-    res.status(400).json({ error: "role must be 'admin' or 'member'" });
+  const candidates = DEMO_EMAILS[role];
+  if (!candidates) {
+    res.status(400).json({ error: "role must be 'super_admin', 'admin', 'children_ministry', or 'member'" });
     return;
   }
+  const email = Array.isArray(candidates) ? candidates[Math.floor(Math.random() * candidates.length)] : candidates;
 
   const [user] = await db
     .select({ id: usersTable.id, role: usersTable.role, accountStatus: usersTable.accountStatus })
@@ -357,7 +367,7 @@ router.post("/auth/demo-session", async (req, res) => {
 
   if (!user || user.accountStatus !== "active") {
     res.status(404).json({
-      error: "Demo user not found. Run `pnpm --filter @workspace/scripts run seed` first.",
+      error: "Access profile not found. Contact your administrator.",
     });
     return;
   }

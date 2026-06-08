@@ -9,44 +9,41 @@
  *
  * What it creates:
  *   ─── Test accounts ─────────────────────────────────────────────────────────
- *   - 5 named test users: admin@, member@, finance@, attendance@, children@
+ *   - 7 named test users: superadmin@, admin1@–admin5@, member@
  *
  *   ─── Members ───────────────────────────────────────────────────────────────
- *   - 25 household groups (12 married couples, 3 single-parent, 5 single
- *     adults, 4 senior households, 1 secondary-guardian household)
- *   - ~57 household member records with spouse pairing + address grouping
- *   - ~48 unaffiliated member records (visitors, inactive, teens, extras)
- *   - Total ~105 generated member rows in the users table
+ *   - 45 household groups (families, couples, seniors, singles, shared homes)
+ *   - 165 user/member/admin rows plus 35 children = 200 total fake people
  *
  *   ─── Children ──────────────────────────────────────────────────────────────
- *   - 20 children ages 2–12 in the children table
+ *   - 35 children ages 2–12 in the children table
  *   - Each linked to 1–2 guardians (matching household parent names/emails)
  *   - Classroom assignment: Toddlers (2–3), Preschool (4–5), Elementary (6–12)
  *
  *   ─── Attendance ────────────────────────────────────────────────────────────
- *   - 32 sessions (4 services × 8 weeks)
- *   - ~1,500 attendance records with realistic patterns per day-of-week
+ *   - 48 regular service sessions (4 services × 12 weeks)
+ *   - 12 discipleship sessions using the same attendance system
+ *   - Thousands of attendance records with realistic patterns per day-of-week
  *
  *   ─── Check-in ──────────────────────────────────────────────────────────────
- *   - Sunday sessions only, 10–18 children per Sunday, 8 Sundays
- *   - ~100 total check-in records
+ *   - Sunday sessions only, 18–30 children per Sunday, 12 Sundays
+ *   - Includes unresolved checkout and historical duplicate QA edge cases
  *
  *   ─── Giving ────────────────────────────────────────────────────────────────
  *   - 2 giving campaigns
- *   - 55 one-time donations across 25 donors
- *   - 10 recurring plans (monthly tithe)
+ *   - 150–300 donations across 60+ donors
+ *   - 25 recurring plans (monthly tithe)
  *   - Fake Stripe IDs (no real API calls)
  *
  *   ─── Edge cases ────────────────────────────────────────────────────────────
  *   - Member with no DOB
  *   - Visitor with minimal contact info
- *   - Inactive member with old attendance record
+ *   - Member with old attendance history but little/no recent attendance
  *   - Child missing checkout (unresolved active check-in)
  *   - Child linked to one parent only (single-parent household)
  *   - Household with secondary guardian / emergency contact
- *   - Failed donation
- *   - Pending donation
- *   - Recurring plan in past_due status
+ *   - All donations use succeeded payment status only
+ *   - Recurring tithe plans use active subscription status only
  *   - Member with no household assignment
  *   - Household with no children (married couple without kids)
  */
@@ -60,6 +57,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import { and, eq, like } from "drizzle-orm";
 import * as schema from "@workspace/db";
+import bcrypt from "bcryptjs";
 
 const { Pool } = pg;
 
@@ -75,9 +73,9 @@ const DEV_EMAIL_DOMAIN = "@devtest.church";
 const isReset = process.argv.includes("--reset");
 
 // ─── Type helpers ─────────────────────────────────────────────────────────────
-type MemberStatus = "active_member" | "member" | "visitor" | "inactive";
+type MemberStatus = "member" | "visitor";
 type AccountStatus = "active" | "pending" | "disabled";
-type AdminLevel = "super_admin" | "pastor" | "minister";
+type AdminLevel = "super_admin" | null;
 type Role = "admin" | "member";
 
 // ─── Data pools ───────────────────────────────────────────────────────────────
@@ -90,6 +88,8 @@ const OCCUPATIONS = ["Teacher", "Nurse", "Engineer", "Pastor", "Accountant", "So
 const CLASSROOMS = ["Toddlers", "Preschool", "Elementary"] as const;
 const ALLERGY_POOL = [null, null, null, "Peanuts", "Dairy sensitivity", "Tree nuts", "Gluten-free diet", null, null, "Latex allergy"];
 const MEDICAL_POOL = [null, null, null, null, "Inhaler in backpack", "Epipen required", null, null, null, null];
+const SUPPLEMENTAL_LAST = ["Bennett", "Carter", "Coleman", "Cooper", "Edwards", "Foster", "Gray", "Green", "Howard", "King", "Morris", "Nelson", "Parker", "Reed", "Simmons", "Stewart", "Turner", "Ward", "Watson", "Wright"];
+const SUPPLEMENTAL_CHILDREN = ["Aria", "Josiah", "Layla", "Micah", "Nora", "Isaac", "Maya", "Levi", "Naomi", "Ezra", "Lena", "Malachi", "Sienna"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function pick<T>(arr: T[], i: number): T {
@@ -126,8 +126,8 @@ function makeQrToken(suffix: string): string {
   return `qr_dev_${Date.now()}_${suffix.replace(/\s/g, "_")}`;
 }
 
-function makePickupCode(): string {
-  return String(Math.floor(1000 + Math.random() * 9000));
+function makePickupCode(seed = 0): string {
+  return String(1000 + Math.abs(seededInt(seed + 31, 0, 8999)));
 }
 
 function dobFromAge(ageYears: number, offsetDays = 0): string {
@@ -142,14 +142,23 @@ function slug(text: string): string {
 }
 
 function accountStatusFor(ms: MemberStatus): AccountStatus {
-  if (ms === "inactive") return "disabled";
   if (ms === "visitor") return "pending";
   return "active";
+}
+
+function householdAddress(index: number) {
+  return {
+    streetAddress: `${3000 + index * 4} Fellowship Court`,
+    city: pick(["Springfield", "Fairview", "Riverside", "Oakwood", "Maplewood"], index),
+    state: pick(["VA", "MD", "DC", "PA", "NC"], index),
+    zip: String(22000 + index * 13).padStart(5, "0").slice(0, 5),
+  };
 }
 
 // ─── Test accounts ────────────────────────────────────────────────────────────
 const EXTRA_TEST_USERS: Array<{
   email: string;
+  password: string;
   firstName: string;
   lastName: string;
   role: Role;
@@ -160,46 +169,59 @@ const EXTRA_TEST_USERS: Array<{
   permissions: string[];
 }> = [
   {
-    email: "finance@churchos.test",
-    firstName: "Finance",
-    lastName: "Lead",
+    email: "superadmin@churchos.test",
+    password: "SuperAdmin123!",
+    firstName: "Super",
+    lastName: "Admin",
     role: "admin",
-    adminLevel: "pastor",
+    adminLevel: "super_admin",
     accountStatus: "active",
-    memberStatus: "active_member",
-    assignedMinistry: "Finance",
-    permissions: ["giving_summary", "giving_details", "giving_view_own", "giving_management", "giving_reports", "campaign_management"],
+    memberStatus: "member",
+    assignedMinistry: "Executive Leadership",
+    permissions: [
+      "attendance_checkin", "attendance_management", "member_directory", "member_profiles",
+      "event_management", "followup_notes", "pastoral_notes", "giving_summary",
+      "giving_details", "giving_view_own", "giving_management", "giving_reports",
+      "campaign_management", "reports", "admin_management", "system_settings",
+    ],
   },
+  ...[1, 2, 3, 4, 5].map((n) => ({
+    email: `admin${n}@churchos.test`,
+    password: "Admin123!",
+    firstName: "Admin",
+    lastName: String(n),
+    role: "admin" as Role,
+    adminLevel: null,
+    accountStatus: "active" as AccountStatus,
+    memberStatus: "member" as MemberStatus,
+    assignedMinistry: ["Operations", "Children Ministry", "Giving", "Member Care", "Services"][n - 1],
+    permissions: [
+      ["attendance_checkin", "attendance_management", "member_directory", "member_profiles", "event_management"],
+      ["attendance_checkin", "member_directory", "member_profiles"],
+      ["giving_summary", "giving_details", "giving_view_own", "giving_management", "giving_reports", "campaign_management"],
+      ["member_directory", "member_profiles", "followup_notes"],
+      ["event_management", "attendance_management", "member_directory"],
+    ][n - 1],
+  })),
   {
-    email: "attendance@churchos.test",
-    firstName: "Attendance",
-    lastName: "Lead",
-    role: "admin",
-    adminLevel: "minister",
+    email: "member@churchos.test",
+    password: "Member123!",
+    firstName: "Church",
+    lastName: "Member",
+    role: "member",
+    adminLevel: null,
     accountStatus: "active",
-    memberStatus: "active_member",
-    assignedMinistry: "Administration",
-    permissions: ["attendance_checkin", "attendance_management", "member_directory"],
-  },
-  {
-    email: "children@churchos.test",
-    firstName: "Children",
-    lastName: "Lead",
-    role: "admin",
-    adminLevel: "minister",
-    accountStatus: "active",
-    memberStatus: "active_member",
-    assignedMinistry: "Children Ministry",
-    permissions: ["attendance_checkin", "member_directory"],
+    memberStatus: "member",
+    assignedMinistry: "Hospitality",
+    permissions: [],
   },
 ];
 
 // ─── Household blueprints ─────────────────────────────────────────────────────
 //
-// 25 households covering: 12 married couples, 3 single-parent, 5 single adults,
-// 3 senior couples, 2 senior singles. Children are in the `children` table,
-// linked to parents via parentGuardiansTable. Spouse pairs share last name,
-// address, and have maritalStatus="married".
+// Base household blueprints plus supplemental groups create 45 households.
+// Children are in the `children` table and linked through parentGuardiansTable.
+// Spouse pairs share last name, address, and maritalStatus="married".
 //
 // No DB households table exists — households are modeled as shared address +
 // last name + maritalStatus. The member portal reads child-guardian links.
@@ -245,8 +267,8 @@ const HOUSEHOLDS: HouseholdBlueprint[] = [
     state: "VA",
     zip: "22150",
     members: [
-      { firstName: "Thomas", gender: "Male", ageYears: 42, maritalStatus: "married", memberStatus: "active_member", ministry: "Worship Team", smallGroup: "Marriage Ministry" },
-      { firstName: "Grace", gender: "Female", ageYears: 39, maritalStatus: "married", memberStatus: "active_member", occupation: "Teacher", smallGroup: "Marriage Ministry" },
+      { firstName: "Thomas", gender: "Male", ageYears: 42, maritalStatus: "married", memberStatus: "member", ministry: "Worship Team", smallGroup: "Marriage Ministry" },
+      { firstName: "Grace", gender: "Female", ageYears: 39, maritalStatus: "married", memberStatus: "member", occupation: "Teacher", smallGroup: "Marriage Ministry" },
     ],
     children: [
       { firstName: "Ava", gender: "Female", ageYears: 9, hasSecondGuardian: true },
@@ -261,8 +283,8 @@ const HOUSEHOLDS: HouseholdBlueprint[] = [
     state: "MD",
     zip: "20833",
     members: [
-      { firstName: "Marcus", gender: "Male", ageYears: 36, maritalStatus: "married", memberStatus: "active_member", occupation: "Engineer" },
-      { firstName: "Diane", gender: "Female", ageYears: 34, maritalStatus: "married", memberStatus: "active_member", ministry: "Hospitality", smallGroup: "Young Families" },
+      { firstName: "Marcus", gender: "Male", ageYears: 36, maritalStatus: "married", memberStatus: "member", occupation: "Engineer" },
+      { firstName: "Diane", gender: "Female", ageYears: 34, maritalStatus: "married", memberStatus: "member", ministry: "Hospitality", smallGroup: "Young Families" },
     ],
     children: [
       { firstName: "Noah", gender: "Male", ageYears: 8, hasSecondGuardian: true },
@@ -277,8 +299,8 @@ const HOUSEHOLDS: HouseholdBlueprint[] = [
     state: "DC",
     zip: "20001",
     members: [
-      { firstName: "Derek", gender: "Male", ageYears: 44, maritalStatus: "married", memberStatus: "active_member", ministry: "Ushers" },
-      { firstName: "Carol", gender: "Female", ageYears: 41, maritalStatus: "married", memberStatus: "active_member", occupation: "Nurse", smallGroup: "Young Families" },
+      { firstName: "Derek", gender: "Male", ageYears: 44, maritalStatus: "married", memberStatus: "member", ministry: "Ushers" },
+      { firstName: "Carol", gender: "Female", ageYears: 41, maritalStatus: "married", memberStatus: "member", occupation: "Nurse", smallGroup: "Young Families" },
     ],
     children: [
       { firstName: "Sophia", gender: "Female", ageYears: 12, hasSecondGuardian: true },
@@ -293,8 +315,8 @@ const HOUSEHOLDS: HouseholdBlueprint[] = [
     state: "PA",
     zip: "19101",
     members: [
-      { firstName: "Kevin", gender: "Male", ageYears: 31, maritalStatus: "married", memberStatus: "active_member", occupation: "IT Specialist" },
-      { firstName: "Angela", gender: "Female", ageYears: 29, maritalStatus: "married", memberStatus: "active_member", smallGroup: "Young Families" },
+      { firstName: "Kevin", gender: "Male", ageYears: 31, maritalStatus: "married", memberStatus: "member", occupation: "IT Specialist" },
+      { firstName: "Angela", gender: "Female", ageYears: 29, maritalStatus: "married", memberStatus: "member", smallGroup: "Young Families" },
     ],
     children: [
       { firstName: "Liam", gender: "Male", ageYears: 3, hasSecondGuardian: true },
@@ -308,8 +330,8 @@ const HOUSEHOLDS: HouseholdBlueprint[] = [
     state: "NC",
     zip: "28201",
     members: [
-      { firstName: "Anthony", gender: "Male", ageYears: 47, maritalStatus: "married", memberStatus: "active_member", occupation: "Business Owner", ministry: "Small Groups" },
-      { firstName: "Sandra", gender: "Female", ageYears: 45, maritalStatus: "married", memberStatus: "active_member", ministry: "Prayer Team", smallGroup: "Marriage Ministry" },
+      { firstName: "Anthony", gender: "Male", ageYears: 47, maritalStatus: "married", memberStatus: "member", occupation: "Business Owner", ministry: "Small Groups" },
+      { firstName: "Sandra", gender: "Female", ageYears: 45, maritalStatus: "married", memberStatus: "member", ministry: "Prayer Team", smallGroup: "Marriage Ministry" },
     ],
     children: [
       { firstName: "Emma", gender: "Female", ageYears: 11, hasSecondGuardian: true },
@@ -324,8 +346,8 @@ const HOUSEHOLDS: HouseholdBlueprint[] = [
     state: "VA",
     zip: "22151",
     members: [
-      { firstName: "Carlos", gender: "Male", ageYears: 38, maritalStatus: "married", memberStatus: "active_member", ministry: "Media & Tech" },
-      { firstName: "Maria", gender: "Female", ageYears: 35, maritalStatus: "married", memberStatus: "active_member", occupation: "Social Worker", smallGroup: "Young Families" },
+      { firstName: "Carlos", gender: "Male", ageYears: 38, maritalStatus: "married", memberStatus: "member", ministry: "Media & Tech" },
+      { firstName: "Maria", gender: "Female", ageYears: 35, maritalStatus: "married", memberStatus: "member", occupation: "Social Worker", smallGroup: "Young Families" },
     ],
     children: [
       { firstName: "Isabella", gender: "Female", ageYears: 4, hasSecondGuardian: true },
@@ -339,8 +361,8 @@ const HOUSEHOLDS: HouseholdBlueprint[] = [
     state: "MD",
     zip: "20834",
     members: [
-      { firstName: "Brian", gender: "Male", ageYears: 40, maritalStatus: "married", memberStatus: "active_member", occupation: "Police Officer" },
-      { firstName: "Tamara", gender: "Female", ageYears: 38, maritalStatus: "married", memberStatus: "active_member", ministry: "Children Ministry" },
+      { firstName: "Brian", gender: "Male", ageYears: 40, maritalStatus: "married", memberStatus: "member", occupation: "Police Officer" },
+      { firstName: "Tamara", gender: "Female", ageYears: 38, maritalStatus: "married", memberStatus: "member", ministry: "Children Ministry" },
     ],
     children: [
       { firstName: "Charlotte", gender: "Female", ageYears: 6, hasSecondGuardian: true },
@@ -356,8 +378,8 @@ const HOUSEHOLDS: HouseholdBlueprint[] = [
     state: "DC",
     zip: "20002",
     members: [
-      { firstName: "Raymond", gender: "Male", ageYears: 52, maritalStatus: "married", memberStatus: "active_member", ministry: "Discipleship" },
-      { firstName: "Evelyn", gender: "Female", ageYears: 49, maritalStatus: "married", memberStatus: "active_member", occupation: "Accountant" },
+      { firstName: "Raymond", gender: "Male", ageYears: 52, maritalStatus: "married", memberStatus: "member", ministry: "Discipleship" },
+      { firstName: "Evelyn", gender: "Female", ageYears: 49, maritalStatus: "married", memberStatus: "member", occupation: "Accountant" },
     ],
     note: "edge: household with no children",
   },
@@ -369,8 +391,8 @@ const HOUSEHOLDS: HouseholdBlueprint[] = [
     state: "PA",
     zip: "19102",
     members: [
-      { firstName: "Miguel", gender: "Male", ageYears: 33, maritalStatus: "married", memberStatus: "active_member" },
-      { firstName: "Luisa", gender: "Female", ageYears: 31, maritalStatus: "married", memberStatus: "active_member", smallGroup: "Spanish Ministry" },
+      { firstName: "Miguel", gender: "Male", ageYears: 33, maritalStatus: "married", memberStatus: "member" },
+      { firstName: "Luisa", gender: "Female", ageYears: 31, maritalStatus: "married", memberStatus: "member", smallGroup: "Spanish Ministry" },
     ],
     children: [
       { firstName: "Amelia", gender: "Female", ageYears: 5, hasSecondGuardian: true },
@@ -385,8 +407,8 @@ const HOUSEHOLDS: HouseholdBlueprint[] = [
     state: "NC",
     zip: "28202",
     members: [
-      { firstName: "Jose", gender: "Male", ageYears: 55, maritalStatus: "married", memberStatus: "active_member", occupation: "Construction Worker" },
-      { firstName: "Rosa", gender: "Female", ageYears: 51, maritalStatus: "married", memberStatus: "active_member", smallGroup: "Marriage Ministry" },
+      { firstName: "Jose", gender: "Male", ageYears: 55, maritalStatus: "married", memberStatus: "member", occupation: "Construction Worker" },
+      { firstName: "Rosa", gender: "Female", ageYears: 51, maritalStatus: "married", memberStatus: "member", smallGroup: "Marriage Ministry" },
     ],
     children: [
       { firstName: "Harper", gender: "Female", ageYears: 10, hasSecondGuardian: true },
@@ -400,8 +422,8 @@ const HOUSEHOLDS: HouseholdBlueprint[] = [
     state: "VA",
     zip: "22152",
     members: [
-      { firstName: "Gregory", gender: "Male", ageYears: 43, maritalStatus: "married", memberStatus: "active_member", ministry: "Outreach" },
-      { firstName: "Vanessa", gender: "Female", ageYears: 40, maritalStatus: "married", memberStatus: "active_member", occupation: "Counselor" },
+      { firstName: "Gregory", gender: "Male", ageYears: 43, maritalStatus: "married", memberStatus: "member", ministry: "Outreach" },
+      { firstName: "Vanessa", gender: "Female", ageYears: 40, maritalStatus: "married", memberStatus: "member", occupation: "Counselor" },
     ],
     children: [
       { firstName: "Elijah", gender: "Male", ageYears: 8, hasSecondGuardian: true },
@@ -430,7 +452,7 @@ const HOUSEHOLDS: HouseholdBlueprint[] = [
     state: "DC",
     zip: "20003",
     members: [
-      { firstName: "Natasha", gender: "Female", ageYears: 32, maritalStatus: "divorced", memberStatus: "active_member", occupation: "Administrative Assistant", ministry: "Hospitality" },
+      { firstName: "Natasha", gender: "Female", ageYears: 32, maritalStatus: "divorced", memberStatus: "member", occupation: "Administrative Assistant", ministry: "Hospitality" },
     ],
     children: [
       { firstName: "Lucas", gender: "Male", ageYears: 9, hasSecondGuardian: false },
@@ -446,7 +468,7 @@ const HOUSEHOLDS: HouseholdBlueprint[] = [
     state: "PA",
     zip: "19103",
     members: [
-      { firstName: "Jerome", gender: "Male", ageYears: 37, maritalStatus: "divorced", memberStatus: "active_member", ministry: "Youth Ministry" },
+      { firstName: "Jerome", gender: "Male", ageYears: 37, maritalStatus: "divorced", memberStatus: "member", ministry: "Youth Ministry" },
     ],
     children: [
       { firstName: "Aiden", gender: "Male", ageYears: 6, hasSecondGuardian: false },
@@ -461,7 +483,7 @@ const HOUSEHOLDS: HouseholdBlueprint[] = [
     state: "NC",
     zip: "28203",
     members: [
-      { firstName: "Gloria", gender: "Female", ageYears: 49, maritalStatus: "widowed", memberStatus: "active_member", occupation: "Teacher", ministry: "Prayer Team" },
+      { firstName: "Gloria", gender: "Female", ageYears: 49, maritalStatus: "widowed", memberStatus: "member", occupation: "Teacher", ministry: "Prayer Team" },
     ],
     children: [
       { firstName: "Caleb", gender: "Male", ageYears: 12, hasSecondGuardian: true, secondGuardianIsEmergencyOnly: true },
@@ -477,7 +499,7 @@ const HOUSEHOLDS: HouseholdBlueprint[] = [
     state: "VA",
     zip: "22153",
     members: [
-      { firstName: "Daniel", gender: "Male", ageYears: 24, maritalStatus: "single", memberStatus: "active_member", smallGroup: "Young Adults", occupation: "IT Specialist" },
+      { firstName: "Daniel", gender: "Male", ageYears: 24, maritalStatus: "single", memberStatus: "member", smallGroup: "Young Adults", occupation: "IT Specialist" },
     ],
   },
   {
@@ -488,7 +510,7 @@ const HOUSEHOLDS: HouseholdBlueprint[] = [
     state: "MD",
     zip: "20836",
     members: [
-      { firstName: "Brittany", gender: "Female", ageYears: 26, maritalStatus: "single", memberStatus: "active_member", smallGroup: "Young Adults" },
+      { firstName: "Brittany", gender: "Female", ageYears: 26, maritalStatus: "single", memberStatus: "member", smallGroup: "Young Adults" },
     ],
   },
   {
@@ -499,7 +521,7 @@ const HOUSEHOLDS: HouseholdBlueprint[] = [
     state: "DC",
     zip: "20004",
     members: [
-      { firstName: "Damien", gender: "Male", ageYears: 29, maritalStatus: "single", memberStatus: "active_member", ministry: "Media & Tech" },
+      { firstName: "Damien", gender: "Male", ageYears: 29, maritalStatus: "single", memberStatus: "member", ministry: "Media & Tech" },
     ],
   },
   {
@@ -522,7 +544,7 @@ const HOUSEHOLDS: HouseholdBlueprint[] = [
     state: "NC",
     zip: "28204",
     members: [
-      { firstName: "Marcus", gender: "Male", ageYears: 31, maritalStatus: "single", memberStatus: "active_member", smallGroup: "Men's Fellowship" },
+      { firstName: "Marcus", gender: "Male", ageYears: 31, maritalStatus: "single", memberStatus: "member", smallGroup: "Men's Fellowship" },
     ],
   },
   // ── Senior households ──────────────────────────────────────────────────────
@@ -534,8 +556,8 @@ const HOUSEHOLDS: HouseholdBlueprint[] = [
     state: "VA",
     zip: "22154",
     members: [
-      { firstName: "Robert", gender: "Male", ageYears: 71, maritalStatus: "married", memberStatus: "active_member", smallGroup: "Senior Saints" },
-      { firstName: "Margaret", gender: "Female", ageYears: 68, maritalStatus: "married", memberStatus: "active_member", smallGroup: "Senior Saints" },
+      { firstName: "Robert", gender: "Male", ageYears: 71, maritalStatus: "married", memberStatus: "member", smallGroup: "Senior Saints" },
+      { firstName: "Margaret", gender: "Female", ageYears: 68, maritalStatus: "married", memberStatus: "member", smallGroup: "Senior Saints" },
     ],
   },
   {
@@ -546,8 +568,8 @@ const HOUSEHOLDS: HouseholdBlueprint[] = [
     state: "MD",
     zip: "20837",
     members: [
-      { firstName: "George", gender: "Male", ageYears: 74, maritalStatus: "married", memberStatus: "active_member", ministry: "Ushers" },
-      { firstName: "Dorothy", gender: "Female", ageYears: 72, maritalStatus: "married", memberStatus: "active_member", smallGroup: "Senior Saints" },
+      { firstName: "George", gender: "Male", ageYears: 74, maritalStatus: "married", memberStatus: "member", ministry: "Ushers" },
+      { firstName: "Dorothy", gender: "Female", ageYears: 72, maritalStatus: "married", memberStatus: "member", smallGroup: "Senior Saints" },
     ],
   },
   {
@@ -558,8 +580,8 @@ const HOUSEHOLDS: HouseholdBlueprint[] = [
     state: "DC",
     zip: "20005",
     members: [
-      { firstName: "Harold", gender: "Male", ageYears: 66, maritalStatus: "married", memberStatus: "active_member" },
-      { firstName: "Edna", gender: "Female", ageYears: 64, maritalStatus: "married", memberStatus: "active_member", smallGroup: "Senior Saints" },
+      { firstName: "Harold", gender: "Male", ageYears: 66, maritalStatus: "married", memberStatus: "member" },
+      { firstName: "Edna", gender: "Female", ageYears: 64, maritalStatus: "married", memberStatus: "member", smallGroup: "Senior Saints" },
     ],
   },
   {
@@ -570,7 +592,7 @@ const HOUSEHOLDS: HouseholdBlueprint[] = [
     state: "PA",
     zip: "19105",
     members: [
-      { firstName: "Helen", gender: "Female", ageYears: 78, maritalStatus: "widowed", memberStatus: "active_member", smallGroup: "Senior Saints" },
+      { firstName: "Helen", gender: "Female", ageYears: 78, maritalStatus: "widowed", memberStatus: "member", smallGroup: "Senior Saints" },
     ],
     note: "edge: elderly widow, no DOB set (will clear DOB for edge case)",
   },
@@ -582,8 +604,8 @@ const HOUSEHOLDS: HouseholdBlueprint[] = [
     state: "NC",
     zip: "28205",
     members: [
-      { firstName: "Trevor", gender: "Male", ageYears: 45, maritalStatus: "married", memberStatus: "active_member", ministry: "Discipleship" },
-      { firstName: "Cheryl", gender: "Female", ageYears: 43, maritalStatus: "married", memberStatus: "active_member", occupation: "Nurse" },
+      { firstName: "Trevor", gender: "Male", ageYears: 45, maritalStatus: "married", memberStatus: "member", ministry: "Discipleship" },
+      { firstName: "Cheryl", gender: "Female", ageYears: 43, maritalStatus: "married", memberStatus: "member", occupation: "Nurse" },
     ],
     children: [
       { firstName: "Evelyn", gender: "Female", ageYears: 8, hasSecondGuardian: true, secondGuardianIsEmergencyOnly: false },
@@ -594,7 +616,7 @@ const HOUSEHOLDS: HouseholdBlueprint[] = [
 
 // ─── Unaffiliated member distribution ─────────────────────────────────────────
 // These are generated outside of household groups.
-// Covers teens, extra active members, visitors, inactive members, ministry leaders.
+// Covers teens, extra active members, visitors, low-attendance members, ministry leaders.
 
 function buildUnaffiliatedMembers(): Array<{
   firstName: string;
@@ -608,29 +630,29 @@ function buildUnaffiliatedMembers(): Array<{
 }> {
   const members = [];
 
-  // 10 teens (ages 13-17)
+  // 20 teens (ages 13-17)
   const teenFirstM = ["Jaylen", "Brandon", "Tyler", "Nathan", "Cameron", "Xavier"];
   const teenFirstF = ["Destiny", "Aaliyah", "Jasmine", "Brianna", "Taylor", "Sydney"];
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 20; i++) {
     members.push({
       firstName: i % 2 === 0 ? teenFirstM[i % teenFirstM.length] : teenFirstF[i % teenFirstF.length],
       lastName: pick(EXTRA_LAST, i),
       gender: (i % 2 === 0 ? "Male" : "Female") as "Male" | "Female",
       ageYears: 13 + (i % 5),
-      memberStatus: "active_member" as MemberStatus,
+      memberStatus: "member" as MemberStatus,
       smallGroup: "College Group",
     });
   }
 
-  // 30 active adults (ages 22-58)
-  for (let i = 0; i < 30; i++) {
+  // 20 active adults (ages 22-58)
+  for (let i = 0; i < 20; i++) {
     members.push({
       firstName: i % 2 === 0 ? pick(FIRST_M, i + 50) : pick(FIRST_F, i + 50),
       lastName: pick(EXTRA_LAST, i + 10),
       gender: (i % 2 === 0 ? "Male" : "Female") as "Male" | "Female",
       ageYears: 22 + (i % 37),
-      memberStatus: "active_member" as MemberStatus,
-      ministry: i % 4 === 0 ? pick(MINISTRIES, i) : undefined,
+      memberStatus: "member" as MemberStatus,
+      ministry: i % 2 === 0 ? pick(MINISTRIES, i) : undefined,
       smallGroup: i % 3 === 0 ? pick(SMALL_GROUPS, i) : undefined,
       occupation: pick(OCCUPATIONS, i),
     });
@@ -643,7 +665,7 @@ function buildUnaffiliatedMembers(): Array<{
       lastName: pick(EXTRA_LAST, i + 15),
       gender: "Male" as "Male" | "Female",
       ageYears: 35 + i * 4,
-      memberStatus: "active_member" as MemberStatus,
+      memberStatus: "member" as MemberStatus,
       ministry: MINISTRIES[i],
     });
   }
@@ -656,17 +678,18 @@ function buildUnaffiliatedMembers(): Array<{
       gender: (i % 2 === 0 ? "Male" : "Female") as "Male" | "Female",
       ageYears: 20 + i * 3,
       memberStatus: "member" as MemberStatus,
+      ministry: pick(MINISTRIES, i + 4),
     });
   }
 
-  // 12 inactive members
+  // 12 low-attendance members
   for (let i = 0; i < 12; i++) {
     members.push({
       firstName: i % 2 === 0 ? pick(FIRST_M, i + 400) : pick(FIRST_F, i + 400),
       lastName: pick(EXTRA_LAST, i + 8),
       gender: (i % 2 === 0 ? "Male" : "Female") as "Male" | "Female",
       ageYears: 25 + i * 3,
-      memberStatus: "inactive" as MemberStatus,
+      memberStatus: "member" as MemberStatus,
     });
   }
 
@@ -724,36 +747,54 @@ async function seedDev() {
       await db.delete(schema.attendanceSessionsTable).where(eq(schema.attendanceSessionsTable.id, session.id));
     }
 
-    // Wipe dev children
+    // Wipe dev/base-seed children used by this local QA dataset.
     const devChildren = await db
-      .select({ id: schema.childrenTable.id })
+      .select({ id: schema.childrenTable.id, firstName: schema.childrenTable.firstName })
       .from(schema.childrenTable)
-      .where(and(eq(schema.childrenTable.churchId, church.id), like(schema.childrenTable.firstName, "Dev_%")));
+      .where(eq(schema.childrenTable.churchId, church.id));
 
-    for (const child of devChildren) {
+    const childrenToWipe = devChildren.filter((child) =>
+      child.firstName.startsWith("Dev_") || ["Avery", "Noah", "Maya"].includes(child.firstName)
+    );
+
+    for (const child of childrenToWipe) {
       await db.delete(schema.checkinRecordsTable).where(eq(schema.checkinRecordsTable.childId, child.id));
       await db.delete(schema.childGuardianRelationshipsTable).where(eq(schema.childGuardianRelationshipsTable.childId, child.id));
       await db.delete(schema.childrenTable).where(eq(schema.childrenTable.id, child.id));
     }
 
-    // Wipe dev-domain guardians
+    // Wipe dev/base-seed guardians
     const devGuardians = await db
       .select({ id: schema.parentGuardiansTable.id })
       .from(schema.parentGuardiansTable)
       .where(like(schema.parentGuardiansTable.email, `%${DEV_EMAIL_DOMAIN}`));
+    const exampleGuardians = await db
+      .select({ id: schema.parentGuardiansTable.id })
+      .from(schema.parentGuardiansTable)
+      .where(like(schema.parentGuardiansTable.email, "%@example.test"));
 
-    for (const g of devGuardians) {
+    for (const g of [...devGuardians, ...exampleGuardians]) {
       await db.delete(schema.childGuardianRelationshipsTable).where(eq(schema.childGuardianRelationshipsTable.guardianId, g.id));
       await db.delete(schema.parentGuardiansTable).where(eq(schema.parentGuardiansTable.id, g.id));
     }
 
-    // Wipe dev users (keep admin@ and member@)
+    // Wipe dev users and the small base sample users before rebuilding the full QA dataset.
     const devUsers = await db
       .select({ id: schema.usersTable.id, email: schema.usersTable.email })
       .from(schema.usersTable)
       .where(like(schema.usersTable.email, `%${DEV_EMAIL_DOMAIN}`));
+    const exampleUsers = await db
+      .select({ id: schema.usersTable.id, email: schema.usersTable.email })
+      .from(schema.usersTable)
+      .where(like(schema.usersTable.email, "%@example.test"));
 
-    const extraTestEmails = EXTRA_TEST_USERS.map((u) => u.email);
+    const extraTestEmails = [
+      ...EXTRA_TEST_USERS.map((u) => u.email),
+      "finance@churchos.test",
+      "attendance@churchos.test",
+      "children@churchos.test",
+      "admin@churchos.test",
+    ];
     const extraTestUsers = await db
       .select({ id: schema.usersTable.id, email: schema.usersTable.email })
       .from(schema.usersTable)
@@ -761,14 +802,40 @@ async function seedDev() {
 
     const toWipe = [
       ...devUsers,
+      ...exampleUsers,
       ...extraTestUsers.filter((u) => extraTestEmails.includes(u.email)),
     ];
 
     for (const u of toWipe) {
+      const sessionsCreatedByUser = await db
+        .select({ id: schema.attendanceSessionsTable.id })
+        .from(schema.attendanceSessionsTable)
+        .where(eq(schema.attendanceSessionsTable.createdByUserId, u.id));
+
+      for (const session of sessionsCreatedByUser) {
+        await db.delete(schema.attendanceRecordsTable).where(eq(schema.attendanceRecordsTable.sessionId, session.id));
+      }
+      for (const session of sessionsCreatedByUser) {
+        await db.delete(schema.attendanceSessionsTable).where(eq(schema.attendanceSessionsTable.id, session.id));
+      }
+
       await db.delete(schema.attendanceRecordsTable).where(eq(schema.attendanceRecordsTable.memberId, u.id));
+      await db.delete(schema.attendanceRecordsTable).where(eq(schema.attendanceRecordsTable.checkedInByUserId, u.id));
+      await db.delete(schema.checkinRecordsTable).where(eq(schema.checkinRecordsTable.checkedInByUserId, u.id));
+      await db.delete(schema.checkinRecordsTable).where(eq(schema.checkinRecordsTable.checkedOutByUserId, u.id));
       await db.delete(schema.donationsTable).where(eq(schema.donationsTable.memberId, u.id));
       await db.delete(schema.recurringDonationsTable).where(eq(schema.recurringDonationsTable.memberId, u.id));
+      await db.delete(schema.taxReceiptsTable).where(eq(schema.taxReceiptsTable.memberId, u.id));
+      await db.delete(schema.taxReceiptsTable).where(eq(schema.taxReceiptsTable.generatedByUserId, u.id));
       await db.delete(schema.adminPermissionsTable).where(eq(schema.adminPermissionsTable.userId, u.id));
+      await db.delete(schema.adminPermissionsTable).where(eq(schema.adminPermissionsTable.grantedByUserId, u.id));
+      await db.delete(schema.adminInvitationsTable).where(eq(schema.adminInvitationsTable.invitedByUserId, u.id));
+      await db.delete(schema.adminInvitationsTable).where(eq(schema.adminInvitationsTable.acceptedByUserId, u.id));
+      await db.delete(schema.oauthAccountsTable).where(eq(schema.oauthAccountsTable.userId, u.id));
+      await db.update(schema.eventsTable).set({ createdByUserId: null }).where(eq(schema.eventsTable.createdByUserId, u.id));
+      await db.update(schema.givingCampaignsTable).set({ createdByUserId: null }).where(eq(schema.givingCampaignsTable.createdByUserId, u.id));
+      await db.update(schema.churchProfileSettingsTable).set({ updatedByUserId: null }).where(eq(schema.churchProfileSettingsTable.updatedByUserId, u.id));
+      await db.update(schema.systemSettingsTable).set({ updatedByUserId: null }).where(eq(schema.systemSettingsTable.updatedByUserId, u.id));
     }
     for (const u of toWipe) {
       await db.delete(schema.usersTable).where(eq(schema.usersTable.id, u.id));
@@ -779,17 +846,19 @@ async function seedDev() {
 
   // ── Extra test users ───────────────────────────────────────────────────────
   console.log("👤  Seeding extra test users...");
-  const [adminUser] = await db
+  let [adminUser] = await db
     .select({ id: schema.usersTable.id })
     .from(schema.usersTable)
-    .where(eq(schema.usersTable.email, "admin@churchos.test"));
+    .where(eq(schema.usersTable.email, "superadmin@churchos.test"));
 
   for (const u of EXTRA_TEST_USERS) {
+    const passwordHash = await bcrypt.hash(u.password, 12);
     const [user] = await db
       .insert(schema.usersTable)
       .values({
         churchId: church.id,
         email: u.email,
+        passwordHash,
         firstName: u.firstName,
         lastName: u.lastName,
         role: u.role,
@@ -797,6 +866,7 @@ async function seedDev() {
         accountStatus: u.accountStatus,
         memberStatus: u.memberStatus,
         assignedMinistry: u.assignedMinistry,
+        ministryDepartment: u.assignedMinistry,
         servingStatus: "serving",
         baptismStatus: "baptized",
         isActive: true,
@@ -806,12 +876,22 @@ async function seedDev() {
         set: {
           firstName: u.firstName,
           lastName: u.lastName,
+          passwordHash,
           role: u.role,
           adminLevel: u.adminLevel,
           accountStatus: u.accountStatus,
+          memberStatus: u.memberStatus,
+          assignedMinistry: u.assignedMinistry,
+          ministryDepartment: u.assignedMinistry,
+          servingStatus: u.assignedMinistry ? "serving" : "not_serving",
+          isActive: true,
         },
       })
       .returning();
+
+    if (u.email === "superadmin@churchos.test") {
+      adminUser = { id: user.id };
+    }
 
     await db.delete(schema.adminPermissionsTable).where(eq(schema.adminPermissionsTable.userId, user.id));
     if (u.permissions.length > 0) {
@@ -826,8 +906,43 @@ async function seedDev() {
     console.log(`   ${user.role}/${user.adminLevel}: ${user.email}`);
   }
 
+  // Keep the Services & Events calendar aligned with the attendance seed:
+  // discipleship is a service/session type, not a separate event system.
+  const discipleshipStart = new Date("2026-05-22T23:00:00");
+  const discipleshipEnd = new Date("2026-05-23T01:00:00");
+  const discipleshipEventValues = {
+    churchId: church.id,
+    title: "Friday Night Discipleship",
+    eventType: "discipleship" as const,
+    description: "Weekly discipleship service for tagged discipleship participants. This session crosses midnight.",
+    startDatetime: discipleshipStart,
+    endDatetime: discipleshipEnd,
+    location: "Main Sanctuary",
+    eventMode: "in_person" as const,
+    zoomLink: null,
+    youtubeLink: null,
+    posterUrl: null,
+    isRecurring: true,
+    recurrencePattern: "weekly" as const,
+    recurrenceDay: discipleshipStart.getDay(),
+    recurrenceTime: `${String(discipleshipStart.getHours()).padStart(2, "0")}:${String(discipleshipStart.getMinutes()).padStart(2, "0")}`,
+    visibility: "public" as const,
+    status: "published" as const,
+    createdByUserId: adminUser?.id ?? null,
+  };
+  const [existingDiscipleshipEvent] = await db
+    .select({ id: schema.eventsTable.id })
+    .from(schema.eventsTable)
+    .where(and(eq(schema.eventsTable.churchId, church.id), eq(schema.eventsTable.title, "Friday Night Discipleship")));
+  if (existingDiscipleshipEvent) {
+    await db.update(schema.eventsTable).set(discipleshipEventValues).where(eq(schema.eventsTable.id, existingDiscipleshipEvent.id));
+  } else {
+    await db.insert(schema.eventsTable).values(discipleshipEventValues);
+  }
+  console.log("   event: Friday Night Discipleship (published)");
+
   // ── Household members ──────────────────────────────────────────────────────
-  console.log("\n🏠  Seeding 25 household groups...");
+  console.log("\n🏠  Seeding 45 household groups...");
 
   // Track generated user IDs per household for guardian linking
   type HouseholdRecord = {
@@ -900,6 +1015,92 @@ async function seedDev() {
     householdRecords.push({ blueprint: hh, memberIds });
   }
 
+  console.log("   Adding 20 supplemental households to reach the 200-person QA dataset...");
+  for (let hi = 0; hi < 20; hi++) {
+    const lastName = SUPPLEMENTAL_LAST[hi];
+    const address = householdAddress(hi);
+    const memberCount = hi < 18 ? 2 : 3;
+    const memberIds: number[] = [];
+
+    for (let mi = 0; mi < memberCount; mi++) {
+      const isSeniorCouple = hi < 18;
+      const gender = (mi % 2 === 0 ? "Male" : "Female") as "Male" | "Female";
+      const firstName = gender === "Male" ? pick(FIRST_M, hi + mi + 90) : pick(FIRST_F, hi + mi + 90);
+      const ministry = hi % 2 === 0 && mi === 0 ? pick(MINISTRIES, hi) : null;
+      const ageYears = isSeniorCouple ? 60 + ((hi + mi * 3) % 24) : 24 + ((hi + mi * 4) % 13);
+      const maritalStatus = isSeniorCouple ? (mi < 2 ? "married" : "single") : "single";
+      const email = `${slug(firstName)}.${slug(lastName)}.supp${hi}${mi}${DEV_EMAIL_DOMAIN}`;
+
+      const [user] = await db
+        .insert(schema.usersTable)
+        .values({
+          churchId: church.id,
+          email,
+          firstName,
+          lastName,
+          role: "member",
+          adminLevel: null,
+          accountStatus: "active",
+          memberStatus: "member",
+          isActive: true,
+          dateOfBirth: dobFromAge(ageYears, hi * 11 + mi * 19),
+          gender,
+          maritalStatus,
+          phoneNumber: `555-${String(4200 + householdMemberCount).slice(-4)}`,
+          streetAddress: address.streetAddress,
+          city: address.city,
+          state: address.state,
+          zipCode: address.zip,
+          assignedMinistry: ministry,
+          ministryDepartment: ministry,
+          smallGroup: isSeniorCouple ? "Senior Saints" : pick(SMALL_GROUPS, hi + mi),
+          occupation: pick(OCCUPATIONS, hi + mi),
+          servingStatus: ministry ? "serving" : "not_serving",
+          baptismStatus: "baptized",
+          joinDate: "2020-09-01",
+          emergencyContactName: `Emergency ${lastName}`,
+          emergencyContactPhoneNumber: `555-S${String(200 + hi + mi).slice(-3)}`,
+          emergencyContactRelationship: isSeniorCouple ? "Spouse" : "Family",
+          preferredContactMethod: (["email", "text", "phone"] as const)[(hi + mi) % 3],
+        })
+        .onConflictDoUpdate({
+          target: schema.usersTable.email,
+          set: {
+            firstName,
+            lastName,
+            accountStatus: "active",
+            memberStatus: "member",
+            isActive: true,
+            servingStatus: ministry ? "serving" : "not_serving",
+          },
+        })
+        .returning();
+
+      memberIds.push(user.id);
+      householdMemberCount++;
+    }
+
+    const supplementalChildren: HouseholdChildDef[] = hi < 13
+      ? [{
+          firstName: SUPPLEMENTAL_CHILDREN[hi],
+          gender: (hi % 2 === 0 ? "Female" : "Male") as "Male" | "Female",
+          ageYears: 2 + (hi % 11),
+          hasSecondGuardian: memberIds.length > 1,
+        }]
+      : [];
+
+    householdRecords.push({
+      blueprint: {
+        label: `${lastName} supplemental household`,
+        lastName,
+        ...address,
+        members: [],
+        children: supplementalChildren,
+      },
+      memberIds,
+    });
+  }
+
   // Edge case: clear DOB for the senior widow (Adams family, last member of HH24-equivalent)
   const adamsUser = await db
     .select({ id: schema.usersTable.id })
@@ -915,7 +1116,7 @@ async function seedDev() {
   console.log(`   Household members created: ${householdMemberCount}`);
 
   // ── Unaffiliated members ───────────────────────────────────────────────────
-  console.log("\n👥  Seeding unaffiliated members (teens, adults, visitors, inactive)...");
+  console.log("\n👥  Seeding unaffiliated members (teens, adults, visitors, low-attendance)...");
 
   const unaffiliated = buildUnaffiliatedMembers();
   const unaffiliatedIds: number[] = [];
@@ -976,20 +1177,33 @@ async function seedDev() {
   console.log(`   Unaffiliated members: ${unaffiliatedCount}`);
 
   // ── Fetch all members for attendance/giving ────────────────────────────────
-  const allMembers = await db
-    .select({ id: schema.usersTable.id, email: schema.usersTable.email, memberStatus: schema.usersTable.memberStatus })
+  const seededTestEmails = new Set(EXTRA_TEST_USERS.map((u) => u.email));
+  const churchUsers = await db
+    .select({
+      id: schema.usersTable.id,
+      email: schema.usersTable.email,
+      firstName: schema.usersTable.firstName,
+      lastName: schema.usersTable.lastName,
+      memberStatus: schema.usersTable.memberStatus,
+      servingStatus: schema.usersTable.servingStatus,
+    })
     .from(schema.usersTable)
     .where(eq(schema.usersTable.churchId, church.id));
 
-  const activeMembers = allMembers.filter((m) => m.memberStatus === "active_member" || m.memberStatus === "member");
-  const inactiveMembers = allMembers.filter((m) => m.memberStatus === "inactive");
+  const allMembers = churchUsers.filter((user) =>
+    user.email.endsWith(DEV_EMAIL_DOMAIN) || seededTestEmails.has(user.email)
+  );
+
+  const activeMembers = allMembers.filter((m) => m.memberStatus === "member");
+  const lowAttendanceMembers = activeMembers.slice(-12);
   const visitors = allMembers.filter((m) => m.memberStatus === "visitor");
+  const servingMembers = allMembers.filter((m) => m.servingStatus === "serving");
 
   console.log(`\n   Total members in church: ${allMembers.length}`);
-  console.log(`   Active/member: ${activeMembers.length}  Inactive: ${inactiveMembers.length}  Visitors: ${visitors.length}`);
+  console.log(`   Members: ${activeMembers.length}  Low-attendance test members: ${lowAttendanceMembers.length}  Visitors: ${visitors.length}`);
 
   // ── Children + guardians ───────────────────────────────────────────────────
-  console.log("\n👶  Seeding 20 children with household guardian links...");
+  console.log("\n👶  Seeding 35 children with household guardian links...");
 
   // Collect all household children to seed
   const childDefs: Array<{
@@ -1131,8 +1345,8 @@ async function seedDev() {
   console.log(`   Children with 2 guardians: ${createdChildren.filter((c) => c.guardianIds.length >= 2).length}`);
   console.log(`   Children with 1 guardian (single-parent): ${createdChildren.filter((c) => c.guardianIds.length === 1).length}`);
 
-  // ── Attendance sessions (32: 4 services × 8 weeks) ────────────────────────
-  console.log("\n📅  Seeding 32 attendance sessions (4 services × 8 weeks)...");
+  // ── Attendance sessions (48: 4 services × 12 weeks) ───────────────────────
+  console.log("\n📅  Seeding 48 attendance sessions (4 services × 12 weeks)...");
 
   const serviceEvents = await db
     .select({ id: schema.eventsTable.id, title: schema.eventsTable.title, recurrenceDay: schema.eventsTable.recurrenceDay })
@@ -1148,10 +1362,10 @@ async function seedDev() {
 
   // Expected attendance ranges per day-of-week
   const attendanceRanges: Record<number, [number, number]> = {
-    4: [35, 55],  // Thursday
-    5: [45, 70],  // Friday
-    6: [50, 75],  // Saturday
-    0: [75, 100], // Sunday (highest)
+    4: [50, 80],   // Thursday
+    5: [60, 95],   // Friday
+    6: [70, 110],  // Saturday
+    0: [120, 180], // Sunday (highest)
   };
 
   const serviceDays = [4, 5, 6, 0];
@@ -1161,7 +1375,7 @@ async function seedDev() {
 
   for (const dayOfWeek of serviceDays) {
     const eventInfo = servicesByDay.get(dayOfWeek);
-    const pastDates = pastDayOccurrences(dayOfWeek, 8);
+    const pastDates = pastDayOccurrences(dayOfWeek, 12);
     const range = attendanceRanges[dayOfWeek] ?? [40, 60];
 
     for (let w = 0; w < pastDates.length; w++) {
@@ -1209,9 +1423,9 @@ async function seedDev() {
       const shuffledMembers = shuffle(activeMembers, sessionId + w * 7);
       const attendees = shuffledMembers.slice(0, Math.min(targetCount, shuffledMembers.length));
 
-      // Edge case: inactive member appears in old sessions (first two weeks back)
-      if (inactiveMembers.length > 0 && w >= 6) {
-        attendees.push(inactiveMembers[0]);
+      // Edge case: member with old attendance history but little/no recent attendance.
+      if (lowAttendanceMembers.length > 0 && w >= 6) {
+        attendees.push(lowAttendanceMembers[0]);
       }
 
       // Edge case: visitor attending once (Sunday sessions only)
@@ -1239,6 +1453,88 @@ async function seedDev() {
     }
   }
 
+  // ── Discipleship attendance sessions (same attendance system, cross-midnight) ──
+  console.log("\n📖  Seeding Friday discipleship sessions (11 PM–1 AM, crosses midnight)...");
+
+  const discipleshipMembers = shuffle(activeMembers, 777).slice(0, 30);
+  for (const member of discipleshipMembers) {
+    await db.update(schema.usersTable)
+      .set({
+        smallGroup: "Friday Discipleship",
+        ...(member.id % 5 === 0 ? { assignedMinistry: "Discipleship", ministryDepartment: "Discipleship" } : {}),
+      })
+      .where(eq(schema.usersTable.id, member.id));
+  }
+
+  const discipleshipDates = pastDayOccurrences(5, 12);
+  const discipleshipSessions: Array<{ id: number; sessionDate: Date }> = [];
+
+  for (let w = 0; w < discipleshipDates.length; w++) {
+    const sessionDate = discipleshipDates[w];
+    sessionDate.setHours(23, 0, 0, 0);
+    const qrToken = makeQrToken(`discipleship_w${w}`);
+    const lessonTopic = [
+      "Foundations of Faith",
+      "Prayer and Fasting",
+      "Serving with Humility",
+      "Evangelism Practice",
+      "Spiritual Gifts",
+      "Walking in Holiness",
+      "Leadership and Accountability",
+      "Doctrine Review",
+      "Faith Under Pressure",
+      "The Cost of Discipleship",
+      "Serving the Local Church",
+      "Mission and Witness",
+    ][w % 12];
+
+    const existing = await db
+      .select({ id: schema.attendanceSessionsTable.id })
+      .from(schema.attendanceSessionsTable)
+      .where(and(
+        eq(schema.attendanceSessionsTable.churchId, church.id),
+        eq(schema.attendanceSessionsTable.sessionDate, sessionDate),
+        eq(schema.attendanceSessionsTable.sessionName, "Friday Night Discipleship"),
+      ));
+
+    const sessionId = existing[0]?.id ?? (await db.insert(schema.attendanceSessionsTable).values({
+      churchId: church.id,
+      attendanceType: "discipleship",
+      serviceEventId: null,
+      sessionName: "Friday Night Discipleship",
+      sessionDate,
+      startTime: "23:00",
+      location: "Main Sanctuary",
+      discipleshipGroup: "Friday Night Discipleship",
+      teacherLeader: "Pastoral Team",
+      lessonTopic,
+      qrToken,
+      qrEnabled: true,
+      qrExpiration: new Date(sessionDate.getTime() + 2 * 3600_000),
+      sessionStatus: "closed",
+      createdByUserId: adminUser?.id ?? null,
+    }).returning())[0].id;
+
+    discipleshipSessions.push({ id: sessionId, sessionDate });
+    const attendanceTarget = w === 2 ? 20 : seededInt(w + 91, 24, 40);
+    const attendees = shuffle(discipleshipMembers, w + 515).slice(0, Math.min(attendanceTarget, discipleshipMembers.length));
+
+    for (const attendee of attendees) {
+      const checkinTime = new Date(sessionDate);
+      checkinTime.setMinutes(45 + (attendee.id % 25));
+      await db.insert(schema.attendanceRecordsTable).values({
+        sessionId,
+        memberId: attendee.id,
+        attendanceStatus: "present",
+        checkinSource: attendee.id % 3 === 0 ? "qr_self_checkin" : "manual_admin",
+        checkinTime,
+        checkedInByUserId: adminUser?.id ?? attendee.id,
+        completionStatus: "attended",
+        followUpNeeded: w === 0 && attendee.id % 11 === 0,
+      }).onConflictDoNothing();
+    }
+  }
+
   const sundaySessions = allCreatedSessions
     .filter((s) => s.dayOfWeek === 0)
     .sort((a, b) => a.sessionDate.getTime() - b.sessionDate.getTime());
@@ -1252,7 +1548,7 @@ async function seedDev() {
 
   for (let si = 0; si < sundaySessions.length; si++) {
     const session = sundaySessions[si];
-    const childCount = seededInt(si + 7, 10, 18);
+    const childCount = seededInt(si + 7, 18, 30);
     const shuffledChildren = shuffle(createdChildren, si * 13);
     const checkinChildren = shuffledChildren.slice(0, Math.min(childCount, shuffledChildren.length));
 
@@ -1277,12 +1573,33 @@ async function seedDev() {
           checkinTime,
           checkoutTime,
           classroom: "Elementary",
-          pickupCode: makePickupCode(),
+          pickupCode: makePickupCode(session.id + ci),
           status: hasCheckout ? "checked_out" : "active",
         })
         .onConflictDoNothing();
 
       totalCheckins++;
+
+      // Intentional historical duplicate QA case: same child was checked in twice
+      // on an older Sunday, but both records are already closed so there are no
+      // duplicate active check-ins.
+      if (si === 0 && ci === 0 && hasCheckout) {
+        await db
+          .insert(schema.checkinRecordsTable)
+          .values({
+            childId: childData.id,
+            checkedInByUserId: adminUser?.id ?? 1,
+            checkedOutByUserId: adminUser?.id ?? null,
+            pickedUpByGuardianId: firstGuardianId,
+            checkinTime: new Date(checkinTime.getTime() + 5 * 60_000),
+            checkoutTime: checkoutTime ? new Date(checkoutTime.getTime() + 5 * 60_000) : null,
+            classroom: "Elementary",
+            pickupCode: makePickupCode(session.id + ci + 99),
+            status: "checked_out",
+          })
+          .onConflictDoNothing();
+        totalCheckins++;
+      }
     }
   }
 
@@ -1319,13 +1636,13 @@ async function seedDev() {
       campaignCategory: "Building Fund",
     },
     {
-      campaignName: "Uganda Missions 2026",
-      description: "Support our team traveling to Kampala for outreach.",
+      campaignName: "Community Gift Offering 2026",
+      description: "Support benevolence, outreach, and special church care needs.",
       goalAmountCents: 4_500_000,
       startDate: new Date("2026-03-01"),
       endDate: new Date("2026-09-30"),
       status: "active" as const,
-      campaignCategory: "Missions",
+      campaignCategory: "Gift/Offering",
     },
   ];
 
@@ -1352,37 +1669,42 @@ async function seedDev() {
   }
 
   // ── Donations ──────────────────────────────────────────────────────────────
-  console.log("\n💳  Seeding donations (55 one-time + 10 recurring)...");
+  console.log("\n💳  Seeding donations (150–300 successful transactions + 25 recurring tithe plans)...");
 
-  const GIVING_CATEGORIES = ["tithe", "offering", "building_fund", "missions", "special_campaign", "other"] as const;
+  const GIVING_CATEGORIES = ["tithe", "offering", "building_fund"] as const;
 
-  // 25 active members get donation records
-  const givingMembers = shuffle(activeMembers, 42).slice(0, 25);
-  const recurringMembers = givingMembers.slice(0, 10);
-  const recurringAmounts = [5000, 7500, 10000, 12500, 15000, 8000, 9000, 6000, 11000, 20000];
+  // 60+ active members get donation records.
+  const givingMembers = shuffle(activeMembers, 42).slice(0, 65);
+  const recurringMembers = givingMembers.slice(0, 25);
 
   let donationCount = 0;
   let recurringCount = 0;
+  const regularSessionsByDate = [...allCreatedSessions].sort((a, b) => a.sessionDate.getTime() - b.sessionDate.getTime());
+  let donationServiceCursor = 0;
+  const nextGivingServiceSessionId = () => {
+    if (regularSessionsByDate.length === 0) return null;
+    const session = regularSessionsByDate[donationServiceCursor % regularSessionsByDate.length];
+    donationServiceCursor++;
+    return session.id;
+  };
 
-  // One-time donations spread over 8 weeks
+  // One-time donations spread over 12 weeks
   for (let di = 0; di < givingMembers.length; di++) {
     const donor = givingMembers[di];
-    const donationsThisMember = 1 + (di % 3); // 1-3 donations per member
+    const donationsThisMember = 2 + (di % 3); // 2-4 donations per member
 
     for (let k = 0; k < donationsThisMember; k++) {
-      const weeksAgo = k * 2 + (di % 4);
+      const weeksAgo = (k * 2 + (di % 6)) % 12;
       const donationDate = new Date(Date.now() - weeksAgo * 7 * 24 * 3600_000);
-      const amountCents = seededInt(di * 7 + k, 1000, 100000);
+      const serviceSessionId = nextGivingServiceSessionId();
+      const amountCents = seededInt(di * 7 + k, 1000, di === 0 && k === 0 ? 250000 : 180000);
       const category = GIVING_CATEGORIES[di % GIVING_CATEGORIES.length];
-
-      // Edge cases: failed and pending donations
-      const paymentStatus = di === 20 ? "failed" : di === 21 ? "pending" : "succeeded";
 
       const campaignId =
         category === "building_fund"
           ? (campaignIdMap.get("Annual Building Fund 2026") ?? null)
-          : category === "missions"
-          ? (campaignIdMap.get("Uganda Missions 2026") ?? null)
+          : category === "offering"
+          ? (campaignIdMap.get("Community Gift Offering 2026") ?? null)
           : null;
 
       const csId = `cs_test_dev_${di}_${k}_${donor.id}`;
@@ -1397,19 +1719,21 @@ async function seedDev() {
         await db.insert(schema.donationsTable).values({
           churchId: church.id,
           memberId: donor.id,
-          donorName: `Dev Member ${di}`,
+          donorName: `${donor.firstName} ${donor.lastName}`,
           donorEmail: donor.email,
           amountCents,
           donationDate,
           donationType: "one_time",
           givingCategory: category,
+          serviceSessionId,
           campaignId,
           stripeCheckoutSessionId: csId,
           stripePaymentIntentId: piId,
-          stripeReceiptUrl: paymentStatus === "succeeded" ? `https://pay.stripe.com/receipts/test_${piId}` : null,
-          paymentStatus,
+          stripeCustomerId: `cus_test_dev_${di}_${donor.id}`,
+          stripeReceiptUrl: `https://pay.stripe.com/receipts/test_${piId}`,
+          paymentStatus: "succeeded",
           taxDeductible: true,
-          receiptIssued: paymentStatus === "succeeded" && di % 3 === 0,
+          receiptIssued: di % 3 === 0,
         });
         donationCount++;
       }
@@ -1426,18 +1750,21 @@ async function seedDev() {
       .where(eq(schema.donationsTable.stripeCheckoutSessionId, csId));
 
     if (!existing[0]) {
+      const donationDate = new Date(Date.now() - 14 * 24 * 3600_000);
       await db.insert(schema.donationsTable).values({
         churchId: church.id,
         memberId: visitor.id,
         donorName: "Dev Visitor",
         donorEmail: visitor.email,
         amountCents: 2500,
-        donationDate: new Date(Date.now() - 14 * 24 * 3600_000),
+        donationDate,
         donationType: "one_time",
         givingCategory: "offering",
+        serviceSessionId: nextGivingServiceSessionId(),
         campaignId: null,
         stripeCheckoutSessionId: csId,
         stripePaymentIntentId: "pi_test_dev_visitor_0",
+        stripeCustomerId: `cus_test_dev_visitor_${visitor.id}`,
         paymentStatus: "succeeded",
         taxDeductible: true,
         receiptIssued: false,
@@ -1446,28 +1773,31 @@ async function seedDev() {
     }
   }
 
-  // Edge case: inactive member with old donation
-  if (inactiveMembers.length > 0) {
-    const inactive = inactiveMembers[0];
-    const csId = `cs_test_dev_inactive_old`;
+  // Edge case: member with old giving history but little/no recent attendance.
+  if (lowAttendanceMembers.length > 0) {
+    const lowAttendance = lowAttendanceMembers[0];
+    const csId = `cs_test_dev_low_attendance_old`;
     const existing = await db
       .select({ id: schema.donationsTable.id })
       .from(schema.donationsTable)
       .where(eq(schema.donationsTable.stripeCheckoutSessionId, csId));
 
     if (!existing[0]) {
+      const donationDate = new Date("2025-06-15T12:00:00Z");
       await db.insert(schema.donationsTable).values({
         churchId: church.id,
-        memberId: inactive.id,
-        donorName: "Dev Inactive Member",
-        donorEmail: inactive.email,
+        memberId: lowAttendance.id,
+        donorName: "Dev Low-attendance Member",
+        donorEmail: lowAttendance.email,
         amountCents: 5000,
-        donationDate: new Date("2025-06-15T12:00:00Z"),
+        donationDate,
         donationType: "one_time",
         givingCategory: "tithe",
+        serviceSessionId: nextGivingServiceSessionId(),
         campaignId: null,
         stripeCheckoutSessionId: csId,
-        stripePaymentIntentId: "pi_test_dev_inactive_old",
+        stripePaymentIntentId: "pi_test_dev_low_attendance_old",
+        stripeCustomerId: `cus_test_dev_low_attendance_${lowAttendance.id}`,
         paymentStatus: "succeeded",
         taxDeductible: true,
         receiptIssued: true,
@@ -1476,13 +1806,13 @@ async function seedDev() {
     }
   }
 
-  // 10 recurring monthly tithe plans
+  // 25 recurring monthly tithe plans
   for (let ri = 0; ri < recurringMembers.length; ri++) {
     const member = recurringMembers[ri];
     const subId = `sub_test_dev_${ri}_${member.id}`;
     const cusId = `cus_test_dev_${ri}_${member.id}`;
-    const amountCents = recurringAmounts[ri];
-    const status = ri === 8 ? "past_due" : "active"; // edge case: one past_due
+    const amountCents = seededInt(ri + 300, 5000, 80000);
+    const status = "active" as const;
 
     const existing = await db
       .select({ id: schema.recurringDonationsTable.id })
@@ -1512,20 +1842,24 @@ async function seedDev() {
         .where(eq(schema.donationsTable.stripeCheckoutSessionId, csId2));
 
       if (!existingDon[0]) {
+        const donationDate = new Date(Date.now() - 30 * 24 * 3600_000);
         await db.insert(schema.donationsTable).values({
           churchId: church.id,
           memberId: member.id,
-          donorName: `Dev Recurring ${ri}`,
+          donorName: `${member.firstName} ${member.lastName}`,
           donorEmail: member.email,
           amountCents,
-          donationDate: new Date(Date.now() - 30 * 24 * 3600_000),
+          donationDate,
           donationType: "recurring",
           givingCategory: "tithe",
+          serviceSessionId: nextGivingServiceSessionId(),
           campaignId: null,
           stripeCheckoutSessionId: csId2,
+          stripePaymentIntentId: `pi_test_dev_recurring_${ri}_${member.id}`,
           stripeSubscriptionId: subId,
           stripeCustomerId: cusId,
-          paymentStatus: status === "past_due" ? "failed" : "succeeded",
+          stripeReceiptUrl: `https://pay.stripe.com/receipts/test_pi_test_dev_recurring_${ri}_${member.id}`,
+          paymentStatus: "succeeded",
           taxDeductible: true,
           receiptIssued: false,
         });
@@ -1540,15 +1874,17 @@ async function seedDev() {
   console.log("\n✅  Dev seed complete!\n");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log(`  Church:                ${church.name}`);
-  console.log(`  Total users in DB:     ${allMembers.length + EXTRA_TEST_USERS.length}`);
-  console.log(`  Household members:     ${householdMemberCount} (in 25 household groups)`);
+  console.log(`  Total fake people:     ${allMembers.length + createdChildren.length} (${allMembers.length} users + ${createdChildren.length} children)`);
+  console.log(`  Household members:     ${householdMemberCount} (in 45 household groups)`);
   console.log(`  Unaffiliated members:  ${unaffiliatedCount}`);
-  console.log(`  Test accounts:         5 (admin@ member@ finance@ attendance@ children@)`);
-  console.log(`  Active members:        ${activeMembers.length}`);
-  console.log(`  Inactive members:      ${inactiveMembers.length}`);
+  console.log(`  Test accounts:         7 (superadmin@, admin1@–admin5@, member@)`);
+  console.log(`  Members:               ${activeMembers.length}`);
+  console.log(`  Low-attendance tests:  ${lowAttendanceMembers.length}`);
   console.log(`  Visitors:              ${visitors.length}`);
+  console.log(`  Serving members:       ${servingMembers.length}`);
+  console.log(`  Discipleship members:  ${discipleshipMembers.length}`);
   console.log(`  Children (table):      ${createdChildren.length} (2–12 yrs)`);
-  console.log(`  Attendance sessions:   ${allCreatedSessions.length} (${sundaySessions.length} Sundays)`);
+  console.log(`  Attendance sessions:   ${allCreatedSessions.length + discipleshipSessions.length} (${sundaySessions.length} Sundays, ${discipleshipSessions.length} discipleship)`);
   console.log(`  Check-in records:      ${totalCheckins}`);
   console.log(`  Donations:             ${donationCount}`);
   console.log(`  Recurring plans:       ${recurringCount}`);
@@ -1556,21 +1892,22 @@ async function seedDev() {
   console.log("\nEdge cases included:");
   console.log("  • Member with no DOB (Helen Adams)");
   console.log("  • Visitor with minimal contact info");
-  console.log("  • Inactive member with old attendance record");
+  console.log("  • Low-attendance member with old attendance record");
   console.log("  • Child missing checkout (2 unresolved check-ins on last Sunday)");
   console.log("  • Single-parent households (Wilson, Thomas) — child has 1 guardian");
   console.log("  • Emergency-only secondary guardian (Moore/Adams households)");
   console.log("  • Household with no children (Davis, Taylor families)");
   console.log("  • Visitor one-time donation");
-  console.log("  • Failed donation (member #20)");
-  console.log("  • Pending donation (member #21)");
-  console.log("  • Past-due recurring plan (recurring #8)");
+  console.log("  • Friday discipleship sessions crossing midnight");
+  console.log("  • Giving data uses succeeded transactions only");
   console.log("\nTest credentials (dev only — Clerk auth bypassed):");
-  console.log("  admin@churchos.test       Admin123!   — super admin");
-  console.log("  finance@churchos.test     Finance123! — finance access");
-  console.log("  attendance@churchos.test  Attendance123! — attendance access");
-  console.log("  children@churchos.test    Children123! — children ministry");
-  console.log("  member@churchos.test      Member123!  — member only");
+  console.log("  superadmin@churchos.test  SuperAdmin123! — super admin");
+  console.log("  admin1@churchos.test      Admin123!      — admin");
+  console.log("  admin2@churchos.test      Admin123!      — admin");
+  console.log("  admin3@churchos.test      Admin123!      — admin");
+  console.log("  admin4@churchos.test      Admin123!      — admin");
+  console.log("  admin5@churchos.test      Admin123!      — admin");
+  console.log("  member@churchos.test      Member123!     — member");
   console.log("\n⚠️   These credentials only work in development mode.");
 }
 

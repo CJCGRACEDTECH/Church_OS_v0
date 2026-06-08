@@ -1,7 +1,7 @@
 export type AttendanceType = "regular_service" | "discipleship";
 export type SessionStatus = "upcoming" | "active" | "closed";
 export type AttendanceStatus = "present" | "absent" | "excused" | "late";
-export type CompletionStatus = "attended" | "missed" | "make_up_needed";
+export type CompletionStatus = "attended" | "missed";
 
 export type AttendanceSession = {
   id: number;

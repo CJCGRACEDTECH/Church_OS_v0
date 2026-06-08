@@ -214,10 +214,10 @@ export default function MemberProfile() {
   return (
     <MemberLayout>
       <div className="mx-auto max-w-6xl space-y-6">
-        <section className="rounded-lg border bg-card p-5 shadow-sm">
+        <section className="rounded-lg border border-blue-100 bg-blue-50/70 p-5 shadow-sm">
           <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
             <div className="flex min-w-0 items-center gap-4">
-              <Avatar className="h-16 w-16 shrink-0 border bg-primary/10">
+              <Avatar className="h-16 w-16 shrink-0 border border-blue-200 bg-white">
                 {user?.profilePhotoUrl && (
                   <AvatarImage src={user.profilePhotoUrl} alt={`${user.firstName} ${user.lastName}`} />
                 )}
@@ -253,46 +253,16 @@ export default function MemberProfile() {
                   <Form {...profileForm}>
                     <form onSubmit={profileForm.handleSubmit(submitProfile)} className="space-y-6">
                       <div className="grid gap-4 md:grid-cols-2">
-                        <FormField control={profileForm.control} name="firstName" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>First Name</FormLabel>
-                            <FormControl><Input {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
-                        <FormField control={profileForm.control} name="lastName" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Last Name</FormLabel>
-                            <FormControl><Input {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
-                        <FormField control={profileForm.control} name="preferredName" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Preferred Name / Nickname</FormLabel>
-                            <FormControl><Input {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
-                        <FormField control={profileForm.control} name="email" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Email Address</FormLabel>
-                            <FormControl><Input type="email" {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
-                        <FormField control={profileForm.control} name="phoneNumber" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Phone Number</FormLabel>
-                            <FormControl><Input {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
+                        <ProfileField form={profileForm} name="firstName" label="First Name" />
+                        <ProfileField form={profileForm} name="lastName" label="Last Name" />
+                        <ProfileField form={profileForm} name="preferredName" label="Preferred Name / Nickname" />
+                        <ProfileField form={profileForm} name="email" label="Email Address" type="email" />
+                        <ProfileField form={profileForm} name="phoneNumber" label="Phone Number" />
                         <FormField control={profileForm.control} name="profilePhotoUrl" render={({ field }) => (
                           <FormItem>
                             <FormLabel>Profile Photo</FormLabel>
                             <div className="flex items-center gap-3">
-                              <Avatar className="h-12 w-12 border bg-primary/10">
+                              <Avatar className="h-12 w-12 border border-blue-200 bg-white">
                                 {field.value && <AvatarImage src={field.value} alt="Profile preview" />}
                                 <AvatarFallback className="bg-transparent text-sm text-primary">
                                   {profileForm.watch("firstName")?.[0]}
@@ -300,104 +270,26 @@ export default function MemberProfile() {
                                 </AvatarFallback>
                               </Avatar>
                               <FormControl>
-                                <Input type="file" accept="image/*" onChange={handleProfilePhotoFile} />
+                                <Input type="file" accept="image/*" capture="user" onChange={handleProfilePhotoFile} />
                               </FormControl>
                             </div>
                             <Input placeholder="https://..." {...field} />
                             <FormMessage />
                           </FormItem>
                         )} />
-                        <FormField control={profileForm.control} name="dateOfBirth" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Date of Birth</FormLabel>
-                            <FormControl><Input type="date" {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
-                        <FormField control={profileForm.control} name="gender" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Gender</FormLabel>
-                            <FormControl><Input {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
-                        <FormField control={profileForm.control} name="maritalStatus" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Marital Status</FormLabel>
-                            <FormControl><Input {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
-                        <FormField control={profileForm.control} name="occupation" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Occupation</FormLabel>
-                            <FormControl><Input {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
-                        <FormField control={profileForm.control} name="preferredLanguage" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Preferred Language</FormLabel>
-                            <FormControl><Input {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
-                        <FormField control={profileForm.control} name="emergencyContactName" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Emergency Contact Name</FormLabel>
-                            <FormControl><Input {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
-                        <FormField control={profileForm.control} name="emergencyContactPhoneNumber" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Emergency Contact Phone</FormLabel>
-                            <FormControl><Input {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
-                        <FormField control={profileForm.control} name="streetAddress" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Street Address</FormLabel>
-                            <FormControl><Input {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
-                        <FormField control={profileForm.control} name="apartmentUnit" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Apartment / Unit</FormLabel>
-                            <FormControl><Input {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
-                        <FormField control={profileForm.control} name="city" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>City</FormLabel>
-                            <FormControl><Input {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
-                        <FormField control={profileForm.control} name="state" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>State</FormLabel>
-                            <FormControl><Input {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
-                        <FormField control={profileForm.control} name="zipCode" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Zip Code</FormLabel>
-                            <FormControl><Input {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
-                        <FormField control={profileForm.control} name="country" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Country</FormLabel>
-                            <FormControl><Input {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
+                        <ProfileField form={profileForm} name="dateOfBirth" label="Date of Birth" type="date" />
+                        <ProfileField form={profileForm} name="gender" label="Gender" />
+                        <ProfileField form={profileForm} name="maritalStatus" label="Marital Status" />
+                        <ProfileField form={profileForm} name="occupation" label="Occupation" />
+                        <ProfileField form={profileForm} name="preferredLanguage" label="Preferred Language" />
+                        <ProfileField form={profileForm} name="emergencyContactName" label="Emergency Contact Name" />
+                        <ProfileField form={profileForm} name="emergencyContactPhoneNumber" label="Emergency Contact Phone" />
+                        <ProfileField form={profileForm} name="streetAddress" label="Street Address" />
+                        <ProfileField form={profileForm} name="apartmentUnit" label="Apartment / Unit" />
+                        <ProfileField form={profileForm} name="city" label="City" />
+                        <ProfileField form={profileForm} name="state" label="State" />
+                        <ProfileField form={profileForm} name="zipCode" label="Zip Code" />
+                        <ProfileField form={profileForm} name="country" label="Country" />
                       </div>
 
                       {profileError && (
@@ -486,10 +378,11 @@ export default function MemberProfile() {
 
         <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-6">
-            <Card className="border-border/70">
+            <Card className="overflow-hidden border-blue-100 bg-blue-50/45 shadow-sm">
+              <div className="h-1 bg-blue-500" />
               <CardHeader>
                 <CardTitle>Basic Account Information</CardTitle>
-                <CardDescription>Identity, sign-in context, and day-to-day contact details.</CardDescription>
+                <CardDescription>Identity, sign-in context, member account, and day-to-day contact details.</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4 md:grid-cols-2">
                 <InfoRow icon={UserRound} label="First Name" value={user?.firstName} />
@@ -497,11 +390,13 @@ export default function MemberProfile() {
                 <InfoRow icon={Contact} label="Preferred Name / Nickname" value={user?.preferredName} />
                 <InfoRow icon={Mail} label="Email Address" value={user?.email} />
                 <InfoRow icon={Phone} label="Phone Number" value={user?.phoneNumber} />
+                <InfoRow icon={Church} label="Church" value={user?.churchName} />
                 <InfoRow icon={CalendarDays} label="Account Created" value={formatDate(user?.createdAt)} />
               </CardContent>
             </Card>
 
-            <Card className="border-border/70">
+            <Card className="overflow-hidden border-blue-100 bg-blue-50/45 shadow-sm">
+              <div className="h-1 bg-amber-400" />
               <CardHeader>
                 <CardTitle>Personal Information</CardTitle>
                 <CardDescription>Helpful CRM details for care, communication, and personal context.</CardDescription>
@@ -519,7 +414,8 @@ export default function MemberProfile() {
           </div>
 
           <div className="space-y-6">
-            <Card className="border-border/70">
+            <Card className="overflow-hidden border-blue-100 bg-blue-50/45 shadow-sm">
+              <div className="h-1 bg-amber-400" />
               <CardHeader>
                 <CardTitle>Address Information</CardTitle>
                 <CardDescription>Member mailing and household location context.</CardDescription>
@@ -536,14 +432,18 @@ export default function MemberProfile() {
               </CardContent>
             </Card>
 
-            <Card id="account-info" className="border-border/70">
+            <Card id="account-info" className="overflow-hidden border-blue-100 bg-blue-50/45 shadow-sm">
+              <div className="h-1 bg-blue-500" />
               <CardHeader>
                 <CardTitle>Account Info</CardTitle>
                 <CardDescription>Security-facing context visible to the member.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <InfoRow icon={CalendarDays} label="Last Login" value={formatDate(user?.lastLoginAt)} />
-                <div className="rounded-lg border p-4">
+                <InfoRow icon={ShieldCheck} label="Account Type" value="Member" />
+                <InfoRow icon={ShieldCheck} label="Account Status" value={user?.accountStatus} />
+                <InfoRow icon={UserRound} label="User ID" value={user?.id ? String(user.id) : null} />
+                <div className="rounded-lg border border-blue-100 bg-white/75 p-4">
                   <div className="text-sm font-medium">Authentication Provider</div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {providerLabels.map((provider) => (
@@ -553,7 +453,7 @@ export default function MemberProfile() {
                     ))}
                   </div>
                 </div>
-                <div className="rounded-lg border p-4 text-sm text-muted-foreground">
+                <div className="rounded-lg border border-amber-100 bg-white/75 p-4 text-sm text-muted-foreground">
                   Admin access cannot be selected or upgraded from this profile. All self-service accounts remain members unless backend or database administration changes the role.
                 </div>
               </CardContent>
@@ -562,6 +462,30 @@ export default function MemberProfile() {
         </div>
       </div>
     </MemberLayout>
+  );
+}
+
+function ProfileField({
+  form,
+  name,
+  label,
+  type = "text",
+  placeholder,
+}: {
+  form: ReturnType<typeof useForm<ProfileFormValues>>;
+  name: keyof ProfileFormValues;
+  label: string;
+  type?: string;
+  placeholder?: string;
+}) {
+  return (
+    <FormField control={form.control} name={name} render={({ field }) => (
+      <FormItem>
+        <FormLabel>{label}</FormLabel>
+        <FormControl><Input type={type} placeholder={placeholder} {...field} /></FormControl>
+        <FormMessage />
+      </FormItem>
+    )} />
   );
 }
 
@@ -577,7 +501,7 @@ function InfoRow({
   className?: string;
 }) {
   return (
-    <div className={`rounded-lg border p-4 ${className}`}>
+    <div className={`rounded-lg border border-blue-100 bg-white/75 p-4 ${className}`}>
       <div className="flex items-center gap-2 text-sm font-medium">
         <Icon className="h-4 w-4 text-primary" />
         {label}

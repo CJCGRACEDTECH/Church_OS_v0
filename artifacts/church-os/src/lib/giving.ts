@@ -1,4 +1,4 @@
-export type GivingCategory = "tithe" | "offering" | "building_fund" | "missions" | "special_campaign" | "other";
+export type GivingCategory = "tithe" | "offering" | "building_fund";
 export type DonationType = "one_time" | "recurring";
 export type PaymentStatus = "pending" | "succeeded" | "failed" | "refunded";
 export type CampaignStatus = "draft" | "active" | "completed" | "cancelled";
@@ -13,6 +13,7 @@ export type Donation = {
   donationDate: string;
   donationType: DonationType;
   givingCategory: GivingCategory;
+  serviceSessionId: number | null;
   campaignId: number | null;
   campaignName?: string | null;
   stripePaymentIntentId: string | null;
@@ -99,4 +100,3 @@ export function formatDate(value: string | null | undefined) {
   if (!value) return "Not set";
   return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" }).format(new Date(value));
 }
-

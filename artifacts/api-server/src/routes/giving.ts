@@ -16,10 +16,9 @@ import { requireAdminPermission, requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
 const requireGivingManagement = requireAdminPermission(ADMIN_PERMISSIONS.GIVING_MANAGEMENT);
-const requireGivingReports = requireAdminPermission(ADMIN_PERMISSIONS.GIVING_REPORTS);
 const requireCampaignManagement = requireAdminPermission(ADMIN_PERMISSIONS.CAMPAIGN_MANAGEMENT);
 
-const CATEGORIES = new Set(["tithe", "offering", "building_fund", "missions", "special_campaign", "other"]);
+const CATEGORIES = new Set(["tithe", "offering", "building_fund"]);
 const FREQUENCIES = new Set(["weekly", "biweekly", "monthly", "yearly"]);
 const CAMPAIGN_STATUSES = new Set(["draft", "active", "completed", "cancelled"]);
 const PAYMENT_STATUSES = new Set(["pending", "succeeded", "failed", "refunded"]);
@@ -35,6 +34,11 @@ function enumValue<T extends string>(value: unknown, allowed: Set<string>, fallb
 function cents(value: unknown): number {
   const amount = typeof value === "number" ? value : Number(value);
   return Number.isFinite(amount) ? Math.max(0, Math.round(amount * 100)) : 0;
+}
+
+function positiveIntegerOrNull(value: unknown): number | null {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 function dollars(value: number) {
@@ -56,6 +60,7 @@ function serializeDonation(donation: Donation) {
     donationDate: donation.donationDate.toISOString(),
     donationType: donation.donationType,
     givingCategory: donation.givingCategory,
+    serviceSessionId: donation.serviceSessionId,
     campaignId: donation.campaignId,
     stripePaymentIntentId: donation.stripePaymentIntentId,
     stripeCheckoutSessionId: donation.stripeCheckoutSessionId,
@@ -116,6 +121,7 @@ async function createStripeCheckout(params: {
   amountCents: number;
   category: string;
   campaignId: number | null;
+  serviceSessionId: number | null;
   memberId: number;
   donorEmail: string;
   frequency?: string;
@@ -124,7 +130,7 @@ async function createStripeCheckout(params: {
     return {
       setupRequired: true,
       checkoutUrl: null,
-      message: "Stripe is not configured. Add STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET in Replit Secrets.",
+      message: "Online giving is not available right now. Please use another giving method or contact the finance team.",
     };
   }
 
@@ -137,6 +143,7 @@ async function createStripeCheckout(params: {
     "metadata[member_id]": String(params.memberId),
     "metadata[giving_category]": params.category,
     "metadata[campaign_id]": params.campaignId ? String(params.campaignId) : "",
+    "metadata[service_session_id]": params.serviceSessionId ? String(params.serviceSessionId) : "",
     "line_items[0][quantity]": "1",
     "line_items[0][price_data][currency]": "usd",
     "line_items[0][price_data][unit_amount]": String(params.amountCents),
@@ -194,6 +201,7 @@ router.post("/giving/checkout", requireAuth, async (req, res): Promise<void> => 
   const category = enumValue(req.body?.givingCategory, CATEGORIES, "tithe");
   const donationType = req.body?.donationType === "recurring" ? "recurring" : "one_time";
   const campaignId = req.body?.campaignId ? Number(req.body.campaignId) : null;
+  const serviceSessionId = positiveIntegerOrNull(req.body?.serviceSessionId);
   const frequency = enumValue(req.body?.frequency, FREQUENCIES, "monthly");
   if (amountCents < 100) { res.status(400).json({ error: "Minimum giving amount is $1.00." }); return; }
 
@@ -207,6 +215,7 @@ router.post("/giving/checkout", requireAuth, async (req, res): Promise<void> => 
     amountCents,
     category,
     campaignId,
+    serviceSessionId,
     memberId: user.id,
     donorEmail: user.email,
     frequency,
@@ -226,6 +235,7 @@ router.post("/giving/checkout", requireAuth, async (req, res): Promise<void> => 
     amountCents,
     donationType,
     givingCategory: category,
+    serviceSessionId,
     campaignId,
     stripeCheckoutSessionId: checkout.checkoutSessionId,
     paymentStatus: "pending",
@@ -314,7 +324,7 @@ router.patch("/admin/giving/donations/:id", requireGivingManagement, async (req,
   res.json({ donation: serializeDonation(donation) });
 });
 
-router.get("/admin/giving/export.csv", requireGivingReports, async (req, res) => {
+router.get("/admin/giving/export.csv", requireGivingManagement, async (req, res) => {
   const rows = await db
     .select({
       id: donationsTable.id,
@@ -414,6 +424,31 @@ router.patch("/admin/giving/campaigns/:id", requireCampaignManagement, async (re
   res.json({ campaign: serializeCampaign(campaign, await campaignRaised(campaign.id, req.localChurchId)) });
 });
 
+router.delete("/admin/giving/campaigns/:id", requireCampaignManagement, async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) { res.status(400).json({ error: "Invalid campaign." }); return; }
+
+  const [campaign] = await db
+    .select({ id: givingCampaignsTable.id })
+    .from(givingCampaignsTable)
+    .where(and(eq(givingCampaignsTable.id, id), eq(givingCampaignsTable.churchId, req.localChurchId)));
+  if (!campaign) { res.status(404).json({ error: "Campaign not found." }); return; }
+
+  const linkedDonations = await db
+    .select({ id: donationsTable.id })
+    .from(donationsTable)
+    .where(and(eq(donationsTable.campaignId, id), eq(donationsTable.churchId, req.localChurchId)))
+    .limit(1);
+
+  if (linkedDonations.length > 0) {
+    res.status(409).json({ error: "Campaign has donation history. Deactivate it instead to preserve financial records." });
+    return;
+  }
+
+  await db.delete(givingCampaignsTable).where(and(eq(givingCampaignsTable.id, id), eq(givingCampaignsTable.churchId, req.localChurchId)));
+  res.json({ ok: true });
+});
+
 router.post("/giving/stripe/webhook", async (req, res): Promise<void> => {
   const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body ?? {}));
   const signature = req.headers["stripe-signature"];
@@ -433,11 +468,13 @@ async function syncStripeEvent(type: string, object: Record<string, unknown>) {
     const customer = object.customer ? String(object.customer) : null;
     const subscription = object.subscription ? String(object.subscription) : null;
     const metadata = typeof object.metadata === "object" && object.metadata ? object.metadata as Record<string, string> : {};
+    const serviceSessionId = positiveIntegerOrNull(metadata.service_session_id);
     await db.update(donationsTable).set({
       paymentStatus: "succeeded",
       stripePaymentIntentId: paymentIntent,
       stripeCustomerId: customer,
       stripeSubscriptionId: subscription,
+      ...(serviceSessionId ? { serviceSessionId } : {}),
     }).where(eq(donationsTable.stripeCheckoutSessionId, sessionId));
     if (subscription && metadata.member_id) {
       await db.update(recurringDonationsTable).set({
@@ -477,7 +514,7 @@ function receiptHtml({ user, donations, year }: { user: NonNullable<Awaited<Retu
   const total = donations.reduce((sum, donation) => sum + donation.amountCents, 0);
   const deductible = donations.filter((donation) => donation.taxDeductible).reduce((sum, donation) => sum + donation.amountCents, 0);
   const rows = donations.map((donation) => `<tr><td>${donation.donationDate.toLocaleDateString()}</td><td>${dollars(donation.amountCents)}</td><td>${donation.givingCategory}</td><td>${donation.campaignId ?? ""}</td></tr>`).join("");
-  return `<!doctype html><html><head><title>${year} Giving Receipt</title><style>body{font-family:Arial,sans-serif;margin:40px;color:#111}table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid #ddd;padding:8px;text-align:left}.total{font-weight:700}</style></head><body><h1>Church OS Giving Receipt</h1><p>Church address: TODO in Replit settings<br/>Church EIN/Tax ID: TODO</p><h2>${user.firstName} ${user.lastName}</h2><p>${user.email}</p><p>Donation year: ${year}</p><table><thead><tr><th>Date</th><th>Amount</th><th>Category</th><th>Campaign</th></tr></thead><tbody>${rows}</tbody></table><p class="total">Total giving: ${dollars(total)}</p><p class="total">Tax-deductible total: ${dollars(deductible)}</p><p>Generated: ${new Date().toLocaleDateString()}</p><p>No goods or services were provided in exchange for these contributions, other than intangible religious benefits.</p></body></html>`;
+  return `<!doctype html><html><head><title>${year} Giving Receipt</title><style>body{font-family:Arial,sans-serif;margin:40px;color:#111}table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid #ddd;padding:8px;text-align:left}.total{font-weight:700}</style></head><body><h1>Church OS Giving Receipt</h1><p>Church address: On file<br/>Church EIN/Tax ID: On file</p><h2>${user.firstName} ${user.lastName}</h2><p>${user.email}</p><p>Donation year: ${year}</p><table><thead><tr><th>Date</th><th>Amount</th><th>Category</th><th>Campaign</th></tr></thead><tbody>${rows}</tbody></table><p class="total">Total giving: ${dollars(total)}</p><p class="total">Tax-deductible total: ${dollars(deductible)}</p><p>Generated: ${new Date().toLocaleDateString()}</p><p>No goods or services were provided in exchange for these contributions, other than intangible religious benefits.</p></body></html>`;
 }
 
 export default router;

@@ -9,6 +9,7 @@ import {
 import { hashPassword } from "../lib/password";
 import {
   ADMIN_LEVELS,
+  ADMIN_PERMISSION_PRESETS,
   ADMIN_PERMISSIONS,
   DEFAULT_ADMIN_LEVEL_PERMISSIONS,
   PERMISSION_CATALOG,
@@ -134,6 +135,7 @@ router.get("/admin/permission-catalog", requireRole("admin"), (_req, res) => {
   res.json({
     permissions: PERMISSION_CATALOG,
     defaults: DEFAULT_ADMIN_LEVEL_PERMISSIONS,
+    presets: Object.values(ADMIN_PERMISSION_PRESETS),
   });
 });
 

@@ -2,10 +2,21 @@ import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import AdminLayout from "@/components/AdminLayout";
 import StatCard from "@/components/StatCard";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +37,7 @@ import {
   type GivingSummary,
   type PaymentStatus,
 } from "@/lib/giving";
-import { Download, Megaphone, Pencil, Plus, Search, ShieldCheck, Users } from "lucide-react";
+import { ChevronDown, Download, Megaphone, Pencil, Plus, Search, ShieldCheck, Trash2, Users } from "lucide-react";
 
 type CampaignForm = {
   campaignName: string;
@@ -50,7 +61,7 @@ const emptyCampaignForm: CampaignForm = {
   description: "",
   goalAmount: "10000",
   status: "active",
-  campaignCategory: "Special Campaign",
+  campaignCategory: "Gift/Offering",
   campaignImageUrl: "",
   startDate: new Date().toISOString().slice(0, 10),
   endDate: "",
@@ -93,6 +104,8 @@ export default function AdminGiving() {
   const [campaignForm, setCampaignForm] = React.useState<CampaignForm>(emptyCampaignForm);
   const [campaignErrors, setCampaignErrors] = React.useState<CampaignErrors>({});
   const [editingCampaign, setEditingCampaign] = React.useState<GivingCampaign | null>(null);
+  const [campaignsExpanded, setCampaignsExpanded] = React.useState(true);
+  const [recordsExpanded, setRecordsExpanded] = React.useState(true);
 
   async function exportCsv() {
     try {
@@ -165,6 +178,7 @@ export default function AdminGiving() {
       toast({ title: "Campaign created" });
       void queryClient.invalidateQueries({ queryKey: ["admin-giving-campaigns"] });
       void queryClient.invalidateQueries({ queryKey: ["admin-giving-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
     },
     onError: (error) => toast({ title: "Could not create campaign", description: error.message, variant: "destructive" }),
   });
@@ -190,8 +204,46 @@ export default function AdminGiving() {
       toast({ title: "Campaign updated" });
       void queryClient.invalidateQueries({ queryKey: ["admin-giving-campaigns"] });
       void queryClient.invalidateQueries({ queryKey: ["admin-giving-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
     },
     onError: (error) => toast({ title: "Could not update campaign", description: error.message, variant: "destructive" }),
+  });
+
+  const deactivateCampaign = useMutation({
+    mutationFn: () => {
+      if (!editingCampaign) throw new Error("Choose a campaign to deactivate.");
+      return apiJson<{ campaign: GivingCampaign }>(`/admin/giving/campaigns/${editingCampaign.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "cancelled" }),
+      });
+    },
+    onSuccess: () => {
+      setCampaignOpen(false);
+      setEditingCampaign(null);
+      setCampaignForm(emptyCampaignForm);
+      toast({ title: "Campaign deactivated" });
+      void queryClient.invalidateQueries({ queryKey: ["admin-giving-campaigns"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-giving-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+    },
+    onError: (error) => toast({ title: "Could not deactivate campaign", description: error.message, variant: "destructive" }),
+  });
+
+  const deleteCampaign = useMutation({
+    mutationFn: () => {
+      if (!editingCampaign) throw new Error("Choose a campaign to delete.");
+      return apiJson<{ ok: true }>(`/admin/giving/campaigns/${editingCampaign.id}`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      setCampaignOpen(false);
+      setEditingCampaign(null);
+      setCampaignForm(emptyCampaignForm);
+      toast({ title: "Campaign deleted" });
+      void queryClient.invalidateQueries({ queryKey: ["admin-giving-campaigns"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-giving-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+    },
+    onError: (error) => toast({ title: "Could not delete campaign", description: error.message, variant: "destructive" }),
   });
 
   function openNewCampaign() {
@@ -207,18 +259,6 @@ export default function AdminGiving() {
     setCampaignErrors({});
     setCampaignOpen(true);
   }
-
-  const updateReceiptStatus = useMutation({
-    mutationFn: ({ id, receiptIssued }: { id: number; receiptIssued: boolean }) => apiJson<{ donation: Donation }>(`/admin/giving/donations/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ receiptIssued }),
-    }),
-    onSuccess: () => {
-      toast({ title: "Receipt status updated" });
-      void queryClient.invalidateQueries({ queryKey: ["admin-giving-donations"] });
-    },
-    onError: (error) => toast({ title: "Could not update donation", description: error.message, variant: "destructive" }),
-  });
 
   const summary = summaryQuery.data;
   const donations = donationsQuery.data?.donations ?? [];
@@ -250,8 +290,11 @@ export default function AdminGiving() {
                   errors={campaignErrors}
                   setForm={(f) => { setCampaignForm(f); setCampaignErrors({}); }}
                   onSubmit={submitCampaign}
-                  isSubmitting={createCampaign.isPending || updateCampaign.isPending}
+                  isSubmitting={createCampaign.isPending || updateCampaign.isPending || deactivateCampaign.isPending || deleteCampaign.isPending}
                   submitLabel={editingCampaign ? "Save Changes" : "Create Campaign"}
+                  editingCampaign={editingCampaign}
+                  onDeactivate={() => deactivateCampaign.mutate()}
+                  onDelete={() => deleteCampaign.mutate()}
                 />
               </DialogContent>
             </Dialog>
@@ -282,12 +325,85 @@ export default function AdminGiving() {
           </CardHeader>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Giving Records</CardTitle>
-            <CardDescription>Search donations, filter by date range, and mark tax receipts issued.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <Collapsible open={campaignsExpanded} onOpenChange={setCampaignsExpanded}>
+          <Card>
+            <CardHeader>
+              <CollapsibleTrigger asChild>
+                <button type="button" className="flex w-full items-start justify-between gap-4 text-left">
+                  <div>
+                    <CardTitle className="flex items-center gap-2"><Megaphone className="h-5 w-5" /> Campaigns</CardTitle>
+                    <CardDescription>Active campaigns appear on the member Give page.</CardDescription>
+                  </div>
+                  <ChevronDown className={`mt-1 h-4 w-4 text-muted-foreground transition-transform ${campaignsExpanded ? "rotate-180" : ""}`} />
+                </button>
+              </CollapsibleTrigger>
+            </CardHeader>
+            <CollapsibleContent>
+              <CardContent>
+                {campaignsQuery.isLoading ? (
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {Array.from({ length: 2 }).map((_, i) => (
+                      <div key={i} className="rounded-md border p-4 space-y-3">
+                        <Skeleton className="h-32 w-full rounded-md" />
+                        <Skeleton className="h-5 w-40" />
+                        <Skeleton className="h-3 w-full" />
+                        <Skeleton className="h-2 w-full rounded-full" />
+                      </div>
+                    ))}
+                  </div>
+                ) : campaigns.length > 0 ? (
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {campaigns.map((campaign) => (
+                      <div key={campaign.id} className="rounded-md border p-4">
+                        {campaign.campaignImageUrl && <img src={campaign.campaignImageUrl} alt="" className="mb-4 h-32 w-full rounded-md object-cover" />}
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <h3 className="font-semibold">{campaign.campaignName}</h3>
+                            <p className="text-sm text-muted-foreground">{campaign.campaignCategory ?? "Campaign"}</p>
+                          </div>
+                          <Badge variant={campaign.status === "active" ? "default" : "secondary"}>{labelize(campaign.status)}</Badge>
+                        </div>
+                        <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{campaign.description}</p>
+                        <Progress className="mt-4" value={campaign.progressPercent} />
+                        <div className="mt-2 flex items-center justify-between text-sm text-muted-foreground">
+                          <span>{dollars(campaign.amountRaisedCents)} raised</span>
+                          <span>of {dollars(campaign.goalAmountCents)}</span>
+                        </div>
+                        {campaign.endDate && <p className="mt-1 text-xs text-muted-foreground">Ends {formatDate(campaign.endDate)}</p>}
+                        <Button className="mt-4 w-full" variant="secondary" onClick={() => openEditCampaign(campaign)}>
+                          <Pencil className="mr-2 h-4 w-4" /> Manage Campaign
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-md border border-dashed p-8 text-center">
+                    <Megaphone className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
+                    <p className="font-medium text-muted-foreground">No campaigns yet</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Create your first campaign to start collecting toward a goal.</p>
+                    <Button className="mt-4" onClick={openNewCampaign}><Plus className="mr-2 h-4 w-4" /> New Campaign</Button>
+                  </div>
+                )}
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+
+        <Collapsible open={recordsExpanded} onOpenChange={setRecordsExpanded}>
+          <Card>
+            <CardHeader>
+              <CollapsibleTrigger asChild>
+                <button type="button" className="flex w-full items-start justify-between gap-4 text-left">
+                  <div>
+                    <CardTitle>Giving Records</CardTitle>
+                    <CardDescription>Search donations, filter by date range, and review payment details.</CardDescription>
+                  </div>
+                  <ChevronDown className={`mt-1 h-4 w-4 text-muted-foreground transition-transform ${recordsExpanded ? "rotate-180" : ""}`} />
+                </button>
+              </CollapsibleTrigger>
+            </CardHeader>
+            <CollapsibleContent>
+              <CardContent className="space-y-4">
             <div className="grid gap-3 md:grid-cols-[1fr_160px_160px_180px_160px]">
               <div className="relative">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -298,11 +414,8 @@ export default function AdminGiving() {
               <select value={category} onChange={(event) => setCategory(event.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
                 <option value="">All categories</option>
                 <option value="tithe">Tithe</option>
-                <option value="offering">Offering</option>
+                <option value="offering">Gift/Offering</option>
                 <option value="building_fund">Building Fund</option>
-                <option value="missions">Missions</option>
-                <option value="special_campaign">Special Campaign</option>
-                <option value="other">Other</option>
               </select>
               <select value={status} onChange={(event) => setStatus(event.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
                 <option value="">All statuses</option>
@@ -320,7 +433,7 @@ export default function AdminGiving() {
                     <TableHead>Date</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Receipt</TableHead>
+                    <TableHead>Payment Type</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -346,16 +459,7 @@ export default function AdminGiving() {
                         <TableCell>{formatDate(donation.donationDate)}</TableCell>
                         <TableCell>{labelize(donation.givingCategory)}</TableCell>
                         <TableCell><Badge variant={statusVariant(donation.paymentStatus)}>{labelize(donation.paymentStatus)}</Badge></TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Checkbox
-                              checked={donation.receiptIssued}
-                              onCheckedChange={(checked) => updateReceiptStatus.mutate({ id: donation.id, receiptIssued: checked === true })}
-                              aria-label="Tax receipt issued"
-                            />
-                            <span className="text-xs text-muted-foreground hidden sm:inline">Issued</span>
-                          </div>
-                        </TableCell>
+                        <TableCell>{labelize(donation.donationType)}</TableCell>
                         <TableCell className="text-right font-medium">{dollars(donation.amountCents)}</TableCell>
                       </TableRow>
                     ))
@@ -373,65 +477,10 @@ export default function AdminGiving() {
                 </TableBody>
               </Table>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Megaphone className="h-5 w-5" /> Campaigns</CardTitle>
-            <CardDescription>Active campaigns appear on the member Give page.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {campaignsQuery.isLoading ? (
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {Array.from({ length: 2 }).map((_, i) => (
-                  <div key={i} className="rounded-md border p-4 space-y-3">
-                    <Skeleton className="h-32 w-full rounded-md" />
-                    <Skeleton className="h-5 w-40" />
-                    <Skeleton className="h-3 w-full" />
-                    <Skeleton className="h-2 w-full rounded-full" />
-                  </div>
-                ))}
-              </div>
-            ) : campaigns.length > 0 ? (
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {campaigns.map((campaign) => (
-                  <div key={campaign.id} className="rounded-md border p-4">
-                    {campaign.campaignImageUrl && <img src={campaign.campaignImageUrl} alt="" className="mb-4 h-32 w-full rounded-md object-cover" />}
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="font-semibold">{campaign.campaignName}</h3>
-                        <p className="text-sm text-muted-foreground">{campaign.campaignCategory ?? "Campaign"}</p>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Badge variant={campaign.status === "active" ? "default" : "secondary"}>{labelize(campaign.status)}</Badge>
-                      </div>
-                    </div>
-                    <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{campaign.description}</p>
-                    <Progress className="mt-4" value={campaign.progressPercent} />
-                    <div className="mt-2 flex items-center justify-between text-sm text-muted-foreground">
-                      <span>{dollars(campaign.amountRaisedCents)} raised</span>
-                      <span>of {dollars(campaign.goalAmountCents)}</span>
-                    </div>
-                    {campaign.endDate && (
-                      <p className="mt-1 text-xs text-muted-foreground">Ends {formatDate(campaign.endDate)}</p>
-                    )}
-                    <Button className="mt-4 w-full" variant="secondary" onClick={() => openEditCampaign(campaign)}>
-                      <Pencil className="mr-2 h-4 w-4" /> Manage Campaign
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-md border border-dashed p-8 text-center">
-                <Megaphone className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
-                <p className="font-medium text-muted-foreground">No campaigns yet</p>
-                <p className="mt-1 text-sm text-muted-foreground">Create your first campaign to start collecting toward a goal.</p>
-                <Button className="mt-4" onClick={openNewCampaign}><Plus className="mr-2 h-4 w-4" /> New Campaign</Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
       </div>
     </AdminLayout>
   );
@@ -444,6 +493,9 @@ function CampaignFormView({
   onSubmit,
   isSubmitting,
   submitLabel,
+  editingCampaign,
+  onDeactivate,
+  onDelete,
 }: {
   form: CampaignForm;
   errors: CampaignErrors;
@@ -451,6 +503,9 @@ function CampaignFormView({
   onSubmit: () => void;
   isSubmitting: boolean;
   submitLabel: string;
+  editingCampaign: GivingCampaign | null;
+  onDeactivate: () => void;
+  onDelete: () => void;
 }) {
   return (
     <div className="space-y-4">
@@ -496,7 +551,53 @@ function CampaignFormView({
           <Textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} rows={4} />
         </div>
       </div>
-      <Button onClick={onSubmit} disabled={isSubmitting}>{isSubmitting ? "Saving..." : submitLabel}</Button>
+      <div className="flex flex-col-reverse gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap gap-2">
+          {editingCampaign && editingCampaign.status !== "cancelled" && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button type="button" variant="outline" disabled={isSubmitting}>Deactivate</Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Deactivate this campaign?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This sets the campaign status to cancelled and hides it from active giving flows, while keeping donation history intact.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={onDeactivate}>Deactivate Campaign</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          {editingCampaign && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button type="button" variant="destructive" disabled={isSubmitting}>
+                  <Trash2 className="mr-2 h-4 w-4" /> Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this campaign?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Deleting is only allowed when the campaign has no donation history. If gifts are linked to it, Church OS will block deletion and you should deactivate it instead.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={onDelete}>
+                    Delete Campaign
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </div>
+        <Button onClick={onSubmit} disabled={isSubmitting}>{isSubmitting ? "Saving..." : submitLabel}</Button>
+      </div>
     </div>
   );
 }
@@ -504,4 +605,3 @@ function CampaignFormView({
 function statusVariant(status: PaymentStatus) {
   return status === "succeeded" ? "default" : status === "failed" || status === "refunded" ? "destructive" : "secondary";
 }
-

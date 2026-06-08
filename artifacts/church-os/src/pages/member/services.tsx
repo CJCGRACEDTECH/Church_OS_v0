@@ -31,7 +31,7 @@ export default function MemberServices() {
 function EventBadges({ event }: { event: ChurchEvent }) {
   return (
     <div className="flex flex-wrap gap-2">
-      <Badge variant="secondary">{labelize(event.eventType)}</Badge>
+      <Badge variant="outline" className="border-amber-200 bg-white text-amber-800">{labelize(event.eventType)}</Badge>
       {event.isRecurring && <Badge variant="outline">Weekly</Badge>}
       {event.eventMode !== "in_person" && <Badge variant="outline"><Video className="mr-1 h-3 w-3" />{labelize(event.eventMode)}</Badge>}
       {event.youtubeLink && <Badge variant="outline">YouTube</Badge>}
@@ -65,17 +65,36 @@ function MemberEventsCalendar() {
   return (
     <MemberLayout>
       <div className="mx-auto max-w-6xl space-y-6">
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">Church Calendar</p>
-          <h1 className="text-3xl font-semibold tracking-tight">Services & Events</h1>
-        </div>
+        <section className="rounded-lg border border-blue-100 bg-blue-50/70 p-5 shadow-sm">
+          <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
+            <div className="flex min-w-0 items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-blue-200 bg-white text-blue-700">
+                <CalendarDays className="h-6 w-6" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-muted-foreground">Church Calendar</p>
+                <h1 className="truncate text-2xl font-semibold tracking-tight">Services & Events</h1>
+                <p className="truncate text-sm text-muted-foreground">Published services, discipleship, announcements, and special events.</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 sm:justify-end">
+              <Button variant="outline" onClick={() => setMonth(new Date())}>Today</Button>
+            </div>
+          </div>
+        </section>
 
         <div className="space-y-4">
-          <Card>
+          <Card className="overflow-hidden border-blue-100 bg-blue-50/45 shadow-sm">
+            <div className="h-1 bg-blue-500" />
             <CardHeader>
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <CardTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5" /> Calendar</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-100 text-blue-700">
+                      <CalendarDays className="h-4 w-4" />
+                    </span>
+                    Calendar
+                  </CardTitle>
                   <CardDescription>{month.toLocaleString(undefined, { month: "long", year: "numeric" })}</CardDescription>
                 </div>
                 <div className="flex gap-2">
@@ -94,6 +113,7 @@ function MemberEventsCalendar() {
                 <select value={eventType} onChange={(event) => setEventType(event.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
                   <option value="">All types</option>
                   <option value="service">Service</option>
+                  <option value="discipleship">Discipleship</option>
                   <option value="bible_study">Bible Study</option>
                   <option value="prayer">Prayer</option>
                   <option value="baptism">Baptism</option>
@@ -103,14 +123,14 @@ function MemberEventsCalendar() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-7 overflow-hidden rounded-md border">
+              <div className="grid grid-cols-7 overflow-hidden rounded-md border border-blue-100 bg-white/75">
                 {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                  <div key={day} className="border-b bg-muted/40 p-2 text-center text-xs font-medium text-muted-foreground">{day}</div>
+                  <div key={day} className="border-b border-blue-100 bg-blue-50 p-2 text-center text-xs font-medium text-blue-800">{day}</div>
                 ))}
                 {days.map((day) => {
                   const dayEvents = events.filter((event) => eventSpansDay(event, day.date));
                   return (
-                    <div key={day.key} className={`min-h-28 border-b border-r p-2 ${day.inMonth ? "bg-background" : "bg-muted/20 text-muted-foreground"}`}>
+                    <div key={day.key} className={`min-h-28 border-b border-r border-blue-100 p-2 ${day.inMonth ? "bg-white/80" : "bg-blue-50/40 text-muted-foreground"}`}>
                       <p className="text-xs font-medium">{day.date.getDate()}</p>
                       <div className="mt-2 space-y-1">
                         {dayEvents.slice(0, 3).map((event) => (
@@ -126,7 +146,8 @@ function MemberEventsCalendar() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="overflow-hidden border-blue-100 bg-blue-50/45 shadow-sm">
+            <div className="h-1 bg-amber-400" />
             <CardHeader>
               <CardTitle>Upcoming</CardTitle>
               <CardDescription>Published services and events</CardDescription>
@@ -158,7 +179,8 @@ function MemberEventDetail({ eventId }: { eventId: number }) {
           <Link href="/member/services"><ArrowLeft className="mr-2 h-4 w-4" />Services & Events</Link>
         </Button>
         {event ? (
-          <Card className="overflow-hidden">
+          <Card className="overflow-hidden border-blue-100 bg-blue-50/45 shadow-sm">
+            <div className="h-1 bg-blue-500" />
             {event.posterUrl && <img src={event.posterUrl} alt="" className="h-64 w-full object-cover" />}
             <CardHeader>
               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -177,7 +199,7 @@ function MemberEventDetail({ eventId }: { eventId: number }) {
                   {event.youtubeLink && <Button asChild variant="outline"><a href={event.youtubeLink} target="_blank" rel="noreferrer">Watch YouTube <ExternalLink className="ml-2 h-4 w-4" /></a></Button>}
                 </div>
               </div>
-              <div className="rounded-md border p-4 text-sm">
+              <div className="rounded-md border border-blue-100 bg-white/75 p-4 text-sm">
                 <p className="font-medium">Location</p>
                 <p className="mt-1 text-muted-foreground">{event.location ?? "Not set"}</p>
                 <p className="mt-4 font-medium">Mode</p>
@@ -188,7 +210,7 @@ function MemberEventDetail({ eventId }: { eventId: number }) {
             </CardContent>
           </Card>
         ) : (
-          <Card><CardContent className="py-12 text-center text-muted-foreground">{eventQuery.isLoading ? "Loading event..." : "Event not found."}</CardContent></Card>
+          <Card className="border-blue-100 bg-blue-50/45"><CardContent className="py-12 text-center text-muted-foreground">{eventQuery.isLoading ? "Loading event..." : "Event not found."}</CardContent></Card>
         )}
       </div>
     </MemberLayout>
@@ -197,7 +219,7 @@ function MemberEventDetail({ eventId }: { eventId: number }) {
 
 function EventListItem({ event, href }: { event: ChurchEvent; href: string }) {
   return (
-    <div className="rounded-md border p-3">
+    <div className="rounded-lg border border-blue-100 bg-white/75 p-3 transition-colors hover:bg-blue-50/60">
       <div className="flex gap-3">
         {event.posterUrl ? <img src={event.posterUrl} alt="" className="h-16 w-20 rounded-md object-cover" /> : null}
         <div className="min-w-0 flex-1">
@@ -206,7 +228,7 @@ function EventListItem({ event, href }: { event: ChurchEvent; href: string }) {
           <div className="mt-2"><EventBadges event={event} /></div>
         </div>
       </div>
-      <Button asChild variant="outline" size="sm" className="mt-3 w-full"><Link href={href}>View Details</Link></Button>
+      <Button asChild variant="outline" size="sm" className="mt-3 w-full bg-white/80"><Link href={href}>View Details</Link></Button>
     </div>
   );
 }

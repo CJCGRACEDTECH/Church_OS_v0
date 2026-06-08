@@ -9,7 +9,7 @@ export const eventsTable = pgTable("events", {
   churchId: integer("church_id").notNull().references(() => churchesTable.id),
   title: text("title").notNull(),
   eventType: text("event_type", {
-    enum: ["service", "bible_study", "prayer", "baptism", "fasting_season", "special_event", "announcement"],
+    enum: ["service", "discipleship", "bible_study", "prayer", "baptism", "fasting_season", "special_event", "announcement"],
   }).notNull().default("service"),
   description: text("description"),
   startDatetime: timestamp("start_datetime", { withTimezone: true }).notNull(),

@@ -7,7 +7,7 @@ import { requireAdminPermission, requireAuth } from "../middlewares/auth";
 const router: IRouter = Router();
 const requireEventManagement = requireAdminPermission(ADMIN_PERMISSIONS.EVENT_MANAGEMENT);
 
-const EVENT_TYPES = new Set(["service", "bible_study", "prayer", "baptism", "fasting_season", "special_event", "announcement"]);
+const EVENT_TYPES = new Set(["service", "discipleship", "bible_study", "prayer", "baptism", "fasting_season", "special_event", "announcement"]);
 const EVENT_MODES = new Set(["in_person", "online", "hybrid"]);
 const RECURRENCE_PATTERNS = new Set(["weekly", "one_time", "custom"]);
 const EVENT_STATUSES = new Set(["draft", "published", "cancelled"]);

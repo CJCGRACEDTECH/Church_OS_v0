@@ -1,6 +1,8 @@
-import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
-import { Router, type IRouter } from "express";
+import { and, desc, eq, ilike, or } from "drizzle-orm";
+import { Router, type IRouter, type Request } from "express";
 import {
+  attendanceRecordsTable,
+  attendanceSessionsTable,
   childGuardianRelationshipsTable,
   childrenTable,
   db,
@@ -9,17 +11,22 @@ import {
 } from "@workspace/db";
 import { ADMIN_PERMISSIONS } from "../lib/admin-permissions";
 import { requireAdminPermission } from "../middlewares/auth";
-import { sendSms, SMS_ENABLED } from "../lib/sms";
 
 const router: IRouter = Router();
 
 const requireDirectoryAccess = requireAdminPermission(ADMIN_PERMISSIONS.MEMBER_DIRECTORY);
 const requireProfileAccess = requireAdminPermission(ADMIN_PERMISSIONS.MEMBER_PROFILES);
 
-const MEMBER_STATUSES = new Set(["visitor", "member", "active_member", "inactive"]);
+const MEMBER_STATUSES = new Set(["visitor", "member", "active_member"]);
+const WRITABLE_MEMBER_STATUSES = new Set(["visitor", "member"]);
 const BAPTISM_STATUSES = new Set(["baptized", "not_baptized", "unknown"]);
 const SERVING_STATUSES = new Set(["serving", "not_serving", "interested"]);
 const CONTACT_METHODS = new Set(["phone", "email", "text"]);
+
+function isVisibleMinistryDepartment(department: string) {
+  const normalized = department.toLowerCase().replace(/[^a-z]/g, "");
+  return normalized !== "youthministries" && normalized !== "youthministry" && normalized !== "smallgroups" && normalized !== "smallgroup";
+}
 
 function textOrNull(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -43,31 +50,12 @@ async function getRequesterChurchId(userId: number) {
     .select({ churchId: usersTable.churchId })
     .from(usersTable)
     .where(eq(usersTable.id, userId));
+
   return user?.churchId ?? null;
 }
 
-function serializeMemberDirectory(user: typeof usersTable.$inferSelect) {
-  return {
-    id: user.id,
-    firstName: user.firstName,
-    lastName: user.lastName,
-    preferredName: user.preferredName,
-    profilePhotoUrl: user.profilePhotoUrl,
-    email: user.email,
-    phoneNumber: user.phoneNumber,
-    gender: user.gender,
-    memberStatus: user.memberStatus,
-    ministryDepartment: user.ministryDepartment,
-    joinDate: user.joinDate,
-    baptismStatus: user.baptismStatus,
-    smallGroup: user.smallGroup,
-    servingStatus: user.servingStatus,
-    createdAt: user.createdAt.toISOString(),
-    updatedAt: user.updatedAt.toISOString(),
-  };
-}
-
 function serializeMember(user: typeof usersTable.$inferSelect) {
+  const discipleshipParticipant = Boolean(user.smallGroup && user.smallGroup.toLowerCase().includes("[disciple]"));
   return {
     id: user.id,
     firstName: user.firstName,
@@ -83,6 +71,7 @@ function serializeMember(user: typeof usersTable.$inferSelect) {
     joinDate: user.joinDate,
     baptismStatus: user.baptismStatus,
     smallGroup: user.smallGroup,
+    discipleshipParticipant,
     servingStatus: user.servingStatus,
     streetAddress: user.streetAddress,
     city: user.city,
@@ -92,13 +81,63 @@ function serializeMember(user: typeof usersTable.$inferSelect) {
     emergencyContactName: user.emergencyContactName,
     emergencyContactPhoneNumber: user.emergencyContactPhoneNumber,
     emergencyContactRelationship: user.emergencyContactRelationship,
+    accountStatus: user.accountStatus,
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
   };
 }
 
+function getPublicBaseUrl(req: Request): string {
+  return process.env.APP_BASE_URL ?? `${req.protocol}://${req.get("host")}`;
+}
+
+async function sendMemberInviteEmail(params: {
+  to: string;
+  name: string;
+  inviteUrl: string;
+}) {
+  const from = process.env.INVITE_EMAIL_FROM ?? "Church OS <no-reply@churchos.local>";
+  const subject = "You're invited to open your Church OS account";
+  const text = [
+    `Hi ${params.name},`,
+    "",
+    "Your church profile has been created in Church OS.",
+    `Open this link and sign in with this email address to activate your account: ${params.inviteUrl}`,
+    "",
+    "If you were not expecting this invitation, please contact church administration.",
+  ].join("\n");
+
+  if (process.env.RESEND_API_KEY) {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ from, to: params.to, subject, text }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Member invitation email provider rejected the message.");
+    }
+    return;
+  }
+
+  // Replit-safe fallback: local/dev projects can copy this link from server logs
+  // until a transactional email provider is configured.
+  console.info({ email: params.to, inviteUrl: params.inviteUrl }, "Member invitation email fallback");
+}
+
 function memberPayload(body: unknown) {
   const record = typeof body === "object" && body ? body as Record<string, unknown> : {};
+  const rawSmallGroup = textOrNull(record.smallGroup);
+  const discipleshipParticipant = record.discipleshipParticipant === true;
+  const baseSmallGroup = rawSmallGroup
+    ? rawSmallGroup.replace(/\s*\[disciple\]\s*/gi, " ").replace(/\s{2,}/g, " ").trim()
+    : null;
+  const smallGroup = discipleshipParticipant
+    ? [baseSmallGroup, "[disciple]"].filter(Boolean).join(" ").trim()
+    : baseSmallGroup;
   return {
     firstName: requiredText(record.firstName),
     lastName: requiredText(record.lastName),
@@ -108,11 +147,11 @@ function memberPayload(body: unknown) {
     phoneNumber: textOrNull(record.phoneNumber),
     dateOfBirth: dateOrNull(record.dateOfBirth),
     gender: textOrNull(record.gender),
-    memberStatus: enumValue(record.memberStatus, MEMBER_STATUSES, "member"),
+    memberStatus: enumValue(record.memberStatus, WRITABLE_MEMBER_STATUSES, "member"),
     ministryDepartment: textOrNull(record.ministryDepartment),
     joinDate: dateOrNull(record.joinDate),
     baptismStatus: enumValue(record.baptismStatus, BAPTISM_STATUSES, "unknown"),
-    smallGroup: textOrNull(record.smallGroup),
+    smallGroup: smallGroup || null,
     servingStatus: enumValue(record.servingStatus, SERVING_STATUSES, "not_serving"),
     streetAddress: textOrNull(record.streetAddress),
     city: textOrNull(record.city),
@@ -125,37 +164,31 @@ function memberPayload(body: unknown) {
   };
 }
 
-function escapeCsv(value: string | null | undefined): string {
-  if (value === null || value === undefined) return "";
-  const str = String(value);
-  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
-
 router.get("/admin/members", requireDirectoryAccess, async (req, res): Promise<void> => {
   const churchId = await getRequesterChurchId(req.localUserId);
-  if (!churchId) { res.status(401).json({ error: "User church not found." }); return; }
+  if (!churchId) {
+    res.status(401).json({ error: "User church not found." });
+    return;
+  }
 
   const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
   const memberStatus = typeof req.query.memberStatus === "string" ? req.query.memberStatus : "";
   const ministryDepartment = typeof req.query.ministryDepartment === "string" ? req.query.ministryDepartment : "";
   const servingStatus = typeof req.query.servingStatus === "string" ? req.query.servingStatus : "";
   const baptismStatus = typeof req.query.baptismStatus === "string" ? req.query.baptismStatus : "";
-  const sortBy = typeof req.query.sortBy === "string" ? req.query.sortBy : "lastName";
-  const order = req.query.order === "desc" ? "desc" : "asc";
 
   const filters = [
     eq(usersTable.churchId, churchId),
     eq(usersTable.role, "member"),
     ...(search
-      ? [or(
-          ilike(usersTable.firstName, `%${search}%`),
-          ilike(usersTable.lastName, `%${search}%`),
-          ilike(usersTable.email, `%${search}%`),
-          ilike(usersTable.phoneNumber, `%${search}%`),
-        )]
+      ? [
+          or(
+            ilike(usersTable.firstName, `%${search}%`),
+            ilike(usersTable.lastName, `%${search}%`),
+            ilike(usersTable.email, `%${search}%`),
+            ilike(usersTable.phoneNumber, `%${search}%`),
+          ),
+        ]
       : []),
     ...(MEMBER_STATUSES.has(memberStatus) ? [eq(usersTable.memberStatus, memberStatus as typeof usersTable.$inferSelect.memberStatus)] : []),
     ...(ministryDepartment ? [eq(usersTable.ministryDepartment, ministryDepartment)] : []),
@@ -163,99 +196,43 @@ router.get("/admin/members", requireDirectoryAccess, async (req, res): Promise<v
     ...(BAPTISM_STATUSES.has(baptismStatus) ? [eq(usersTable.baptismStatus, baptismStatus as typeof usersTable.$inferSelect.baptismStatus)] : []),
   ];
 
-  const sortCol = sortBy === "joinDate" ? usersTable.joinDate : usersTable.lastName;
-  const orderFn = order === "desc" ? desc : asc;
-  const secondarySorts = sortBy === "joinDate"
-    ? [asc(usersTable.lastName), asc(usersTable.firstName)]
-    : [asc(usersTable.firstName)];
-
-  const [members, allDeptRows] = await Promise.all([
-    db.select().from(usersTable).where(and(...filters)).orderBy(orderFn(sortCol), ...secondarySorts),
-    db.select({ ministryDepartment: usersTable.ministryDepartment })
-      .from(usersTable)
-      .where(and(eq(usersTable.churchId, churchId), eq(usersTable.role, "member"))),
-  ]);
-
-  const departments = Array.from(
-    new Set(allDeptRows.map((m) => m.ministryDepartment).filter((d): d is string => Boolean(d)))
-  ).sort();
-
-  res.json({
-    members: members.map(serializeMemberDirectory),
-    filters: { ministryDepartments: departments },
-  });
-});
-
-router.get("/admin/members/export.csv", requireProfileAccess, async (req, res): Promise<void> => {
-  const churchId = await getRequesterChurchId(req.localUserId);
-  if (!churchId) { res.status(401).json({ error: "User church not found." }); return; }
-
   const members = await db
     .select()
     .from(usersTable)
-    .where(and(eq(usersTable.churchId, churchId), eq(usersTable.role, "member")))
-    .orderBy(asc(usersTable.lastName), asc(usersTable.firstName));
+    .where(and(...filters))
+    .orderBy(usersTable.lastName, usersTable.firstName);
 
-  const headers = [
-    "ID", "First Name", "Last Name", "Preferred Name", "Email", "Phone",
-    "Date of Birth", "Gender", "Member Status", "Ministry / Department",
-    "Join Date", "Baptism Status", "Small Group", "Serving Status",
-    "Preferred Contact", "Street Address", "City", "State", "Zip Code",
-    "Emergency Contact Name", "Emergency Contact Phone", "Emergency Contact Relationship",
-    "Created At", "Updated At",
-  ];
+  const departments = Array.from(new Set(members.map((member) => member.ministryDepartment).filter(Boolean))).filter(isVisibleMinistryDepartment).sort();
 
-  const rows = members.map((m) => [
-    m.id,
-    escapeCsv(m.firstName),
-    escapeCsv(m.lastName),
-    escapeCsv(m.preferredName),
-    escapeCsv(m.email),
-    escapeCsv(m.phoneNumber),
-    escapeCsv(m.dateOfBirth),
-    escapeCsv(m.gender),
-    escapeCsv(m.memberStatus),
-    escapeCsv(m.ministryDepartment),
-    escapeCsv(m.joinDate),
-    escapeCsv(m.baptismStatus),
-    escapeCsv(m.smallGroup),
-    escapeCsv(m.servingStatus),
-    escapeCsv(m.preferredContactMethod),
-    escapeCsv(m.streetAddress),
-    escapeCsv(m.city),
-    escapeCsv(m.state),
-    escapeCsv(m.zipCode),
-    escapeCsv(m.emergencyContactName),
-    escapeCsv(m.emergencyContactPhoneNumber),
-    escapeCsv(m.emergencyContactRelationship),
-    m.createdAt.toISOString(),
-    m.updatedAt.toISOString(),
-  ].join(","));
-
-  const csv = [headers.join(","), ...rows].join("\n");
-  res.setHeader("Content-Type", "text/csv");
-  res.setHeader("Content-Disposition", `attachment; filename="members-${new Date().toISOString().slice(0, 10)}.csv"`);
-  res.send(csv);
+  res.json({
+    members: members.map(serializeMember),
+    filters: { ministryDepartments: departments },
+  });
 });
 
 router.get("/admin/members/:id", requireProfileAccess, async (req, res): Promise<void> => {
   const memberId = Number(req.params.id);
   const churchId = await getRequesterChurchId(req.localUserId);
-  if (!Number.isInteger(memberId) || !churchId) { res.status(400).json({ error: "Invalid member." }); return; }
+  if (!Number.isInteger(memberId) || !churchId) {
+    res.status(400).json({ error: "Invalid member." });
+    return;
+  }
 
   const [member] = await db
     .select()
     .from(usersTable)
     .where(and(eq(usersTable.id, memberId), eq(usersTable.churchId, churchId), eq(usersTable.role, "member")));
 
-  if (!member) { res.status(404).json({ error: "Member not found." }); return; }
+  if (!member) {
+    res.status(404).json({ error: "Member not found." });
+    return;
+  }
 
   const childMatches = await db
     .select({
       id: childrenTable.id,
       firstName: childrenTable.firstName,
       lastName: childrenTable.lastName,
-      dateOfBirth: childrenTable.dateOfBirth,
       classroom: childrenTable.classroom,
       checkinStatus: childrenTable.checkinStatus,
       relationship: childGuardianRelationshipsTable.relationship,
@@ -273,26 +250,61 @@ router.get("/admin/members/:id", requireProfileAccess, async (req, res): Promise
     ))
     .orderBy(childrenTable.lastName, childrenTable.firstName);
 
+  const attendanceRecords = await db
+    .select({
+      id: attendanceRecordsTable.id,
+      sessionId: attendanceRecordsTable.sessionId,
+      sessionName: attendanceSessionsTable.sessionName,
+      attendanceType: attendanceSessionsTable.attendanceType,
+      sessionDate: attendanceSessionsTable.sessionDate,
+      attendanceStatus: attendanceRecordsTable.attendanceStatus,
+      checkinSource: attendanceRecordsTable.checkinSource,
+      checkinTime: attendanceRecordsTable.checkinTime,
+    })
+    .from(attendanceRecordsTable)
+    .innerJoin(attendanceSessionsTable, eq(attendanceRecordsTable.sessionId, attendanceSessionsTable.id))
+    .where(and(eq(attendanceRecordsTable.memberId, member.id), eq(attendanceSessionsTable.churchId, churchId)))
+    .orderBy(desc(attendanceRecordsTable.checkinTime))
+    .limit(12);
+
   res.json({
     member: serializeMember(member),
     children: childMatches.map((child) => ({
       id: child.id,
       firstName: child.firstName,
       lastName: child.lastName,
-      dateOfBirth: child.dateOfBirth,
       classroom: child.classroom,
       checkinStatus: child.checkinStatus,
       relationship: child.relationship,
       authorizedPickup: child.authorizedPickup,
     })),
+    attendance: {
+      totalRecords: attendanceRecords.length,
+      presentRecords: attendanceRecords.filter((record) => record.attendanceStatus === "present").length,
+      discipleshipRecords: attendanceRecords.filter((record) => record.attendanceType === "discipleship").length,
+      recentRecords: attendanceRecords.map((record) => ({
+        id: record.id,
+        sessionId: record.sessionId,
+        sessionName: record.sessionName,
+        attendanceType: record.attendanceType,
+        sessionDate: record.sessionDate.toISOString(),
+        attendanceStatus: record.attendanceStatus,
+        checkinSource: record.checkinSource,
+        checkinTime: record.checkinTime.toISOString(),
+      })),
+    },
   });
 });
 
 router.post("/admin/members", requireProfileAccess, async (req, res): Promise<void> => {
   const churchId = await getRequesterChurchId(req.localUserId);
-  if (!churchId) { res.status(401).json({ error: "User church not found." }); return; }
+  if (!churchId) {
+    res.status(401).json({ error: "User church not found." });
+    return;
+  }
 
   const payload = memberPayload(req.body);
+  const shouldSendInvite = typeof req.body === "object" && req.body !== null && (req.body as Record<string, unknown>).sendInvite === true;
   if (!payload.firstName || !payload.lastName || !payload.email) {
     res.status(400).json({ error: "First name, last name, and email are required." });
     return;
@@ -301,10 +313,33 @@ router.post("/admin/members", requireProfileAccess, async (req, res): Promise<vo
   try {
     const [member] = await db
       .insert(usersTable)
-      .values({ churchId, ...payload, role: "member", accountStatus: "active", isActive: true })
+      .values({
+        churchId,
+        ...payload,
+        role: "member",
+        accountStatus: shouldSendInvite ? "pending" : "active",
+        isActive: true,
+      })
       .returning();
-    res.status(201).json({ member: serializeMember(member) });
-  } catch {
+
+    let inviteSent = false;
+    let inviteUrl: string | null = null;
+    if (shouldSendInvite) {
+      inviteUrl = `${getPublicBaseUrl(req)}/sign-in?invite=member&email=${encodeURIComponent(member.email)}`;
+      await sendMemberInviteEmail({
+        to: member.email,
+        name: `${member.firstName} ${member.lastName}`,
+        inviteUrl,
+      });
+      inviteSent = true;
+    }
+
+    res.status(201).json({ member: serializeMember(member), inviteSent, inviteUrl });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("invitation email provider")) {
+      res.status(502).json({ error: "Member was created, but the invitation email could not be sent. Check email provider settings." });
+      return;
+    }
     res.status(409).json({ error: "A user with this email already exists." });
   }
 });
@@ -312,7 +347,10 @@ router.post("/admin/members", requireProfileAccess, async (req, res): Promise<vo
 router.patch("/admin/members/:id", requireProfileAccess, async (req, res): Promise<void> => {
   const memberId = Number(req.params.id);
   const churchId = await getRequesterChurchId(req.localUserId);
-  if (!Number.isInteger(memberId) || !churchId) { res.status(400).json({ error: "Invalid member." }); return; }
+  if (!Number.isInteger(memberId) || !churchId) {
+    res.status(400).json({ error: "Invalid member." });
+    return;
+  }
 
   const payload = memberPayload(req.body);
   if (!payload.firstName || !payload.lastName || !payload.email) {
@@ -326,26 +364,16 @@ router.patch("/admin/members/:id", requireProfileAccess, async (req, res): Promi
       .set(payload)
       .where(and(eq(usersTable.id, memberId), eq(usersTable.churchId, churchId), eq(usersTable.role, "member")))
       .returning();
-    if (!member) { res.status(404).json({ error: "Member not found." }); return; }
+
+    if (!member) {
+      res.status(404).json({ error: "Member not found." });
+      return;
+    }
+
     res.json({ member: serializeMember(member) });
   } catch {
     res.status(409).json({ error: "A user with this email already exists." });
   }
-});
-
-router.post("/admin/members/:id/sms", requireProfileAccess, async (req, res): Promise<void> => {
-  if (!SMS_ENABLED) { res.json({ ok: false, notConfigured: true }); return; }
-  const memberId = Number(req.params.id);
-  const churchId = await getRequesterChurchId(req.localUserId!);
-  if (!Number.isInteger(memberId) || !churchId) { res.status(400).json({ error: "Invalid member." }); return; }
-  const message = typeof req.body.message === "string" ? req.body.message.trim() : "";
-  if (!message) { res.status(400).json({ error: "Message is required." }); return; }
-  const [member] = await db.select().from(usersTable).where(and(eq(usersTable.id, memberId), eq(usersTable.churchId, churchId), eq(usersTable.role, "member")));
-  if (!member) { res.status(404).json({ error: "Member not found." }); return; }
-  if (!member.phoneNumber) { res.status(422).json({ error: "Member has no phone number on file." }); return; }
-  const result = await sendSms(member.phoneNumber, message);
-  if (!result.ok) { res.status(502).json({ error: result.error ?? "SMS failed." }); return; }
-  res.json({ ok: true, notConfigured: false });
 });
 
 export default router;
