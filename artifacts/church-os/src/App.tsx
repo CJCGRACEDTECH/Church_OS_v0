@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/reac
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth, ProtectedRoute } from "@/components/auth-context";
-import { ClerkProvider, SignIn, SignUp, useClerk } from "@clerk/react";
+import { ClerkProvider, SignIn, useClerk } from "@clerk/react";
 import { shadcn } from "@clerk/themes";
 
 import Unauthorized from "@/pages/unauthorized";
@@ -255,26 +255,13 @@ function SignInPage() {
 }
 
 function SignUpPage() {
-  if (!clerkPubKey) {
-    return (
-      <AuthPageShell>
-        <div className="w-[440px] max-w-full rounded-2xl border border-gray-100 bg-white px-6 py-5 text-center shadow-xl">
-          <h1 className="text-lg font-semibold text-gray-900">Account creation is not available</h1>
-          <p className="mt-2 text-sm text-gray-500">Please contact church administration for access.</p>
-          <DemoLoginButtons />
-        </div>
-      </AuthPageShell>
-    );
-  }
-
   return (
     <AuthPageShell>
-      <SignUp
-        routing="path"
-        path={`${basePath}/sign-up`}
-        signInUrl={`${basePath}/sign-in`}
-        fallbackRedirectUrl={basePath || "/"}
-      />
+      <div className="w-[440px] max-w-full rounded-2xl border border-gray-100 bg-white px-6 py-5 text-center shadow-xl">
+        <h1 className="text-lg font-semibold text-gray-900">Account creation is not available</h1>
+        <p className="mt-2 text-sm text-gray-500">Please contact church administration for access.</p>
+        <DemoLoginButtons />
+      </div>
     </AuthPageShell>
   );
 }
