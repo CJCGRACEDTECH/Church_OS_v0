@@ -254,30 +254,8 @@ router.get("/auth/me", async (req, res): Promise<void> => {
         accountStatus: byEmail.role === "member" && byEmail.accountStatus === "pending" ? "active" : byEmail.accountStatus,
       };
     } else {
-      const church = await getDefaultChurch();
-      if (!church) {
-        res.status(503).json({ error: "Church not configured. Contact your administrator." });
-        return;
-      }
-
-      const firstName = clerkUser.firstName?.trim() || "New";
-      const lastName = clerkUser.lastName?.trim() || "Member";
-
-      const [created] = await db
-        .insert(usersTable)
-        .values({
-          churchId: church.id,
-          email,
-          clerkUserId,
-          firstName,
-          lastName,
-          role: "member",
-          accountStatus: "active",
-          isActive: true,
-        })
-        .returning({ id: usersTable.id, isActive: usersTable.isActive, accountStatus: usersTable.accountStatus });
-
-      localUser = created;
+      res.status(403).json({ error: "No account found for this identity. Contact your church administrator to be added." });
+      return;
     }
   }
 

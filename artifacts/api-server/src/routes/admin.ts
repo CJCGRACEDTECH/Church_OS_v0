@@ -131,7 +131,7 @@ router.get("/admin/access-check", requireRole("admin"), (_req, res) => {
   res.json({ message: "Admin access granted" });
 });
 
-router.get("/admin/permission-catalog", requireRole("admin"), (_req, res) => {
+router.get("/admin/permission-catalog", requireAdminPermission(ADMIN_PERMISSIONS.ADMIN_MANAGEMENT), (_req, res) => {
   res.json({
     permissions: PERMISSION_CATALOG,
     defaults: DEFAULT_ADMIN_LEVEL_PERMISSIONS,
@@ -139,7 +139,7 @@ router.get("/admin/permission-catalog", requireRole("admin"), (_req, res) => {
   });
 });
 
-router.get("/admin/users", requireRole("admin"), async (req, res): Promise<void> => {
+router.get("/admin/users", requireAdminPermission(ADMIN_PERMISSIONS.ADMIN_MANAGEMENT), async (req, res): Promise<void> => {
   const churchId = await getRequesterChurchId(req.localUserId);
   if (!churchId) { res.status(401).json({ error: "Requester not found." }); return; }
 
@@ -170,7 +170,7 @@ router.get("/admin/users", requireRole("admin"), async (req, res): Promise<void>
   res.json({ admins: payload });
 });
 
-router.get("/admin/users/:id", requireRole("admin"), async (req, res): Promise<void> => {
+router.get("/admin/users/:id", requireAdminPermission(ADMIN_PERMISSIONS.ADMIN_MANAGEMENT), async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) {
     res.status(400).json({ error: "Invalid admin id." });
