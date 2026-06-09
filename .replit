@@ -46,3 +46,4 @@ externalPort = 3000
 
 [userenv.shared]
 Github_token = "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"
+INVITE_EMAIL_FROM = "CJC Church <no-reply@cjcinternationalchurch.com>"
