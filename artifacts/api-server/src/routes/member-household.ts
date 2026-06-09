@@ -1,4 +1,4 @@
-import { and, desc, eq, ne, or } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   childGuardianRelationshipsTable,
@@ -32,14 +32,14 @@ router.get("/member/household", requireAuth, async (req, res): Promise<void> => 
     return;
   }
 
-  const addressConditions = [
-    member.streetAddress ? eq(usersTable.streetAddress, member.streetAddress) : undefined,
-    member.city ? eq(usersTable.city, member.city) : undefined,
-    member.state ? eq(usersTable.state, member.state) : undefined,
-    member.zipCode ? eq(usersTable.zipCode, member.zipCode) : undefined,
-  ].filter(Boolean);
+  const hasFullAddress = !!(
+    member.streetAddress &&
+    member.city &&
+    member.state &&
+    member.zipCode
+  );
 
-  const householdMembers = addressConditions.length >= 2
+  const householdMembers = hasFullAddress
     ? await db
       .select({
         id: usersTable.id,
@@ -57,7 +57,10 @@ router.get("/member/household", requireAuth, async (req, res): Promise<void> => 
         eq(usersTable.churchId, req.localChurchId),
         eq(usersTable.role, "member"),
         ne(usersTable.id, member.id),
-        or(...addressConditions),
+        eq(usersTable.streetAddress, member.streetAddress!),
+        eq(usersTable.city, member.city!),
+        eq(usersTable.state, member.state!),
+        eq(usersTable.zipCode, member.zipCode!),
       ))
       .orderBy(usersTable.lastName, usersTable.firstName)
     : [];
@@ -83,10 +86,7 @@ router.get("/member/household", requireAuth, async (req, res): Promise<void> => 
     .innerJoin(parentGuardiansTable, eq(childGuardianRelationshipsTable.guardianId, parentGuardiansTable.id))
     .where(and(
       eq(childrenTable.churchId, req.localChurchId),
-      or(
-        eq(parentGuardiansTable.email, member.email),
-        member.phoneNumber ? eq(parentGuardiansTable.phoneNumber, member.phoneNumber) : undefined,
-      ),
+      eq(parentGuardiansTable.memberId, member.id),
     ))
     .orderBy(childrenTable.lastName, childrenTable.firstName);
 

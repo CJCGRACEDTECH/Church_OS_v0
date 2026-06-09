@@ -501,6 +501,7 @@ async function createGuardianRelationship(params: {
   const member = Number.isInteger(memberId) && memberId > 0
     ? (await db
         .select({
+          id: usersTable.id,
           firstName: usersTable.firstName,
           lastName: usersTable.lastName,
           email: usersTable.email,
@@ -518,6 +519,7 @@ async function createGuardianRelationship(params: {
     .insert(parentGuardiansTable)
     .values({
       churchId: params.churchId,
+      memberId: member?.id ?? null,
       name,
       email: textOrNull(params.email) ?? member?.email ?? null,
       phoneNumber: textOrNull(params.phoneNumber) ?? member?.phoneNumber ?? null,

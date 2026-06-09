@@ -24,6 +24,7 @@ export const childrenTable = pgTable("children", {
 export const parentGuardiansTable = pgTable("parent_guardians", {
   id: serial("id").primaryKey(),
   churchId: integer("church_id").notNull().references(() => churchesTable.id),
+  memberId: integer("member_id").references(() => usersTable.id),
   name: text("name").notNull(),
   email: text("email"),
   phoneNumber: text("phone_number"),
