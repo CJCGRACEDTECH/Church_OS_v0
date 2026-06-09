@@ -32,7 +32,7 @@ export default function AttendanceCheckIn() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-primary/5 to-muted/30 p-4 gap-6">
       <div className="flex flex-col items-center gap-2 text-center">
-        <img src="/logo.svg" alt="CJC International" className="h-12 w-auto" />
+        <img src="/logo.svg" alt="CJC Church" className="h-12 w-auto" />
         <p className="text-sm text-muted-foreground">Church OS · Attendance Check-In</p>
       </div>
 
@@ -75,7 +75,7 @@ export default function AttendanceCheckIn() {
                   ? formatDateTime(session.sessionDate)
                   : sessionQuery.isLoading
                   ? "Loading session…"
-                  : "CJC International"}
+                  : "CJC Church"}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 text-center pb-8">

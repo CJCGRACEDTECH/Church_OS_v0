@@ -139,8 +139,8 @@ function AuthPageShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-[100dvh] flex-col" style={{ background: "#eef0f8" }}>
       <nav style={{ background: "#181d2e" }} className="flex items-center justify-between px-6 py-3">
         <div className="flex items-center gap-3">
-          <img src={`${basePath}/cjc-logo.webp`} alt="CJC International" className="h-10 w-auto" style={{ mixBlendMode: "screen" }} />
-          <span className="text-white font-semibold text-base tracking-tight">CJC International</span>
+          <img src={`${basePath}/cjc-logo.webp`} alt="CJC Church" className="h-10 w-auto" style={{ mixBlendMode: "screen" }} />
+          <span className="text-white font-semibold text-base tracking-tight">CJC Church</span>
         </div>
         <div className="hidden md:flex items-center gap-6">
           {["Home", "About", "Sermons", "Events", "Connect"].map((item) => (
@@ -158,7 +158,7 @@ function AuthPageShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <footer className="py-4 text-center text-xs text-gray-400">
-        Church OS &middot; CJC International
+        Church OS &middot; CJC Church
       </footer>
     </div>
   );
@@ -357,13 +357,13 @@ function ClerkProviderWithRoutes() {
       localization={{
         signIn: {
           start: {
-            title: "CJC International",
+            title: "CJC Church",
             subtitle: "Sign in to your staff or member account",
           },
         },
         signUp: {
           start: {
-            title: "CJC International",
+            title: "CJC Church",
             subtitle: "Create your staff or member account",
           },
         },

@@ -32,12 +32,12 @@ function SidebarNav() {
       <div className="px-4 pt-5 pb-3 flex flex-col items-center">
         <img
           src="/cjc-logo.webp"
-          alt="CJC International"
+          alt="CJC Church"
           className="w-full max-h-20 object-contain"
           style={{ mixBlendMode: "screen" }}
         />
         <div className="text-white font-bold text-lg mt-2 text-center">
-          {user?.churchName ?? "CJC International"}
+          {user?.churchName ?? "CJC Church"}
         </div>
       </div>
 
@@ -103,7 +103,7 @@ export default function MemberLayout({ children }: { children: ReactNode }) {
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="md:hidden flex items-center justify-between p-4 border-b bg-card">
-          <img src="/cjc-logo.webp" alt="CJC International" className="h-8 w-auto" style={{ mixBlendMode: "multiply" }} />
+          <img src="/cjc-logo.webp" alt="CJC Church" className="h-8 w-auto" style={{ mixBlendMode: "multiply" }} />
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="-mr-2">

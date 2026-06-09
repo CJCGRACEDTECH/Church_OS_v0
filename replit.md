@@ -1,6 +1,6 @@
 # Church OS
 
-A church management platform for CJC International, powered by Church OS. Role-based auth (Admin and Member) via Clerk, placeholder dashboards, and a clean SaaS UI.
+A church management platform for CJC Church (Christ Jesus Centered), powered by Church OS. Role-based auth (Admin and Member) via Clerk, placeholder dashboards, and a clean SaaS UI.
 
 **Milestone:** Clerk auth migration complete — Google SSO live, session-based auth removed.
 
@@ -22,7 +22,7 @@ A church management platform for CJC International, powered by Church OS. Role-b
 
 ## Church / Credentials
 
-- Church: CJC International
+- Church: CJC Church (Christ Jesus Centered)
 - Sign in via Google SSO or email (Clerk handles auth)
 - Seeded users: `admin@churchos.test` and `member@churchos.test` (matched by email on first Clerk sign-in via JIT provisioning)
 
@@ -49,7 +49,7 @@ A church management platform for CJC International, powered by Church OS. Role-b
 - Role enforcement — members can't access `/admin/*`, admins redirected to their dashboard
 - All placeholder module pages render without errors (Coming Soon UI)
 - `/api/health` and `/api/db-health` endpoints
-- Sign-in page branded as "CJC International powered by Church OS"
+- Sign-in page branded as "CJC Church powered by Church OS"
 
 ## What Is Intentionally Not Built Yet
 
@@ -101,7 +101,7 @@ A church management platform for CJC International, powered by Church OS. Role-b
 
 ## User Preferences
 
-- Sign-in page should be branded as "CJC International powered by Church OS"
+- Sign-in page should be branded as "CJC Church powered by Church OS"
 
 ## Gotchas
 

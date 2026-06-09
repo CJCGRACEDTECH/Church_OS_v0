@@ -22,7 +22,7 @@ if (!process.env.DATABASE_URL) {
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const db = drizzle(pool, { schema });
 
-const CHURCH = { name: "CJC International", slug: "cjc-international" };
+const CHURCH = { name: "CJC Church", slug: "cjc-church" };
 const SUPER_ADMIN_PERMISSIONS = [
   "attendance_checkin",
   "attendance_management",

@@ -35,10 +35,10 @@ export async function sendSms(to: string, body: string): Promise<{ ok: boolean; 
   }
 }
 
-export function formatFollowUpMessage(memberName: string, sessionName: string, churchName = "CJC International"): string {
+export function formatFollowUpMessage(memberName: string, sessionName: string, churchName = "CJC Church"): string {
   return `Hi ${memberName}, this is a follow-up from ${churchName}. We noticed you missed ${sessionName} and wanted to check in. Reply STOP to opt out.`;
 }
 
-export function formatCheckInConfirmation(memberName: string, sessionName: string, churchName = "CJC International"): string {
+export function formatCheckInConfirmation(memberName: string, sessionName: string, churchName = "CJC Church"): string {
   return `Hi ${memberName}! Your attendance for ${sessionName} has been recorded. See you next time — ${churchName}.`;
 }
