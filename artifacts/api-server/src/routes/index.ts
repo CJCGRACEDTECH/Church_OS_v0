@@ -10,6 +10,7 @@ import attendanceRouter from "./attendance";
 import givingRouter from "./giving";
 import settingsRouter from "./settings";
 import memberHouseholdRouter from "./member-household";
+import publicOnboardingRouter from "./public-onboarding";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(attendanceRouter);
 router.use(givingRouter);
 router.use(settingsRouter);
 router.use(memberHouseholdRouter);
+router.use(publicOnboardingRouter);
 
 export default router;

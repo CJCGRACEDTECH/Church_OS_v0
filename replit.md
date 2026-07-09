@@ -50,6 +50,9 @@ A church management platform for CJC Church (Christ Jesus Centered), powered by 
 - All placeholder module pages render without errors (Coming Soon UI)
 - `/api/health` and `/api/db-health` endpoints
 - Sign-in page branded as "CJC Church powered by Church OS"
+- Public `/connect` page — visitor "connect card" (contact info, prayer request, ministry interest) creates a pending, inactive member profile plus a `household_update_requests` entry for admin follow-up. Does not grant login access.
+- Public `/request-account` page — lets an existing/prospective member request Church OS account access; matches by email/phone where possible and logs a `household_update_requests` entry for admin review. Does not grant login access.
+- Sign-up page links to both `/connect` and `/request-account` as the "contact admin" alternatives.
 
 ## What Is Intentionally Not Built Yet
 
@@ -69,6 +72,9 @@ A church management platform for CJC Church (Christ Jesus Centered), powered by 
 - `lib/db/src/schema/users.ts` — users table (role: admin | member, clerk_user_id for Clerk linking)
 - `artifacts/api-server/src/routes/auth.ts` — `/auth/me` (JIT provisioning) + `/auth/profile`
 - `artifacts/api-server/src/routes/health.ts` — /health, /healthz, /db-health
+- `artifacts/api-server/src/routes/public-onboarding.ts` — public `/api/public/connect` and `/api/public/account-request` (creates pending/inactive member records only, no auth bypass)
+- `artifacts/church-os/src/pages/connect.tsx` — public Connect Card form
+- `artifacts/church-os/src/pages/request-account.tsx` — public account access request form
 - `artifacts/api-server/src/middlewares/auth.ts` — requireAuth (Clerk-based), requireRole middleware
 - `artifacts/api-server/src/app.ts` — clerkProxyMiddleware + clerkMiddleware setup
 - `artifacts/church-os/src/pages/login.tsx` — redirects to /sign-in (legacy stub)

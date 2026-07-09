@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Switch, Route, Redirect, Router as WouterRouter, useLocation } from "wouter";
+import { Switch, Route, Redirect, Link, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,6 +10,8 @@ import { shadcn } from "@clerk/themes";
 import Unauthorized from "@/pages/unauthorized";
 import NotFound from "@/pages/not-found";
 import AttendanceCheckIn from "@/pages/attendance-check-in";
+import ConnectPage from "@/pages/connect";
+import RequestAccountPage from "@/pages/request-account";
 
 import AdminDashboard from "@/pages/admin-dashboard";
 import AdminProfile from "@/pages/admin/profile";
@@ -260,6 +262,14 @@ function SignUpPage() {
       <div className="w-[440px] max-w-full rounded-2xl border border-gray-100 bg-white px-6 py-5 text-center shadow-xl">
         <h1 className="text-lg font-semibold text-gray-900">Account creation is not available</h1>
         <p className="mt-2 text-sm text-gray-500">Please contact church administration for access.</p>
+        <div className="mt-4 flex flex-col gap-2">
+          <Link href="/request-account" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
+            Already a member? Request account access
+          </Link>
+          <Link href="/connect" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
+            New here? Connect with us
+          </Link>
+        </div>
         <DemoLoginButtons />
       </div>
     </AuthPageShell>
@@ -284,6 +294,8 @@ function Router() {
       <Route path="/unauthorized" component={Unauthorized} />
       <Route path="/attendance/check-in/:token" component={AttendanceCheckIn} />
       <Route path="/admin/invite/:token" component={AdminInviteAccept} />
+      <Route path="/connect" component={ConnectPage} />
+      <Route path="/request-account" component={RequestAccountPage} />
 
       {/* Admin routes */}
       <Route path="/admin">{() => <AdminRoute component={AdminDashboard} />}</Route>
