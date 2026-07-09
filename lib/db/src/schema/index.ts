@@ -4,6 +4,7 @@ export * from "./attendance";
 export * from "./children";
 export * from "./churches";
 export * from "./events";
+export * from "./evangelism";
 export * from "./giving";
 export * from "./household-requests";
 export * from "./oauth-accounts";

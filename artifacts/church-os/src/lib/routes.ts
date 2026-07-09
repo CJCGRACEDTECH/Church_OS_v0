@@ -13,6 +13,7 @@ export const ADMIN_ROUTES = {
   ATTENDANCE: "/admin/attendance",
   CHECK_IN: "/admin/check-in",
   GIVING: "/admin/giving",
+  EVANGELISM: "/admin/evangelism",
   REPORTS: "/admin/reports",
   SETTINGS: "/admin/settings",
   ADMIN_MANAGEMENT: "/admin/admins",

@@ -1,0 +1,1 @@
+- [Household inbox admin permissions](household-inbox-permissions.md) — /admin/household-requests requires super_admin role, not just admin; distinct from /admin/members.

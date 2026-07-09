@@ -13,6 +13,7 @@ import {
   LogOut,
   Menu,
   Inbox,
+  Megaphone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { label: "Attendance", icon: BarChart3, href: ADMIN_ROUTES.ATTENDANCE, permission: PERMISSIONS.ATTENDANCE_MANAGEMENT },
   { label: "Children Ministry", icon: Smile, href: ADMIN_ROUTES.CHECK_IN, permission: PERMISSIONS.ATTENDANCE_CHECKIN },
   { label: "Giving", icon: BadgeDollarSign, href: ADMIN_ROUTES.GIVING, permission: PERMISSIONS.GIVING_MANAGEMENT },
+  { label: "Evangelism", icon: Megaphone, href: ADMIN_ROUTES.EVANGELISM, permission: PERMISSIONS.EVENT_MANAGEMENT },
   { label: "Settings", icon: Settings, href: ADMIN_ROUTES.SETTINGS, permission: PERMISSIONS.SYSTEM_SETTINGS },
 ] satisfies Array<{
   label: string;

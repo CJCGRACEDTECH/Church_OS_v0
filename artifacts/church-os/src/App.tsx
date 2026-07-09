@@ -12,6 +12,7 @@ import NotFound from "@/pages/not-found";
 import AttendanceCheckIn from "@/pages/attendance-check-in";
 import ConnectPage from "@/pages/connect";
 import RequestAccountPage from "@/pages/request-account";
+import { EvangelismContactPage, EvangelismQrPage } from "@/pages/evangelism-public";
 
 import AdminDashboard from "@/pages/admin-dashboard";
 import AdminProfile from "@/pages/admin/profile";
@@ -21,6 +22,7 @@ import AdminServices from "@/pages/admin/services";
 import AdminAttendance from "@/pages/admin/attendance";
 import AdminCheckIn from "@/pages/admin/check-in";
 import AdminGiving from "@/pages/admin/giving";
+import AdminEvangelism from "@/pages/admin/evangelism";
 import AdminSettings from "@/pages/admin/settings";
 import AdminInviteAccept from "@/pages/admin/invite-accept";
 
@@ -296,6 +298,8 @@ function Router() {
       <Route path="/admin/invite/:token" component={AdminInviteAccept} />
       <Route path="/connect" component={ConnectPage} />
       <Route path="/request-account" component={RequestAccountPage} />
+      <Route path="/evangelism/e/:token/contact" component={EvangelismContactPage} />
+      <Route path="/evangelism/e/:token/qr" component={EvangelismQrPage} />
 
       {/* Admin routes */}
       <Route path="/admin">{() => <AdminRoute component={AdminDashboard} />}</Route>
@@ -310,6 +314,9 @@ function Router() {
       <Route path="/admin/attendance">{() => <AdminRoute component={AdminAttendance} />}</Route>
       <Route path="/admin/check-in">{() => <AdminRoute component={AdminCheckIn} />}</Route>
       <Route path="/admin/giving">{() => <AdminRoute component={AdminGiving} />}</Route>
+      <Route path="/admin/evangelism/events/:id">{() => <AdminRoute component={AdminEvangelism} />}</Route>
+      <Route path="/admin/evangelism/contacts">{() => <AdminRoute component={AdminEvangelism} />}</Route>
+      <Route path="/admin/evangelism">{() => <AdminRoute component={AdminEvangelism} />}</Route>
       <Route path="/admin/reports">{() => <Redirect to="/admin" />}</Route>
       <Route path="/admin/settings">{() => <AdminRoute component={AdminSettings} />}</Route>
       <Route path="/admin/admins">{() => <Redirect to="/admin/settings?section=admins" />}</Route>
