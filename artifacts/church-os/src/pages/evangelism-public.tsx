@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle2, HeartHandshake, Loader2 } from "lucide-react";
+import { CheckCircle2, HeartHandshake, Instagram, Loader2, MapPin, Youtube } from "lucide-react";
 
 type PublicOutreachEvent = {
   eventName: string;
@@ -16,6 +16,38 @@ type PublicOutreachEvent = {
   publicContactPath: string;
   totalContacts: number;
 };
+
+type PublicChurchProfile = {
+  churchName: string | null;
+  churchAddress: string | null;
+  churchPhoneNumber: string | null;
+  churchEmail: string | null;
+  websiteUrl: string | null;
+  instagramUrl: string | null;
+  youtubeUrl: string | null;
+} | null;
+
+const envFallbackProfile = {
+  churchName: "CJC Church",
+  churchAddress: import.meta.env.VITE_PUBLIC_CHURCH_ADDRESS || null,
+  churchPhoneNumber: import.meta.env.VITE_PUBLIC_CHURCH_PHONE || null,
+  churchEmail: import.meta.env.VITE_PUBLIC_CHURCH_EMAIL || null,
+  websiteUrl: import.meta.env.VITE_PUBLIC_CHURCH_WEBSITE_URL || null,
+  instagramUrl: import.meta.env.VITE_PUBLIC_CHURCH_INSTAGRAM_URL || null,
+  youtubeUrl: import.meta.env.VITE_PUBLIC_CHURCH_YOUTUBE_URL || null,
+};
+
+function resolveChurchProfile(profile: PublicChurchProfile) {
+  return {
+    churchName: profile?.churchName || envFallbackProfile.churchName,
+    churchAddress: profile?.churchAddress || envFallbackProfile.churchAddress,
+    churchPhoneNumber: profile?.churchPhoneNumber || envFallbackProfile.churchPhoneNumber,
+    churchEmail: profile?.churchEmail || envFallbackProfile.churchEmail,
+    websiteUrl: profile?.websiteUrl || envFallbackProfile.websiteUrl,
+    instagramUrl: profile?.instagramUrl || envFallbackProfile.instagramUrl,
+    youtubeUrl: profile?.youtubeUrl || envFallbackProfile.youtubeUrl,
+  };
+}
 
 type PublicContactForm = {
   firstName: string;
@@ -77,6 +109,7 @@ function PublicShell({ children }: { children: React.ReactNode }) {
 
 function usePublicEvent(token: string | undefined, refreshMs?: number) {
   const [event, setEvent] = React.useState<PublicOutreachEvent | null>(null);
+  const [churchProfile, setChurchProfile] = React.useState<PublicChurchProfile>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -87,9 +120,12 @@ function usePublicEvent(token: string | undefined, refreshMs?: number) {
 
     async function load() {
       try {
-        const data = await publicApiJson<{ event: PublicOutreachEvent }>(`/public/evangelism/events/${token}`);
+        const data = await publicApiJson<{ event: PublicOutreachEvent; churchProfile?: PublicChurchProfile }>(
+          `/public/evangelism/events/${token}`,
+        );
         if (!active) return;
         setEvent(data.event);
+        setChurchProfile(data.churchProfile ?? null);
         setError(null);
       } catch (err) {
         if (!active) return;
@@ -107,7 +143,7 @@ function usePublicEvent(token: string | undefined, refreshMs?: number) {
     };
   }, [refreshMs, token]);
 
-  return { event, isLoading, error, setEvent };
+  return { event, churchProfile, isLoading, error, setEvent };
 }
 
 export function EvangelismQrPage() {
@@ -151,7 +187,7 @@ export function EvangelismQrPage() {
 
 export function EvangelismContactPage() {
   const [, params] = useRoute("/evangelism/e/:token/contact");
-  const { event, isLoading, error, setEvent } = usePublicEvent(params?.token);
+  const { event, churchProfile, isLoading, error, setEvent } = usePublicEvent(params?.token);
   const [form, setForm] = React.useState<PublicContactForm>(emptyContactForm);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
@@ -178,6 +214,109 @@ export function EvangelismContactPage() {
     }
   }
 
+  if (!isLoading && !error && event && submittedName) {
+    const profile = resolveChurchProfile(churchProfile);
+    const mapsUrl = profile.churchAddress
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(profile.churchAddress)}`
+      : null;
+
+    return (
+      <PublicShell>
+        <div className="mx-auto max-w-2xl">
+          <Card className="overflow-hidden border-blue-100 shadow-xl">
+            <CardContent className="flex flex-col items-center p-8 text-center sm:p-10">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-green-700">
+                <CheckCircle2 className="h-9 w-9" />
+              </div>
+              <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-amber-600">You're Connected</p>
+              <h1 className="mt-2 text-2xl font-semibold sm:text-3xl">Thank you, {submittedName}</h1>
+              <p className="mt-3 max-w-md text-sm leading-6 text-muted-foreground">
+                We are grateful you connected with {profile.churchName}. Our team received your information and can follow up with you soon.
+              </p>
+              <p className="mt-4 max-w-md text-sm font-medium text-blue-700">We'd love to see you again — stay connected with us below.</p>
+            </CardContent>
+          </Card>
+
+          <div className="mt-5 grid gap-4 sm:grid-cols-3">
+            {profile.churchAddress && (
+              <Card className="border-blue-100 shadow-sm">
+                <CardContent className="flex h-full flex-col p-5">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+                    <MapPin className="h-5 w-5" />
+                  </div>
+                  <h2 className="mt-4 font-semibold">Visit Us</h2>
+                  <p className="mt-1 flex-1 text-sm text-muted-foreground">{profile.churchAddress}</p>
+                  {mapsUrl && (
+                    <a
+                      href={mapsUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-4 text-sm font-medium text-blue-700 hover:underline"
+                    >
+                      Get Directions →
+                    </a>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+            {profile.instagramUrl && (
+              <Card className="border-blue-100 shadow-sm">
+                <CardContent className="flex h-full flex-col p-5">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+                    <Instagram className="h-5 w-5" />
+                  </div>
+                  <h2 className="mt-4 font-semibold">Instagram</h2>
+                  <p className="mt-1 flex-1 text-sm text-muted-foreground">Follow church updates, moments, and reminders.</p>
+                  <a
+                    href={profile.instagramUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-4 text-sm font-medium text-blue-700 hover:underline"
+                  >
+                    Follow Us →
+                  </a>
+                </CardContent>
+              </Card>
+            )}
+            {profile.youtubeUrl && (
+              <Card className="border-blue-100 shadow-sm">
+                <CardContent className="flex h-full flex-col p-5">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+                    <Youtube className="h-5 w-5" />
+                  </div>
+                  <h2 className="mt-4 font-semibold">YouTube</h2>
+                  <p className="mt-1 flex-1 text-sm text-muted-foreground">Watch messages, livestreams, and recent services.</p>
+                  <a
+                    href={profile.youtubeUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-4 text-sm font-medium text-blue-700 hover:underline"
+                  >
+                    Watch Now →
+                  </a>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {(profile.churchPhoneNumber || profile.churchEmail || profile.websiteUrl) && (
+            <Card className="mt-5 border-blue-100 shadow-sm">
+              <CardContent className="flex flex-col gap-2 p-5 text-sm text-muted-foreground sm:flex-row sm:justify-center sm:gap-6">
+                {profile.churchPhoneNumber && <span>{profile.churchPhoneNumber}</span>}
+                {profile.churchEmail && <span>{profile.churchEmail}</span>}
+                {profile.websiteUrl && (
+                  <a href={profile.websiteUrl} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">
+                    {profile.websiteUrl.replace(/^https?:\/\//, "")}
+                  </a>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </PublicShell>
+    );
+  }
+
   return (
     <PublicShell>
       <Card className="mx-auto max-w-2xl overflow-hidden border-blue-100 shadow-xl">
@@ -189,14 +328,6 @@ export function EvangelismContactPage() {
           <CardContent className="p-8 text-center">
             <h1 className="text-2xl font-semibold">Form unavailable</h1>
             <p className="mt-2 text-sm text-muted-foreground">{error ?? "This outreach event could not be found."}</p>
-          </CardContent>
-        ) : submittedName ? (
-          <CardContent className="flex min-h-[460px] flex-col items-center justify-center p-8 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-green-700">
-              <CheckCircle2 className="h-9 w-9" />
-            </div>
-            <h1 className="mt-5 text-2xl font-semibold">Thank you, {submittedName}</h1>
-            <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">Your information was received. Someone from the church team can follow up with you soon.</p>
           </CardContent>
         ) : (
           <>

@@ -1,1 +1,2 @@
 - [Household inbox admin permissions](household-inbox-permissions.md) — /admin/household-requests requires super_admin role, not just admin; distinct from /admin/members.
+- [Church OS seed church slug](church-os-seed-slug.md) — seed.ts church slug must match the real dev DB church slug or reseeding creates an orphan duplicate church record.

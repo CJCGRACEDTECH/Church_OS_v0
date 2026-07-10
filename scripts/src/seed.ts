@@ -22,7 +22,7 @@ if (!process.env.DATABASE_URL) {
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const db = drizzle(pool, { schema });
 
-const CHURCH = { name: "CJC Church", slug: "cjc-church" };
+const CHURCH = { name: "CJC Church", slug: process.env.DEFAULT_SIGNUP_CHURCH_SLUG ?? "cjc-international" };
 const SUPER_ADMIN_PERMISSIONS = [
   "attendance_checkin",
   "attendance_management",
@@ -546,6 +546,28 @@ async function seed() {
     .onConflictDoUpdate({ target: schema.churchesTable.slug, set: { name: CHURCH.name } })
     .returning();
   console.log(`   Church: ${church.name} (id=${church.id})`);
+
+  console.log("🌱 Seeding church profile settings...");
+  const CHURCH_PROFILE = {
+    churchId: church.id,
+    churchName: CHURCH.name,
+    churchAddress: "7403 Boston Blvd, Springfield, VA 22153",
+    instagramUrl: "https://www.instagram.com/cjc.church/",
+    youtubeUrl: "https://www.youtube.com/@cjcinternationalprophetyos9053",
+  };
+  await db
+    .insert(schema.churchProfileSettingsTable)
+    .values(CHURCH_PROFILE)
+    .onConflictDoUpdate({
+      target: schema.churchProfileSettingsTable.churchId,
+      set: {
+        churchName: CHURCH_PROFILE.churchName,
+        churchAddress: CHURCH_PROFILE.churchAddress,
+        instagramUrl: CHURCH_PROFILE.instagramUrl,
+        youtubeUrl: CHURCH_PROFILE.youtubeUrl,
+      },
+    });
+  console.log("   Church profile settings upserted.");
 
   console.log("🌱 Seeding users...");
   for (const u of USERS) {

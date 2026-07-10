@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { and, count, desc, eq, ilike, or } from "drizzle-orm";
 import { Router, type IRouter } from "express";
-import { db, outreachContactsTable, outreachEventsTable } from "@workspace/db";
+import { churchProfileSettingsTable, db, outreachContactsTable, outreachEventsTable } from "@workspace/db";
 import { ADMIN_PERMISSIONS } from "../lib/admin-permissions";
 import { requireAdminPermission } from "../middlewares/auth";
 
@@ -186,6 +186,23 @@ router.get("/admin/evangelism/contacts", requireEvangelismAccess, async (req, re
   res.json({ contacts: rows.map((row) => serializeContact(row.contact, row.event)) });
 });
 
+async function publicChurchProfile(churchId: number) {
+  const [profile] = await db
+    .select({
+      churchName: churchProfileSettingsTable.churchName,
+      churchAddress: churchProfileSettingsTable.churchAddress,
+      churchPhoneNumber: churchProfileSettingsTable.churchPhoneNumber,
+      churchEmail: churchProfileSettingsTable.churchEmail,
+      websiteUrl: churchProfileSettingsTable.websiteUrl,
+      instagramUrl: churchProfileSettingsTable.instagramUrl,
+      youtubeUrl: churchProfileSettingsTable.youtubeUrl,
+    })
+    .from(churchProfileSettingsTable)
+    .where(eq(churchProfileSettingsTable.churchId, churchId));
+
+  return profile ?? null;
+}
+
 router.get("/public/evangelism/events/:token", async (req, res): Promise<void> => {
   const token = requiredText(req.params.token);
   const [event] = await db.select().from(outreachEventsTable).where(eq(outreachEventsTable.publicToken, token));
@@ -199,7 +216,9 @@ router.get("/public/evangelism/events/:token", async (req, res): Promise<void> =
     .from(outreachContactsTable)
     .where(eq(outreachContactsTable.outreachEventId, event.id));
 
-  res.json({ event: serializeEvent(event, Number(total?.total ?? 0)) });
+  const churchProfile = await publicChurchProfile(event.churchId);
+
+  res.json({ event: serializeEvent(event, Number(total?.total ?? 0)), churchProfile });
 });
 
 router.post("/public/evangelism/events/:token/contacts", async (req, res): Promise<void> => {

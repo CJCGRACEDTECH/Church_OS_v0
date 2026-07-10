@@ -6,6 +6,8 @@ A church management platform for CJC Church (Christ Jesus Centered), powered by 
 
 **Milestone:** 12-section UI/UX redesign complete (per user spec) — sidebar branding, Giving methods page, Admin Inbox rename, Admin Dashboard, Admin Giving, Admin Attendance, Children Ministry (reusable `SearchableSelect` searchable dropdown), Members Directory (invite status tracking), Member Dashboard (household card shows real member/child count + quick-view popup), Member Request Center (renamed from Household, added prayer/meeting request types), Public Connect/Request Account forms, Settings/Permissions (removed unused duplicate admin-management page). Full workspace typecheck passes clean.
 
+**Milestone:** Evangelism public contact form now shows a polished "You're Connected" welcome page after submission — Visit Us (address + map directions), Instagram, and YouTube cards, sourced from `church_profile_settings` with safe `VITE_PUBLIC_CHURCH_*` env fallbacks. Public event endpoint returns an additive `churchProfile` field (existing fields unchanged). Seed script now upserts church profile settings.
+
 ## Run & Operate
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port varies, proxied at /api)
