@@ -2,6 +2,7 @@ import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth-context";
 import MemberLayout from "@/components/MemberLayout";
+import PageHeader from "@/components/PageHeader";
 import EventsFeed from "@/components/EventsFeed";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -103,25 +104,21 @@ export default function MemberDashboard() {
   return (
     <MemberLayout>
       <div className="mx-auto max-w-6xl space-y-6">
-        <section className="rounded-lg border border-blue-100 bg-blue-50/70 p-5 shadow-sm">
-          <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
-            <div className="flex min-w-0 items-center gap-4">
-              <Avatar className="h-16 w-16 shrink-0 border border-blue-200 bg-white">
-                {user?.profilePhotoUrl && <AvatarImage src={user.profilePhotoUrl} alt={`${user.firstName} ${user.lastName}`} />}
-                <AvatarFallback className="bg-transparent text-xl font-semibold text-primary">
-                  {user?.preferredName?.[0] || user?.firstName?.[0]}
-                  {user?.lastName?.[0]}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-muted-foreground">Member Portal</p>
-                <h1 className="truncate text-2xl font-semibold tracking-tight">
-                  Welcome back, {user?.preferredName || user?.firstName}
-                </h1>
-                <p className="truncate text-sm text-muted-foreground">{user?.churchName ?? "Your church"} · {user?.email}</p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2 sm:justify-end">
+        <PageHeader
+          eyebrow="Member Portal"
+          title={`Welcome back, ${user?.preferredName || user?.firstName || ""}`}
+          description={`${user?.churchName ?? "Your church"} · ${user?.email ?? ""}`}
+          icon={
+            <Avatar className="h-12 w-12 shrink-0 border border-blue-200 bg-white">
+              {user?.profilePhotoUrl && <AvatarImage src={user.profilePhotoUrl} alt={`${user.firstName} ${user.lastName}`} />}
+              <AvatarFallback className="bg-transparent text-sm font-semibold text-primary">
+                {user?.preferredName?.[0] || user?.firstName?.[0]}
+                {user?.lastName?.[0]}
+              </AvatarFallback>
+            </Avatar>
+          }
+          actions={
+            <>
               <Button asChild>
                 <Link href="/member/profile">
                   <User />
@@ -134,9 +131,9 @@ export default function MemberDashboard() {
                   Services
                 </Link>
               </Button>
-            </div>
-          </div>
-        </section>
+            </>
+          }
+        />
 
         <div className="grid gap-4 md:grid-cols-2">
           <Card className="overflow-hidden border-blue-100 bg-blue-50/45 shadow-sm">

@@ -1,6 +1,7 @@
 import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import MemberLayout from "@/components/MemberLayout";
+import PageHeader from "@/components/PageHeader";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -120,20 +121,12 @@ export default function MemberHousehold() {
   return (
     <MemberLayout>
       <div className="mx-auto max-w-6xl space-y-6">
-        <section className="rounded-lg border border-blue-100 bg-blue-50/70 p-5 shadow-sm">
-          <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
-            <div className="flex min-w-0 items-center gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-800">
-                <Inbox className="h-6 w-6" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-muted-foreground">Member Request Center</p>
-                <h1 className="truncate text-2xl font-semibold tracking-tight">Request Center</h1>
-                <p className="truncate text-sm text-muted-foreground">Household info, children ministry links, and submit requests to the church office.</p>
-              </div>
-            </div>
-          </div>
-        </section>
+        <PageHeader
+          eyebrow="Member Request Center"
+          title="Request Center"
+          description="Household info, children ministry links, and submit requests to the church office."
+          icon={<Inbox className="h-6 w-6" />}
+        />
 
         {householdQuery.isLoading ? (
           <Card className="border-blue-100 bg-blue-50/45 shadow-sm">

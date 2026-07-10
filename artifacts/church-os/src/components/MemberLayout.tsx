@@ -36,7 +36,7 @@ function SidebarNav() {
           className="w-full max-h-20 object-contain"
           style={{ mixBlendMode: "screen" }}
         />
-        <div className="text-white font-bold text-xl mt-2 text-center tracking-tight">
+        <div className="text-white font-bold text-2xl mt-2 text-center tracking-tight">
           {user?.churchName ?? "CJC Church"}
         </div>
       </div>
@@ -51,12 +51,12 @@ function SidebarNav() {
                 href={item.href}
                 className={`flex items-center justify-between px-3 py-2 rounded-md font-medium text-sm transition-colors ${
                   isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-foreground/10"
+                    ? "bg-white/15 text-white"
+                    : "text-blue-100/80 hover:text-white hover:bg-white/8"
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <item.icon size={18} />
+                  <item.icon size={18} className={isActive ? "text-[#D4AF37]" : ""} />
                   <span>{item.label}</span>
                 </div>
               </Link>
@@ -67,7 +67,7 @@ function SidebarNav() {
 
       <div className="p-4 mt-auto border-t border-sidebar-border">
         <div className="flex items-center gap-3 mb-4 px-2">
-          <Avatar className="h-9 w-9 bg-sidebar-accent border border-sidebar-border text-white">
+          <Avatar className="h-9 w-9 bg-white/10 border border-sidebar-border text-white">
             <AvatarFallback className="bg-transparent">
               {user?.firstName?.[0]}
               {user?.lastName?.[0]}
@@ -77,12 +77,12 @@ function SidebarNav() {
             <p className="text-sm font-medium text-white truncate">
               {user?.firstName} {user?.lastName}
             </p>
-            <p className="text-xs text-sidebar-foreground/70 truncate">Member</p>
+            <p className="text-xs text-blue-100/70 truncate">Member</p>
           </div>
         </div>
         <Button
           variant="ghost"
-          className="w-full justify-start text-sidebar-foreground/70 hover:text-white hover:bg-sidebar-accent border-0"
+          className="w-full justify-start text-blue-100/80 hover:text-white hover:bg-white/10 border-0"
           onClick={logout}
           data-testid="button-logout"
         >

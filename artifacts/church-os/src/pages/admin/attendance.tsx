@@ -2,6 +2,7 @@ import React from "react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import AdminLayout from "@/components/AdminLayout";
+import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -102,22 +103,24 @@ function AttendanceDashboard() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Services & Discipleship</p>
-            <h1 className="text-3xl font-semibold tracking-tight">Attendance</h1>
-          </div>
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" />Create Session</Button></DialogTrigger>
-            <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Create Attendance Session</DialogTitle>
-                <DialogDescription>Create regular service or Friday discipleship attendance with an optional QR link.</DialogDescription>
-              </DialogHeader>
-              <SessionFormView form={form} setForm={setForm} onSubmit={() => createSession.mutate()} isSubmitting={createSession.isPending} submitLabel="Create Session" />
-            </DialogContent>
-          </Dialog>
-        </div>
+        <PageHeader
+          eyebrow="Services & Discipleship"
+          title="Attendance"
+          description="Track attendance across regular services and discipleship groups."
+          icon={<BarChart3 className="h-6 w-6" />}
+          actions={
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+              <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" />Create Session</Button></DialogTrigger>
+              <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Create Attendance Session</DialogTitle>
+                  <DialogDescription>Create regular service or Friday discipleship attendance with an optional QR link.</DialogDescription>
+                </DialogHeader>
+                <SessionFormView form={form} setForm={setForm} onSubmit={() => createSession.mutate()} isSubmitting={createSession.isPending} submitLabel="Create Session" />
+              </DialogContent>
+            </Dialog>
+          }
+        />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <StatCard label="Avg / Service" value={String(summary?.regularService?.averagePerSession ?? summary?.weeklyAttendance ?? 0)} trend="Regular services only" />

@@ -1,6 +1,7 @@
 import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import AdminLayout from "@/components/AdminLayout";
+import PageHeader from "@/components/PageHeader";
 import SearchableSelect from "@/components/SearchableSelect";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -261,11 +262,12 @@ export default function AdminCheckIn() {
   return (
     <AdminLayout>
       <div className="mx-auto max-w-7xl space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Children Ministry</h1>
-            <p className="text-muted-foreground">Register children, manage pickup contacts, and track active check-ins.</p>
-          </div>
+        <PageHeader
+          eyebrow="Children Ministry"
+          title="Children Ministry"
+          description="Register children, manage pickup contacts, and track active check-ins."
+          icon={<UserRound className="h-6 w-6" />}
+          actions={
           <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
             <DialogTrigger asChild>
               <Button variant="outline">
@@ -281,7 +283,8 @@ export default function AdminCheckIn() {
               <MinistryCheckinHistory records={checkinHistory} isLoading={historyQuery.isLoading} expanded onExpandedChange={() => undefined} />
             </DialogContent>
           </Dialog>
-        </div>
+          }
+        />
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard icon={UserRound} label="Registered Children" value={String(children.length)} tooltip="Total children currently registered in Children Ministry." />

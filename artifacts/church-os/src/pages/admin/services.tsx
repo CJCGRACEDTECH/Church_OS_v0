@@ -2,6 +2,7 @@ import React from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import AdminLayout from "@/components/AdminLayout";
+import PageHeader from "@/components/PageHeader";
 import EventForm from "@/components/EventForm";
 import {
   AlertDialog,
@@ -138,24 +139,26 @@ function AdminServicesCalendar() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Ministry Calendar</p>
-            <h1 className="text-3xl font-semibold tracking-tight">Services & Events</h1>
-          </div>
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger asChild>
-              <Button><Plus className="mr-2 h-4 w-4" />Create Event</Button>
-            </DialogTrigger>
-            <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Create Event</DialogTitle>
-                <DialogDescription>Create one-time events or recurring weekly services.</DialogDescription>
-              </DialogHeader>
-              <EventForm form={form} setForm={setForm} onSubmit={() => createEvent.mutate()} submitLabel="Create Event" isSubmitting={createEvent.isPending} />
-            </DialogContent>
-          </Dialog>
-        </div>
+        <PageHeader
+          eyebrow="Ministry Calendar"
+          title="Services & Events"
+          description="Schedule and manage recurring services and one-time events."
+          icon={<CalendarDays className="h-6 w-6" />}
+          actions={
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+              <DialogTrigger asChild>
+                <Button><Plus className="mr-2 h-4 w-4" />Create Event</Button>
+              </DialogTrigger>
+              <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Create Event</DialogTitle>
+                  <DialogDescription>Create one-time events or recurring weekly services.</DialogDescription>
+                </DialogHeader>
+                <EventForm form={form} setForm={setForm} onSubmit={() => createEvent.mutate()} submitLabel="Create Event" isSubmitting={createEvent.isPending} />
+              </DialogContent>
+            </Dialog>
+          }
+        />
 
         <div className="space-y-4">
           <Card>

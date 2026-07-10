@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth-context";
 import AdminLayout from "@/components/AdminLayout";
+import PageHeader from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +21,7 @@ import {
   CalendarDays,
   Expand,
   Info,
+  LayoutDashboard,
   Smile,
   Users,
   Video,
@@ -220,26 +222,24 @@ export default function AdminDashboard() {
   return (
     <AdminLayout>
       <div className="max-w-6xl mx-auto space-y-8">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">
-              Welcome back, {user?.firstName}!
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Here's what's happening at {user?.churchName ?? "your church"} today.
-            </p>
-          </div>
-          <DashboardNotificationsButton
-            log={activityQuery.data?.log ?? []}
-            members={summary?.recentNewMembers ?? []}
-            activityLoading={activityQuery.isLoading}
-            activityError={activityQuery.isError}
-            membersLoading={summaryQuery.isLoading}
-            membersError={summaryQuery.isError}
-            canSeeActivity={isSuperAdmin}
-            canSeeMembers={canSeeMembers}
-          />
-        </div>
+        <PageHeader
+          eyebrow="Overview"
+          title={`Welcome back, ${user?.firstName ?? ""}`}
+          description={`Here's what's happening at ${user?.churchName ?? "your church"} today.`}
+          icon={<LayoutDashboard className="h-6 w-6" />}
+          actions={
+            <DashboardNotificationsButton
+              log={activityQuery.data?.log ?? []}
+              members={summary?.recentNewMembers ?? []}
+              activityLoading={activityQuery.isLoading}
+              activityError={activityQuery.isError}
+              membersLoading={summaryQuery.isLoading}
+              membersError={summaryQuery.isError}
+              canSeeActivity={isSuperAdmin}
+              canSeeMembers={canSeeMembers}
+            />
+          }
+        />
 
         {(canSeeMembers || canSeeGiving) && (
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:items-stretch">

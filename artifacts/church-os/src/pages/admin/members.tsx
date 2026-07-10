@@ -2,6 +2,7 @@ import React from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import AdminLayout from "@/components/AdminLayout";
+import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/auth-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -513,12 +514,12 @@ function MembersDirectory() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">People</p>
-            <h1 className="text-3xl font-semibold tracking-tight">Members Directory</h1>
-          </div>
-          {canEdit && (
+        <PageHeader
+          eyebrow="People"
+          title="Members Directory"
+          description="Search, filter, and manage the church's member records."
+          icon={<Users className="h-6 w-6" />}
+          actions={canEdit && (
             <Dialog open={addOpen} onOpenChange={setAddOpen}>
               <DialogTrigger asChild>
                 <Button onClick={() => { setForm(emptyMemberForm); setSendInvite(true); }}>
@@ -543,7 +544,7 @@ function MembersDirectory() {
               </DialogContent>
             </Dialog>
           )}
-        </div>
+        />
 
         <Card>
           <CardHeader>

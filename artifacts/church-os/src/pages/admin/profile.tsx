@@ -9,6 +9,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import AdminLayout from "@/components/AdminLayout";
+import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/auth-context";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -214,39 +215,34 @@ export default function AdminProfile() {
   return (
     <AdminLayout>
       <div className="mx-auto max-w-6xl space-y-6">
-        <section className="rounded-lg border border-blue-100 bg-blue-50/70 p-5 shadow-sm">
-          <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
-            <div className="flex min-w-0 items-center gap-4">
-              <Avatar className="h-16 w-16 shrink-0 border border-blue-200 bg-white">
-                {user?.profilePhotoUrl && (
-                  <AvatarImage src={user.profilePhotoUrl} alt={`${user.firstName} ${user.lastName}`} />
-                )}
-                <AvatarFallback className="bg-transparent text-xl font-semibold text-primary">
-                  {user?.preferredName?.[0] || user?.firstName?.[0]}
-                  {user?.lastName?.[0]}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-muted-foreground">{user?.adminTitle ?? "Admin"} Profile</p>
-                <h1 className="truncate text-2xl font-semibold tracking-tight">
-                  {user?.preferredName || user?.firstName} {user?.lastName}
-                </h1>
-                <p className="truncate text-sm text-muted-foreground">{user?.email}</p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2 sm:justify-end">
-              <Dialog open={editOpen} onOpenChange={setEditOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <PencilLine />
-                    Edit Profile
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-h-[88vh] max-w-4xl overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Edit Admin Profile</DialogTitle>
-                    <DialogDescription>
+        <PageHeader
+          eyebrow={user?.adminTitle ?? "Admin"}
+          title={`${user?.preferredName || user?.firstName || ""} ${user?.lastName || ""}`}
+          description={user?.email}
+          icon={
+            <Avatar className="h-12 w-12 shrink-0 border border-blue-200 bg-white">
+              {user?.profilePhotoUrl && (
+                <AvatarImage src={user.profilePhotoUrl} alt={`${user.firstName} ${user.lastName}`} />
+              )}
+              <AvatarFallback className="bg-transparent text-sm font-semibold text-primary">
+                {user?.preferredName?.[0] || user?.firstName?.[0]}
+                {user?.lastName?.[0]}
+              </AvatarFallback>
+            </Avatar>
+          }
+          actions={
+            <>
+            <Dialog open={editOpen} onOpenChange={setEditOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <PencilLine />
+                  Edit Profile
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-h-[88vh] max-w-4xl overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Edit Admin Profile</DialogTitle>
+                  <DialogDescription>
                       Update your account, personal, emergency contact, and address information.
                     </DialogDescription>
                   </DialogHeader>
@@ -372,9 +368,9 @@ export default function AdminProfile() {
                   View Account Info
                 </a>
               </Button>
-            </div>
-          </div>
-        </section>
+            </>
+          }
+        />
 
         <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-6">

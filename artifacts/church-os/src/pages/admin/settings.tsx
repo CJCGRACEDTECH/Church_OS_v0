@@ -1,6 +1,7 @@
 import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import AdminLayout from "@/components/AdminLayout";
+import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/auth-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ import {
   CreditCard,
   Lock,
   Save,
+  Settings as SettingsIcon,
   ShieldCheck,
   SlidersHorizontal,
   UserCog,
@@ -295,13 +297,13 @@ export default function AdminSettings() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Administration</p>
-            <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
-          </div>
-          <Badge variant={isSuperAdmin ? "default" : "outline"}>{isSuperAdmin ? "Super Admin" : "Permission Controlled"}</Badge>
-        </div>
+        <PageHeader
+          eyebrow="Administration"
+          title="Settings"
+          description="Manage admins, permissions, and church-wide configuration."
+          icon={<SettingsIcon className="h-6 w-6" />}
+          actions={<Badge variant={isSuperAdmin ? "default" : "outline"}>{isSuperAdmin ? "Super Admin" : "Permission Controlled"}</Badge>}
+        />
 
         <div className="grid gap-6 lg:grid-cols-[250px_1fr]">
           <Card className="h-fit">

@@ -1,6 +1,7 @@
 import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import AdminLayout from "@/components/AdminLayout";
+import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
 import {
   AlertDialog,
@@ -37,7 +38,7 @@ import {
   type GivingSummary,
   type PaymentStatus,
 } from "@/lib/giving";
-import { ChevronDown, Download, Megaphone, Pencil, Plus, Search, ShieldCheck, Trash2, Users } from "lucide-react";
+import { BadgeDollarSign, ChevronDown, Download, Megaphone, Pencil, Plus, Search, ShieldCheck, Trash2, Users } from "lucide-react";
 
 type CampaignForm = {
   campaignName: string;
@@ -269,20 +270,21 @@ export default function AdminGiving() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Finance</p>
-            <h1 className="text-3xl font-semibold tracking-tight">Giving</h1>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={exportCsv}>
-              <Download className="mr-2 h-4 w-4" /> Export CSV
-            </Button>
-            <Dialog open={campaignOpen} onOpenChange={setCampaignOpen}>
-              <DialogTrigger asChild><Button onClick={openNewCampaign}><Plus className="mr-2 h-4 w-4" /> New Campaign</Button></DialogTrigger>
-              <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>{editingCampaign ? "Manage Giving Campaign" : "Create Giving Campaign"}</DialogTitle>
+        <PageHeader
+          eyebrow="Finance"
+          title="Giving"
+          description="Review donations, manage campaigns, and export giving records."
+          icon={<BadgeDollarSign className="h-6 w-6" />}
+          actions={
+            <>
+              <Button variant="outline" onClick={exportCsv}>
+                <Download className="mr-2 h-4 w-4" /> Export CSV
+              </Button>
+              <Dialog open={campaignOpen} onOpenChange={setCampaignOpen}>
+                <DialogTrigger asChild><Button onClick={openNewCampaign}><Plus className="mr-2 h-4 w-4" /> New Campaign</Button></DialogTrigger>
+                <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>{editingCampaign ? "Manage Giving Campaign" : "Create Giving Campaign"}</DialogTitle>
                   <DialogDescription>{editingCampaign ? "Update campaign details, goal, image, dates, or status." : "Campaign management is protected by backend permissions."}</DialogDescription>
                 </DialogHeader>
                 <CampaignFormView
@@ -298,8 +300,9 @@ export default function AdminGiving() {
                 />
               </DialogContent>
             </Dialog>
-          </div>
-        </div>
+            </>
+          }
+        />
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {isLoadingSummary ? (

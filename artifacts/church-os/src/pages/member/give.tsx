@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import MemberLayout from "@/components/MemberLayout";
+import PageHeader from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -72,21 +73,12 @@ export default function MemberGive() {
   return (
     <MemberLayout>
       <div className="mx-auto max-w-6xl space-y-6">
-        <section className="overflow-hidden rounded-xl border border-blue-100 bg-white shadow-sm">
-          <div className="h-1 bg-gradient-to-r from-blue-500 via-blue-300 to-amber-300" />
-          <div className="flex flex-col justify-between gap-5 p-5 lg:flex-row lg:items-center">
-            <div className="flex min-w-0 items-center gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-blue-100 bg-blue-50 text-blue-700">
-                <HeartHandshake className="h-6 w-6" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Stewardship</p>
-                <h1 className="truncate text-2xl font-semibold tracking-tight">Give</h1>
-                <p className="mt-1 truncate text-sm text-muted-foreground">Choose a giving method below.</p>
-              </div>
-            </div>
-          </div>
-        </section>
+        <PageHeader
+          eyebrow="Stewardship"
+          title="Give"
+          description="Choose a giving method below."
+          icon={<HeartHandshake className="h-6 w-6" />}
+        />
 
         <Card>
           <CardHeader>

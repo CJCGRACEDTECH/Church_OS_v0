@@ -2,6 +2,7 @@ import React from "react";
 import { Link, useRoute } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import MemberLayout from "@/components/MemberLayout";
+import PageHeader from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,23 +66,13 @@ function MemberEventsCalendar() {
   return (
     <MemberLayout>
       <div className="mx-auto max-w-6xl space-y-6">
-        <section className="rounded-lg border border-blue-100 bg-blue-50/70 p-5 shadow-sm">
-          <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
-            <div className="flex min-w-0 items-center gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-blue-200 bg-white text-blue-700">
-                <CalendarDays className="h-6 w-6" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-muted-foreground">Church Calendar</p>
-                <h1 className="truncate text-2xl font-semibold tracking-tight">Services & Events</h1>
-                <p className="truncate text-sm text-muted-foreground">Published services, discipleship, announcements, and special events.</p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2 sm:justify-end">
-              <Button variant="outline" onClick={() => setMonth(new Date())}>Today</Button>
-            </div>
-          </div>
-        </section>
+        <PageHeader
+          eyebrow="Church Calendar"
+          title="Services & Events"
+          description="Published services, discipleship, announcements, and special events."
+          icon={<CalendarDays className="h-6 w-6" />}
+          actions={<Button variant="outline" onClick={() => setMonth(new Date())}>Today</Button>}
+        />
 
         <div className="space-y-4">
           <Card className="overflow-hidden border-blue-100 bg-blue-50/45 shadow-sm">
