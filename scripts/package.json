@@ -8,6 +8,7 @@
     "seed:reset": "tsx ./src/seed.ts --reset",
     "seed:dev": "tsx ./src/seed.dev.ts",
     "seed:dev:reset": "tsx ./src/seed.dev.ts --reset",
+    "seed:inbox": "tsx ./src/seed.inbox.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
