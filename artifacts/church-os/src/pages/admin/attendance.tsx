@@ -122,11 +122,9 @@ function AttendanceDashboard() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <StatCard label="Avg / Service" value={String(summary?.regularService?.averagePerSession ?? summary?.weeklyAttendance ?? 0)} trend="Regular services only" />
           <StatCard label="Latest Service" value={String(summary?.regularService?.latestSessionCount ?? 0)} trend="Latest regular service" />
-          <StatCard
-            label="Discipleship"
-            value={`${summary?.discipleship?.totalTaggedDisciples ?? 0} disciples`}
-            trend={`Avg ${summary?.discipleship?.averagePerSession ?? 0}/service · ${summary?.discipleship?.latestAttendanceRate ?? 0}% latest`}
-          />
+          <StatCard label="Total Disciples" value={String(summary?.discipleship?.totalTaggedDisciples ?? 0)} trend="Tagged disciples" />
+          <StatCard label="Discipleship Avg" value={String(summary?.discipleship?.averagePerSession ?? 0)} trend="Average per service" />
+          <StatCard label="Discipleship Rate" value={`${summary?.discipleship?.latestAttendanceRate ?? 0}%`} trend="Latest attendance percentage" />
         </div>
 
         <Card>

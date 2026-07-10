@@ -4,7 +4,7 @@ import { useAuth } from "@/components/auth-context";
 import {
   Home,
   User,
-  Users,
+  Inbox,
   BadgeDollarSign,
   CalendarDays,
   LogOut,
@@ -18,7 +18,7 @@ import { MEMBER_ROUTES } from "@/lib/routes";
 const NAV_ITEMS = [
   { label: "Home", icon: Home, href: MEMBER_ROUTES.DASHBOARD },
   { label: "Profile", icon: User, href: MEMBER_ROUTES.PROFILE },
-  { label: "Household", icon: Users, href: MEMBER_ROUTES.HOUSEHOLD },
+  { label: "Request Center", icon: Inbox, href: MEMBER_ROUTES.HOUSEHOLD },
   { label: "Give", icon: BadgeDollarSign, href: MEMBER_ROUTES.GIVE },
   { label: "Services", icon: CalendarDays, href: MEMBER_ROUTES.SERVICES },
 ];

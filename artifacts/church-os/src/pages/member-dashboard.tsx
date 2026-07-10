@@ -1,3 +1,4 @@
+import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth-context";
 import MemberLayout from "@/components/MemberLayout";
@@ -6,10 +7,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { apiJson, labelize } from "@/lib/events";
 import { dollars, type GivingCampaign } from "@/lib/giving";
 import { Link } from "wouter";
 import { CalendarDays, CheckCircle2, Gift, User, Users } from "lucide-react";
+
+type HouseholdPerson = {
+  id: number;
+  firstName: string;
+  lastName: string;
+  preferredName?: string | null;
+  profilePhotoUrl: string | null;
+  relationshipLabel: string;
+};
+
+type HouseholdSummary = {
+  primaryMember: { id: number; firstName: string; lastName: string; preferredName: string | null; profilePhotoUrl: string | null };
+  members: Array<{ id: number; firstName: string; lastName: string; preferredName: string | null; profilePhotoUrl: string | null; relationship: string }>;
+  children: Array<{ id: number; firstName: string; lastName: string; profilePhotoUrl: string | null; relationship: string }>;
+};
 
 type MemberAttendanceRecord = {
   id: number;
@@ -45,6 +62,7 @@ function formatDate(value: string) {
 
 export default function MemberDashboard() {
   const { user } = useAuth();
+  const [householdOpen, setHouseholdOpen] = React.useState(false);
   const attendanceQuery = useQuery({
     queryKey: ["member-attendance-history"],
     queryFn: () => apiJson<MemberAttendanceHistory>("/member/attendance/history"),
@@ -53,9 +71,34 @@ export default function MemberDashboard() {
     queryKey: ["giving-campaigns-member"],
     queryFn: () => apiJson<{ campaigns: GivingCampaign[] }>("/giving/campaigns"),
   });
+  const householdQuery = useQuery({
+    queryKey: ["member-household-summary"],
+    queryFn: () => apiJson<{ household: HouseholdSummary }>("/member/household"),
+  });
   const attendance = attendanceQuery.data;
   const activeCampaigns = campaignsQuery.data?.campaigns ?? [];
   const showDiscipleshipAttendance = attendance?.summary.isDisciple === true;
+  const household = householdQuery.data?.household;
+  const householdMembers: HouseholdPerson[] = household
+    ? [
+        ...household.members.map((member) => ({
+          id: member.id,
+          firstName: member.firstName,
+          lastName: member.lastName,
+          preferredName: member.preferredName,
+          profilePhotoUrl: member.profilePhotoUrl,
+          relationshipLabel: labelize(member.relationship) || "Household",
+        })),
+        ...household.children.map((child) => ({
+          id: child.id,
+          firstName: child.firstName,
+          lastName: child.lastName,
+          profilePhotoUrl: child.profilePhotoUrl,
+          relationshipLabel: labelize(child.relationship) || "Child",
+        })),
+      ]
+    : [];
+  const householdCount = householdMembers.length + 1;
 
   return (
     <MemberLayout>
@@ -146,15 +189,25 @@ export default function MemberDashboard() {
                   <Avatar className="h-8 w-8 border-2 border-white">
                     <AvatarFallback className="bg-white text-xs text-amber-800">Me</AvatarFallback>
                   </Avatar>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-amber-200 bg-white text-xs text-amber-800">
-                    +
-                  </div>
+                  {householdMembers.slice(0, 3).map((person) => (
+                    <Avatar key={person.id} className="h-8 w-8 border-2 border-white">
+                      {person.profilePhotoUrl && <AvatarImage src={person.profilePhotoUrl} alt={`${person.firstName} ${person.lastName}`} />}
+                      <AvatarFallback className="bg-white text-xs text-amber-800">{person.firstName[0]}{person.lastName[0]}</AvatarFallback>
+                    </Avatar>
+                  ))}
                 </div>
-                <span className="text-sm text-muted-foreground ml-2">1 Member</span>
+                <span className="text-sm text-muted-foreground ml-2">
+                  {householdQuery.isLoading ? "Loading..." : `${householdCount} ${householdCount === 1 ? "Member" : "Members"}`}
+                </span>
               </div>
-              <Button asChild variant="outline" className="mt-4 w-full bg-white/80">
-                <Link href="/member/household">View Household</Link>
-              </Button>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <Button variant="outline" className="w-full bg-white/80" onClick={() => setHouseholdOpen(true)}>
+                  Quick View
+                </Button>
+                <Button asChild variant="outline" className="w-full bg-white/80">
+                  <Link href="/member/household">Full Details</Link>
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
@@ -238,6 +291,50 @@ export default function MemberDashboard() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={householdOpen} onOpenChange={setHouseholdOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Household</DialogTitle>
+            <DialogDescription>Everyone linked to your household, including children ministry records.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <Avatar className="h-10 w-10 border">
+                  {user?.profilePhotoUrl && <AvatarImage src={user.profilePhotoUrl} alt={`${user.firstName} ${user.lastName}`} />}
+                  <AvatarFallback>{user?.firstName?.[0]}{user?.lastName?.[0]}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{user?.preferredName || user?.firstName} {user?.lastName}</p>
+                  <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
+                </div>
+              </div>
+              <Badge variant="outline">You</Badge>
+            </div>
+            {householdMembers.map((person) => (
+              <div key={person.id} className="flex items-center justify-between gap-4 rounded-lg border p-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <Avatar className="h-10 w-10 border">
+                    {person.profilePhotoUrl && <AvatarImage src={person.profilePhotoUrl} alt={`${person.firstName} ${person.lastName}`} />}
+                    <AvatarFallback>{person.firstName[0]}{person.lastName[0]}</AvatarFallback>
+                  </Avatar>
+                  <p className="truncate font-medium">{person.firstName} {person.lastName}</p>
+                </div>
+                <Badge variant="outline">{person.relationshipLabel}</Badge>
+              </div>
+            ))}
+            {!householdMembers.length && !householdQuery.isLoading && (
+              <p className="rounded-md bg-muted/35 px-3 py-6 text-center text-sm text-muted-foreground">
+                No other household members linked yet.
+              </p>
+            )}
+          </div>
+          <Button asChild variant="outline" className="w-full">
+            <Link href="/member/household">View Full Household Page</Link>
+          </Button>
+        </DialogContent>
+      </Dialog>
     </MemberLayout>
   );
 }

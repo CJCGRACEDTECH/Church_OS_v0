@@ -56,6 +56,8 @@ type Member = {
   emergencyContactPhoneNumber: string | null;
   emergencyContactRelationship: string | null;
   accountStatus: "active" | "pending" | "disabled";
+  invitedAt: string | null;
+  inviteAcceptedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -166,9 +168,23 @@ function memberStatusClass(status: MemberStatus) {
   return "border-border bg-muted text-muted-foreground";
 }
 
-function accountStatusClass(status: Member["accountStatus"]) {
-  if (status === "active") return "border-green-200 bg-green-500/10 text-green-700 dark:text-green-400";
-  if (status === "pending") return "border-amber-200 bg-white text-amber-700 dark:text-amber-400";
+type InviteStatus = "not_invited" | "invited" | "accepted";
+
+function inviteStatus(member: Pick<Member, "invitedAt" | "inviteAcceptedAt">): InviteStatus {
+  if (member.inviteAcceptedAt) return "accepted";
+  if (member.invitedAt) return "invited";
+  return "not_invited";
+}
+
+function inviteStatusLabel(status: InviteStatus) {
+  if (status === "accepted") return "Accepted";
+  if (status === "invited") return "Invited";
+  return "Not Invited";
+}
+
+function inviteStatusClass(status: InviteStatus) {
+  if (status === "accepted") return "border-green-200 bg-green-500/10 text-green-700 dark:text-green-400";
+  if (status === "invited") return "border-blue-200 bg-blue-500/10 text-blue-700 dark:text-blue-400";
   return "border-border bg-muted text-muted-foreground";
 }
 
@@ -570,7 +586,7 @@ function MembersDirectory() {
                     <TableHead>Email</TableHead>
                     <TableHead>Phone</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Account</TableHead>
+                    <TableHead>Invite Status</TableHead>
                     <TableHead>Ministry / Department</TableHead>
                     <TableHead>Last Updated</TableHead>
                   </TableRow>
@@ -593,7 +609,7 @@ function MembersDirectory() {
                       <TableCell>{member.email}</TableCell>
                       <TableCell>{member.phoneNumber ?? "Not set"}</TableCell>
                       <TableCell><Badge variant="outline" className={memberStatusClass(member.memberStatus)}>{labelize(member.memberStatus)}</Badge></TableCell>
-                      <TableCell><Badge variant="outline" className={accountStatusClass(member.accountStatus)}>{labelize(member.accountStatus)}</Badge></TableCell>
+                      <TableCell><Badge variant="outline" className={inviteStatusClass(inviteStatus(member))}>{inviteStatusLabel(inviteStatus(member))}</Badge></TableCell>
                       <TableCell>{member.ministryDepartment ?? "Not set"}</TableCell>
                       <TableCell>{formatDateTime(member.updatedAt)}</TableCell>
                     </TableRow>

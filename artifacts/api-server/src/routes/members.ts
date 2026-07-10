@@ -82,6 +82,8 @@ function serializeMember(user: typeof usersTable.$inferSelect) {
     emergencyContactPhoneNumber: user.emergencyContactPhoneNumber,
     emergencyContactRelationship: user.emergencyContactRelationship,
     accountStatus: user.accountStatus,
+    invitedAt: user.invitedAt ? user.invitedAt.toISOString() : null,
+    inviteAcceptedAt: user.inviteAcceptedAt ? user.inviteAcceptedAt.toISOString() : null,
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
   };

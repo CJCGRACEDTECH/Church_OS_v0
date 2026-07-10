@@ -1,6 +1,7 @@
 import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import AdminLayout from "@/components/AdminLayout";
+import SearchableSelect from "@/components/SearchableSelect";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -1171,19 +1172,18 @@ function ChildRegistrationForm({
                   {guardian.source === "member" ? (
                     <div className="space-y-2">
                       <Label>Registered Member</Label>
-                      <select
+                      <SearchableSelect
                         value={guardian.memberId}
-                        required
-                        onChange={(event) => updateGuardian(guardian.id, { memberId: event.target.value })}
-                        className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                      >
-                        <option value="">Select a member</option>
-                        {memberContacts.map((member) => (
-                          <option key={member.id} value={member.id}>
-                            {member.name} · {member.phoneNumber || member.email}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(memberId) => updateGuardian(guardian.id, { memberId })}
+                        placeholder="Select a member"
+                        searchPlaceholder="Search members by name, email, or phone..."
+                        emptyText="No matching members."
+                        options={memberContacts.map((member) => ({
+                          value: String(member.id),
+                          label: member.name,
+                          sublabel: member.phoneNumber || member.email,
+                        }))}
+                      />
                       {selectedMember && (
                         <p className="text-xs text-muted-foreground">
                           {selectedMember.email} · {selectedMember.phoneNumber || "No phone listed"}

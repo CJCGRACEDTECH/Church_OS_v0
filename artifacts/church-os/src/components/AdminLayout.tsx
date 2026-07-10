@@ -25,7 +25,7 @@ const NAV_ITEMS = [
   { label: "Dashboard", icon: LayoutDashboard, href: ADMIN_ROUTES.DASHBOARD },
   { label: "Profile", icon: CircleUserRound, href: ADMIN_ROUTES.PROFILE },
   { label: "Members", icon: Users, href: ADMIN_ROUTES.MEMBERS, permission: PERMISSIONS.MEMBER_DIRECTORY },
-  { label: "Household Inbox", icon: Inbox, href: ADMIN_ROUTES.HOUSEHOLD_INBOX, superAdminOnly: true },
+  { label: "Inbox", icon: Inbox, href: ADMIN_ROUTES.HOUSEHOLD_INBOX, superAdminOnly: true },
   { label: "Services", icon: CalendarDays, href: ADMIN_ROUTES.SERVICES, permission: PERMISSIONS.EVENT_MANAGEMENT },
   { label: "Attendance", icon: BarChart3, href: ADMIN_ROUTES.ATTENDANCE, permission: PERMISSIONS.ATTENDANCE_MANAGEMENT },
   { label: "Children Ministry", icon: Smile, href: ADMIN_ROUTES.CHECK_IN, permission: PERMISSIONS.ATTENDANCE_CHECKIN },

@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiJson, labelize } from "@/lib/events";
-import { AlertCircle, Home, Mail, MapPin, Phone, UserRound } from "lucide-react";
+import { AlertCircle, Inbox, Mail, MapPin, Phone, UserRound } from "lucide-react";
 
 type HouseholdMember = {
   id: number;
@@ -124,12 +124,12 @@ export default function MemberHousehold() {
           <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
             <div className="flex min-w-0 items-center gap-4">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-800">
-                <Home className="h-6 w-6" />
+                <Inbox className="h-6 w-6" />
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-medium text-muted-foreground">Member Household</p>
-                <h1 className="truncate text-2xl font-semibold tracking-tight">Family Info</h1>
-                <p className="truncate text-sm text-muted-foreground">Household, children ministry links, and emergency contact details.</p>
+                <p className="text-sm font-medium text-muted-foreground">Member Request Center</p>
+                <h1 className="truncate text-2xl font-semibold tracking-tight">Request Center</h1>
+                <p className="truncate text-sm text-muted-foreground">Household info, children ministry links, and submit requests to the church office.</p>
               </div>
             </div>
           </div>
@@ -229,8 +229,8 @@ export default function MemberHousehold() {
                 <Card className="overflow-hidden border-blue-100 bg-blue-50/45 shadow-sm">
                   <div className="h-1 bg-amber-400" />
                   <CardHeader>
-                    <CardTitle>Request an Update</CardTitle>
-                    <CardDescription>Send family, contact, or pickup changes for admin review.</CardDescription>
+                    <CardTitle>Submit a Request</CardTitle>
+                    <CardDescription>Prayer, meeting, family, or pickup requests go straight to the church office.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
@@ -240,10 +240,12 @@ export default function MemberHousehold() {
                         onChange={(event) => setRequestType(event.target.value)}
                         className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                       >
+                        <option value="prayer_request">Prayer request</option>
+                        <option value="meeting_request">Meeting request</option>
                         <option value="family_change">Family / household change</option>
-                        <option value="child_link">Link or unlink child</option>
                         <option value="pickup_authorization">Pickup authorization</option>
                         <option value="contact_update">Contact information</option>
+                        <option value="child_link">Link or unlink child</option>
                       </select>
                     </div>
                     <div className="space-y-2">

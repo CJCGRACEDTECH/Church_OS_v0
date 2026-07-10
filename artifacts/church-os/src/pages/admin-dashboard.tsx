@@ -5,7 +5,7 @@ import { useAuth } from "@/components/auth-context";
 import AdminLayout from "@/components/AdminLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -639,7 +639,6 @@ function AttendanceOverviewCard({
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" /> Attendance Overview
           </CardTitle>
-          <CardDescription>Attendance snapshot</CardDescription>
         </div>
         <div className="flex flex-wrap gap-2">
           {canSeeAttendance && (
@@ -1111,7 +1110,6 @@ function AdminUpcomingEventsCard() {
           <CardTitle className="flex items-center gap-2">
             <CalendarDays className="h-5 w-5" /> Upcoming Services & Events
           </CardTitle>
-          <CardDescription>Next 5 services and events on the calendar.</CardDescription>
         </div>
         <Button asChild size="sm" variant="outline">
           <Link href="/admin/services">Manage</Link>
