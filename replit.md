@@ -4,6 +4,8 @@ A church management platform for CJC Church (Christ Jesus Centered), powered by 
 
 **Milestone:** Clerk auth migration complete — Google SSO live, session-based auth removed.
 
+**In progress:** 12-section UI/UX redesign (per user spec). Pass 1 done: sidebar branding (larger church name text) + Giving methods page rewrite (Stripe/PayPal/Cash App/Venmo clickable, Zelle shows phone only, no history tracking, no fake "Active" badges). Remaining passes: Admin Inbox rename, Admin Dashboard, Admin Giving, Admin Attendance, Children Ministry, Members Directory, Member Dashboard, Member Request Center, Public forms, Settings/Permissions.
+
 ## Run & Operate
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port varies, proxied at /api)

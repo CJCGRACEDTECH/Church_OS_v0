@@ -55,7 +55,7 @@ function SidebarNav() {
           className="w-full max-h-20 object-contain"
           style={{ mixBlendMode: "screen" }}
         />
-        <div className="text-white font-bold text-lg mt-2 text-center">
+        <div className="text-white font-bold text-xl mt-2 text-center tracking-tight">
           {user?.churchName ?? "CJC Church"}
         </div>
       </div>
