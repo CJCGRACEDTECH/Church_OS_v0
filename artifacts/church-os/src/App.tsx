@@ -237,6 +237,14 @@ function SignInPage() {
     return (
       <AuthPageShell>
         <div className="flex flex-col items-center">
+          <div className="w-[440px] max-w-full flex flex-col items-center gap-2 rounded-2xl border border-gray-100 bg-white px-6 py-4 shadow-xl">
+            <Link href="/request-account" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
+              Already a member? Request account access
+            </Link>
+            <Link href="/connect" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
+              New here? Connect with us
+            </Link>
+          </div>
           <DemoLoginButtons />
         </div>
       </AuthPageShell>
@@ -252,6 +260,14 @@ function SignInPage() {
           signUpUrl={`${basePath}/sign-up`}
           fallbackRedirectUrl={basePath || "/"}
         />
+        <div className="w-[440px] max-w-full mt-3 flex flex-col items-center gap-2 rounded-2xl border border-gray-100 bg-white px-6 py-4 shadow-xl">
+          <Link href="/request-account" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
+            Already a member? Request account access
+          </Link>
+          <Link href="/connect" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
+            New here? Connect with us
+          </Link>
+        </div>
         <DemoLoginButtons />
       </div>
     </AuthPageShell>
