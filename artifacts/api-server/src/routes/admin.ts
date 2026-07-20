@@ -113,7 +113,7 @@ async function sendAdminInviteEmail(params: {
   invitedBy: string;
   baseUrl: string;
 }) {
-  const from = process.env.INVITE_EMAIL_FROM ?? "Church OS <no-reply@cjcchurch.com>";
+  const from = process.env.INVITE_EMAIL_FROM ?? "CJC Church <no-reply@cjcchurch.com>";
   const subject = "You're invited to administer Church OS";
   const text = [
     `Hi ${params.name},`,
