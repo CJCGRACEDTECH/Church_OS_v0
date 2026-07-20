@@ -47,18 +47,18 @@ function getPublicBaseUrl(req: Request): string {
 }
 
 function buildInviteEmailHtml(params: { name: string; inviteUrl: string; invitedBy: string; baseUrl: string }): string {
-  const logoUrl = `${params.baseUrl.replace(/\/$/, "")}/logo.svg`;
+  const logoUrl = `${params.baseUrl.replace(/\/$/, "")}/cjc-logo.png`;
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin Invitation — CJC Church</title></head>
-<body style="margin:0;padding:0;background:#0d1117;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0d1117;padding:40px 16px;">
+<body style="margin:0;padding:0;background:#eef2f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f7;padding:40px 16px;">
     <tr><td align="center">
       <table width="580" cellpadding="0" cellspacing="0" style="max-width:580px;width:100%;">
 
         <!-- Header -->
         <tr><td style="background:linear-gradient(135deg,#1a1f2e 0%,#0f1520 100%);border-radius:12px 12px 0 0;padding:36px 40px;text-align:center;">
-          <img src="${logoUrl}" alt="CJC Church" width="72" height="72" style="display:block;margin:0 auto 18px;border-radius:50%;background:rgba(255,255,255,0.08);padding:8px;" />
+          <img src="${logoUrl}" alt="CJC Church" width="80" height="80" style="display:block;margin:0 auto 16px;border-radius:50%;object-fit:cover;" />
           <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;">Christ Jesus Centered Church</p>
           <p style="margin:8px 0 0;font-size:12px;color:#7c8fa8;letter-spacing:2.5px;text-transform:uppercase;">One Kingdom. All Nations.</p>
         </td></tr>
