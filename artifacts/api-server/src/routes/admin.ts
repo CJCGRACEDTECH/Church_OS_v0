@@ -46,42 +46,59 @@ function getPublicBaseUrl(req: Request): string {
   return `${proto}://${req.get("host")}`;
 }
 
-function buildInviteEmailHtml(params: { name: string; inviteUrl: string; invitedBy: string }): string {
+function buildInviteEmailHtml(params: { name: string; inviteUrl: string; invitedBy: string; baseUrl: string }): string {
+  const logoUrl = `${params.baseUrl.replace(/\/$/, "")}/logo.svg`;
   return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin Invitation</title></head>
-<body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:40px 16px;">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin Invitation — CJC Church</title></head>
+<body style="margin:0;padding:0;background:#0d1117;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0d1117;padding:40px 16px;">
     <tr><td align="center">
-      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08);">
-        <tr><td style="background:#1a1f2e;padding:28px 32px;text-align:center;">
-          <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">CJC Church</p>
-          <p style="margin:4px 0 0;font-size:12px;color:#94a3b8;letter-spacing:1px;text-transform:uppercase;">Church OS</p>
+      <table width="580" cellpadding="0" cellspacing="0" style="max-width:580px;width:100%;">
+
+        <!-- Header -->
+        <tr><td style="background:linear-gradient(135deg,#1a1f2e 0%,#0f1520 100%);border-radius:12px 12px 0 0;padding:36px 40px;text-align:center;">
+          <img src="${logoUrl}" alt="CJC Church" width="72" height="72" style="display:block;margin:0 auto 18px;border-radius:50%;background:rgba(255,255,255,0.08);padding:8px;" />
+          <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;">Christ Jesus Centered Church</p>
+          <p style="margin:8px 0 0;font-size:12px;color:#7c8fa8;letter-spacing:2.5px;text-transform:uppercase;">One Kingdom. All Nations.</p>
         </td></tr>
-        <tr><td style="padding:36px 32px 24px;">
-          <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#0f172a;">You're invited as an admin</h1>
-          <p style="margin:0 0 24px;font-size:15px;color:#64748b;line-height:1.6;">
-            <strong style="color:#0f172a;">${params.invitedBy}</strong> has invited you to join Church OS as an administrator for CJC Church.
+
+        <!-- Blue accent bar -->
+        <tr><td style="background:linear-gradient(90deg,#1d4ed8,#3b82f6,#1d4ed8);height:3px;line-height:3px;font-size:0;">&nbsp;</td></tr>
+
+        <!-- Body -->
+        <tr><td style="background:#ffffff;padding:40px 40px 32px;">
+          <p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#2563eb;letter-spacing:2px;text-transform:uppercase;">Admin Invitation</p>
+          <h1 style="margin:0 0 20px;font-size:26px;font-weight:700;color:#0f172a;line-height:1.25;">You're invited to lead<br>with Church OS</h1>
+          <p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.75;">
+            Hi <strong style="color:#0f172a;">${params.name}</strong>,
           </p>
-          <p style="margin:0 0 8px;font-size:14px;color:#64748b;">Hi <strong style="color:#0f172a;">${params.name}</strong>,</p>
-          <p style="margin:0 0 28px;font-size:14px;color:#64748b;line-height:1.6;">
-            Click the button below to complete your admin account setup. You'll be asked to sign in (or create an account) with this email address first.
+          <p style="margin:0 0 28px;font-size:15px;color:#475569;line-height:1.75;">
+            <strong style="color:#0f172a;">${params.invitedBy}</strong> has invited you to join the Church OS admin team for <strong style="color:#0f172a;">CJC Church</strong>. Click the button below to accept — you'll sign in (or create an account) using this email address and be set up as an admin right away.
           </p>
           <table cellpadding="0" cellspacing="0" width="100%">
-            <tr><td align="center">
-              <a href="${params.inviteUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:6px;letter-spacing:-0.2px;">Accept Admin Invitation</a>
+            <tr><td align="center" style="padding-bottom:8px;">
+              <a href="${params.inviteUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:16px 40px;border-radius:8px;letter-spacing:-0.2px;">Accept Admin Invitation &rarr;</a>
             </td></tr>
           </table>
         </td></tr>
-        <tr><td style="padding:20px 32px;border-top:1px solid #f1f5f9;">
-          <p style="margin:0 0 8px;font-size:12px;color:#94a3b8;">Or copy and paste this link into your browser:</p>
-          <p style="margin:0;font-size:12px;color:#2563eb;word-break:break-all;">${params.inviteUrl}</p>
+
+        <!-- Copy link -->
+        <tr><td style="background:#f8fafc;padding:20px 40px;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;">
+          <p style="margin:0 0 6px;font-size:12px;color:#94a3b8;">Or copy and paste this link into your browser:</p>
+          <p style="margin:0;font-size:12px;color:#2563eb;word-break:break-all;line-height:1.6;">${params.inviteUrl}</p>
         </td></tr>
-        <tr><td style="padding:16px 32px 28px;background:#f8fafc;border-top:1px solid #f1f5f9;">
-          <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.5;">
-            This secure invite link expires in 72 hours and can only be used once. If you weren't expecting this invitation, you can safely ignore this email.
+
+        <!-- Footer -->
+        <tr><td style="background:#1a1f2e;border-radius:0 0 12px 12px;padding:24px 40px;">
+          <p style="margin:0 0 8px;font-size:12px;color:#94a3b8;line-height:1.6;">
+            This secure invite link expires in <strong style="color:#cbd5e1;">72 hours</strong> and can only be used once. If you weren't expecting this invitation, you can safely ignore this email.
+          </p>
+          <p style="margin:0;font-size:11px;color:#4b5563;line-height:1.5;">
+            CJC Church &nbsp;&middot;&nbsp; 7403 Boston Blvd, Springfield, VA 22153 &nbsp;&middot;&nbsp; <a href="https://cjcchurch.com" style="color:#4b5563;text-decoration:none;">cjcchurch.com</a>
           </p>
         </td></tr>
+
       </table>
     </td></tr>
   </table>
@@ -94,6 +111,7 @@ async function sendAdminInviteEmail(params: {
   name: string;
   inviteUrl: string;
   invitedBy: string;
+  baseUrl: string;
 }) {
   const from = process.env.INVITE_EMAIL_FROM ?? "Church OS <no-reply@cjcchurch.com>";
   const subject = "You're invited to administer Church OS";
@@ -364,6 +382,7 @@ router.post("/admin/invitations", requireSuperAdmin, async (req, res): Promise<v
     name: `${firstName} ${lastName}`,
     inviteUrl,
     invitedBy: `${requester.firstName} ${requester.lastName}`,
+    baseUrl: getPublicBaseUrl(req),
   });
 
   res.status(201).json({
