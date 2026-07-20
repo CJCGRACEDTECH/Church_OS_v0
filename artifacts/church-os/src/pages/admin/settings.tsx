@@ -253,6 +253,8 @@ export default function AdminSettings() {
     onError: (error) => toast({ title: "Could not remove access", description: error.message, variant: "destructive" }),
   });
 
+  const [inviteDialogOpen, setInviteDialogOpen] = React.useState(false);
+
   const inviteAdmin = useMutation({
     mutationFn: (formData: FormData) => {
       const adminLevel = String(formData.get("adminLevel")) as AdminLevel;
@@ -272,9 +274,19 @@ export default function AdminSettings() {
     onSuccess: () => {
       toast({ title: "Admin invitation sent" });
       setDraftPermissions([]);
+      setInviteDialogOpen(false);
       void queryClient.invalidateQueries({ queryKey: ["admin-invitations"] });
     },
     onError: (error) => toast({ title: "Invite failed", description: error.message, variant: "destructive" }),
+  });
+
+  const revokeInvite = useMutation({
+    mutationFn: (id: number) => apiJson(`/admin/invitations/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      toast({ title: "Invitation revoked" });
+      void queryClient.invalidateQueries({ queryKey: ["admin-invitations"] });
+    },
+    onError: (error) => toast({ title: "Could not revoke invitation", description: error.message, variant: "destructive" }),
   });
 
   const admins = adminsQuery.data?.admins ?? [];
@@ -334,10 +346,14 @@ export default function AdminSettings() {
                 invitations={invitationsQuery.data?.invitations ?? []}
                 activity={activityQuery.data?.log ?? []}
                 canManage={canManageAdmins}
+                inviteDialogOpen={inviteDialogOpen}
+                onInviteDialogOpenChange={setInviteDialogOpen}
                 onInvite={(formData) => inviteAdmin.mutate(formData)}
                 onUpdate={(id, updates) => updateAdmin.mutate({ id, updates })}
                 onRemove={(id) => removeAdminAccess.mutate(id)}
+                onRevoke={(id) => revokeInvite.mutate(id)}
                 isSaving={inviteAdmin.isPending || updateAdmin.isPending || removeAdminAccess.isPending}
+                isRevoking={revokeInvite.isPending}
               />
             )}
             {active === "permissions" && (
@@ -439,19 +455,27 @@ function AdminsSection({
   invitations,
   activity,
   canManage,
+  inviteDialogOpen,
+  onInviteDialogOpenChange,
   onInvite,
   onUpdate,
   onRemove,
+  onRevoke,
   isSaving,
+  isRevoking,
 }: {
   admins: AdminUser[];
   invitations: AdminInvitation[];
   activity: Array<{ type: string; label: string; detail: string; status: string }>;
   canManage: boolean;
+  inviteDialogOpen: boolean;
+  onInviteDialogOpenChange: (open: boolean) => void;
   onInvite: (formData: FormData) => void;
   onUpdate: (id: number, updates: Partial<AdminUser>) => void;
   onRemove: (id: number) => void;
+  onRevoke: (id: number) => void;
   isSaving: boolean;
+  isRevoking: boolean;
 }) {
   const [search, setSearch] = React.useState("");
   const filtered = admins.filter((admin) => `${admin.firstName} ${admin.lastName} ${admin.email} ${admin.assignedMinistry ?? ""}`.toLowerCase().includes(search.toLowerCase()));
@@ -464,7 +488,7 @@ function AdminsSection({
             <CardTitle>Admin Management</CardTitle>
             <CardDescription>View admins, edit profiles, disable accounts, and send secure invites.</CardDescription>
           </div>
-          {canManage && <InviteAdminDialog onInvite={onInvite} isSaving={isSaving} />}
+          {canManage && <InviteAdminDialog open={inviteDialogOpen} onOpenChange={onInviteDialogOpenChange} onInvite={onInvite} isSaving={isSaving} />}
         </CardHeader>
         <CardContent className="space-y-4">
           <Input placeholder="Search admins" value={search} onChange={(event) => setSearch(event.target.value)} />
@@ -491,15 +515,31 @@ function AdminsSection({
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Admin Invitations</CardTitle><CardDescription>Invite links expire and cannot be reused after acceptance.</CardDescription></CardHeader>
+        <CardHeader><CardTitle>Admin Invitations</CardTitle><CardDescription>Invite links expire in 72 hours and cannot be reused after acceptance.</CardDescription></CardHeader>
         <CardContent>
           <Table>
-            <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Role</TableHead><TableHead>Status</TableHead><TableHead>Sent</TableHead><TableHead>Expires</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Role</TableHead><TableHead>Status</TableHead><TableHead>Sent</TableHead><TableHead>Expires</TableHead>{canManage && <TableHead />}</TableRow></TableHeader>
             <TableBody>
               {invitations.map((invite) => (
-                <TableRow key={invite.id}><TableCell>{invite.name}</TableCell><TableCell>{invite.email}</TableCell><TableCell>{invite.adminTitle}</TableCell><TableCell><Badge variant={invite.status === "pending" ? "secondary" : "outline"}>{invite.status}</Badge></TableCell><TableCell>{dateTime(invite.sentAt)}</TableCell><TableCell>{dateTime(invite.expiresAt)}</TableCell></TableRow>
+                <TableRow key={invite.id}>
+                  <TableCell>{invite.name}</TableCell>
+                  <TableCell>{invite.email}</TableCell>
+                  <TableCell>{invite.adminTitle}</TableCell>
+                  <TableCell><Badge variant={invite.status === "pending" ? "secondary" : "outline"}>{invite.status}</Badge></TableCell>
+                  <TableCell>{dateTime(invite.sentAt)}</TableCell>
+                  <TableCell>{dateTime(invite.expiresAt)}</TableCell>
+                  {canManage && (
+                    <TableCell className="text-right">
+                      {invite.status === "pending" && (
+                        <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" disabled={isRevoking} onClick={() => onRevoke(invite.id)}>
+                          Revoke
+                        </Button>
+                      )}
+                    </TableCell>
+                  )}
+                </TableRow>
               ))}
-              {!invitations.length && <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">No invitations to show.</TableCell></TableRow>}
+              {!invitations.length && <TableRow><TableCell colSpan={canManage ? 7 : 6} className="py-8 text-center text-muted-foreground">No invitations to show.</TableCell></TableRow>}
             </TableBody>
           </Table>
         </CardContent>
@@ -854,19 +894,19 @@ function SettingControl({ name, value, onChange }: { name: string; value: unknow
   return <Field label={label} value={text(value)} onChange={onChange} />;
 }
 
-function InviteAdminDialog({ onInvite, isSaving }: { onInvite: (formData: FormData) => void; isSaving: boolean }) {
+function InviteAdminDialog({ open, onOpenChange, onInvite, isSaving }: { open: boolean; onOpenChange: (open: boolean) => void; onInvite: (formData: FormData) => void; isSaving: boolean }) {
   return (
-    <Dialog>
-      <DialogTrigger asChild><Button>Invite Admin</Button></DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogTrigger asChild><Button onClick={() => onOpenChange(true)}>Invite Admin</Button></DialogTrigger>
       <DialogContent className="max-w-2xl">
-        <DialogHeader><DialogTitle>Invite Admin</DialogTitle><DialogDescription>Secure invite links expire and admin role assignment stays backend-controlled.</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>Invite Admin</DialogTitle><DialogDescription>A secure invite link will be emailed. Admin role assignment stays backend-controlled.</DialogDescription></DialogHeader>
         <form className="grid gap-4 md:grid-cols-2" onSubmit={(event) => { event.preventDefault(); onInvite(new FormData(event.currentTarget)); event.currentTarget.reset(); }}>
           <FieldInput name="firstName" label="First Name" />
           <FieldInput name="lastName" label="Last Name" />
           <FieldInput name="email" label="Email Address" type="email" />
           <div className="space-y-2"><Label>Admin Title</Label><select name="adminLevel" className="h-10 w-full rounded-md border bg-background px-3 text-sm"><option value="minister">Minister</option><option value="pastor">Pastor</option><option value="super_admin">Super Admin</option></select></div>
           <FieldInput name="assignedMinistry" label="Assigned Ministry / Department" required={false} />
-          <Button className="md:col-span-2" disabled={isSaving}>Send Invite</Button>
+          <Button className="md:col-span-2" disabled={isSaving}>{isSaving ? "Sending…" : "Send Invite"}</Button>
         </form>
       </DialogContent>
     </Dialog>

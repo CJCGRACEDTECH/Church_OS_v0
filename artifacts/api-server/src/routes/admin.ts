@@ -39,7 +39,54 @@ function adminTitle(adminLevel: AdminLevel): string {
 }
 
 function getPublicBaseUrl(req: Request): string {
-  return process.env.APP_BASE_URL ?? `${req.protocol}://${req.get("host")}`;
+  if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL;
+  const replitDomain = process.env.REPLIT_DOMAINS?.split(",")[0];
+  if (replitDomain) return `https://${replitDomain}`;
+  const proto = (req.get("x-forwarded-proto") ?? req.protocol) || "https";
+  return `${proto}://${req.get("host")}`;
+}
+
+function buildInviteEmailHtml(params: { name: string; inviteUrl: string; invitedBy: string }): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin Invitation</title></head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08);">
+        <tr><td style="background:#1a1f2e;padding:28px 32px;text-align:center;">
+          <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">CJC Church</p>
+          <p style="margin:4px 0 0;font-size:12px;color:#94a3b8;letter-spacing:1px;text-transform:uppercase;">Church OS</p>
+        </td></tr>
+        <tr><td style="padding:36px 32px 24px;">
+          <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#0f172a;">You're invited as an admin</h1>
+          <p style="margin:0 0 24px;font-size:15px;color:#64748b;line-height:1.6;">
+            <strong style="color:#0f172a;">${params.invitedBy}</strong> has invited you to join Church OS as an administrator for CJC Church.
+          </p>
+          <p style="margin:0 0 8px;font-size:14px;color:#64748b;">Hi <strong style="color:#0f172a;">${params.name}</strong>,</p>
+          <p style="margin:0 0 28px;font-size:14px;color:#64748b;line-height:1.6;">
+            Click the button below to complete your admin account setup. You'll be asked to sign in (or create an account) with this email address first.
+          </p>
+          <table cellpadding="0" cellspacing="0" width="100%">
+            <tr><td align="center">
+              <a href="${params.inviteUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:6px;letter-spacing:-0.2px;">Accept Admin Invitation</a>
+            </td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="padding:20px 32px;border-top:1px solid #f1f5f9;">
+          <p style="margin:0 0 8px;font-size:12px;color:#94a3b8;">Or copy and paste this link into your browser:</p>
+          <p style="margin:0;font-size:12px;color:#2563eb;word-break:break-all;">${params.inviteUrl}</p>
+        </td></tr>
+        <tr><td style="padding:16px 32px 28px;background:#f8fafc;border-top:1px solid #f1f5f9;">
+          <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.5;">
+            This secure invite link expires in 72 hours and can only be used once. If you weren't expecting this invitation, you can safely ignore this email.
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
 }
 
 async function sendAdminInviteEmail(params: {
@@ -48,7 +95,7 @@ async function sendAdminInviteEmail(params: {
   inviteUrl: string;
   invitedBy: string;
 }) {
-  const from = process.env.INVITE_EMAIL_FROM ?? "Church OS <no-reply@churchos.local>";
+  const from = process.env.INVITE_EMAIL_FROM ?? "Church OS <no-reply@cjcchurch.com>";
   const subject = "You're invited to administer Church OS";
   const text = [
     `Hi ${params.name},`,
@@ -56,7 +103,7 @@ async function sendAdminInviteEmail(params: {
     `${params.invitedBy} invited you to join Church OS as an administrator.`,
     `Open this secure invite link to finish setup: ${params.inviteUrl}`,
     "",
-    "This link expires automatically and can only be used once.",
+    "This link expires in 72 hours and can only be used once.",
   ].join("\n");
 
   if (process.env.RESEND_API_KEY) {
@@ -71,6 +118,7 @@ async function sendAdminInviteEmail(params: {
         to: params.to,
         subject,
         text,
+        html: buildInviteEmailHtml(params),
       }),
     });
 
@@ -458,6 +506,29 @@ router.post("/admin/invitations/accept/:token", requireAuth, async (req, res): P
   await db.update(usersTable).set({ lastLoginAt: new Date() }).where(eq(usersTable.id, userId));
 
   res.json({ message: "Admin invite accepted.", redirectTo: "/admin" });
+});
+
+router.delete("/admin/invitations/:id", requireSuperAdmin, async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) { res.status(400).json({ error: "Invalid invitation id." }); return; }
+
+  const churchId = await getRequesterChurchId(req.localUserId);
+  if (!churchId) { res.status(401).json({ error: "Requester not found." }); return; }
+
+  const [invite] = await db
+    .select({ id: adminInvitationsTable.id, status: adminInvitationsTable.status })
+    .from(adminInvitationsTable)
+    .where(and(eq(adminInvitationsTable.id, id), eq(adminInvitationsTable.churchId, churchId)));
+
+  if (!invite) { res.status(404).json({ error: "Invitation not found." }); return; }
+  if (invite.status !== "pending") { res.status(409).json({ error: "Only pending invitations can be revoked." }); return; }
+
+  await db
+    .update(adminInvitationsTable)
+    .set({ status: "expired" })
+    .where(eq(adminInvitationsTable.id, id));
+
+  res.json({ message: "Invitation revoked." });
 });
 
 router.get("/admin/permissions/giving-records", requireAdminPermission(ADMIN_PERMISSIONS.GIVING_DETAILS), (_req, res) => {
