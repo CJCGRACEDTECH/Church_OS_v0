@@ -41,7 +41,7 @@ import {
   type EventFormState,
   type EventType,
 } from "@/lib/events";
-import { ArrowLeft, Ban, CalendarDays, ExternalLink, Pencil, Plus, Search, Trash2, Video } from "lucide-react";
+import { ArrowLeft, Ban, CalendarDays, ExternalLink, Globe, GlobeLock, Pencil, Plus, Search, Trash2, Video } from "lucide-react";
 
 const EVENT_TYPE_BADGE_CLASSES: Record<EventType, string> = {
   service: "bg-indigo-100 text-indigo-800 border-indigo-200",
@@ -319,6 +319,40 @@ function AdminEventDetail({ eventId }: { eventId: number }) {
     onError: (error) => toast({ title: "Could not cancel event", description: error.message, variant: "destructive" }),
   });
 
+  const publishToWebsite = useMutation({
+    mutationFn: () => {
+      if (!event) throw new Error("No event loaded");
+      return apiJson<{ event: ChurchEvent }>(`/admin/events/${eventId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ ...payloadFromEventForm(formFromEvent(event)), status: "published", visibility: "public" }),
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Event published to public website" });
+      void queryClient.invalidateQueries({ queryKey: ["admin-event", eventId] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-events"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-upcoming-events"] });
+    },
+    onError: (error) => toast({ title: "Could not publish event", description: error.message, variant: "destructive" }),
+  });
+
+  const unpublishFromWebsite = useMutation({
+    mutationFn: () => {
+      if (!event) throw new Error("No event loaded");
+      return apiJson<{ event: ChurchEvent }>(`/admin/events/${eventId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ ...payloadFromEventForm(formFromEvent(event)), status: "draft", visibility: "admin_only" }),
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Event removed from public website" });
+      void queryClient.invalidateQueries({ queryKey: ["admin-event", eventId] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-events"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-upcoming-events"] });
+    },
+    onError: (error) => toast({ title: "Could not unpublish event", description: error.message, variant: "destructive" }),
+  });
+
   const deleteEvent = useMutation({
     mutationFn: () => apiJson<{ ok: true }>(`/admin/events/${eventId}`, { method: "DELETE" }),
     onSuccess: () => {
@@ -351,10 +385,30 @@ function AdminEventDetail({ eventId }: { eventId: number }) {
                   <EventForm form={form} setForm={setForm} onSubmit={() => updateEvent.mutate()} submitLabel="Save Changes" isSubmitting={updateEvent.isPending} />
                 </DialogContent>
               </Dialog>
+              {event.status !== "cancelled" && event.status !== "published" && event.visibility !== "public" && (
+                <Button
+                  variant="outline"
+                  className="border-emerald-300 bg-white text-emerald-800 hover:bg-emerald-50"
+                  onClick={() => publishToWebsite.mutate()}
+                  disabled={publishToWebsite.isPending}
+                >
+                  <Globe className="mr-2 h-4 w-4" />Publish to Website
+                </Button>
+              )}
+              {event.status === "published" && event.visibility === "public" && (
+                <Button
+                  variant="outline"
+                  className="border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                  onClick={() => unpublishFromWebsite.mutate()}
+                  disabled={unpublishFromWebsite.isPending}
+                >
+                  <GlobeLock className="mr-2 h-4 w-4" />Unpublish
+                </Button>
+              )}
               {event.status !== "cancelled" && (
                 <Button
                   variant="outline"
-                  className="border-amber-300 bg-white text-amber-800 hover:bg-blue-50"
+                  className="border-amber-300 bg-white text-amber-800 hover:bg-amber-50"
                   onClick={() => cancelEvent.mutate()}
                   disabled={cancelEvent.isPending}
                 >

@@ -13,6 +13,7 @@ import AttendanceCheckIn from "@/pages/attendance-check-in";
 import ConnectPage from "@/pages/connect";
 import RequestAccountPage from "@/pages/request-account";
 import { EvangelismContactPage, EvangelismQrPage } from "@/pages/evangelism-public";
+import PublicEventsPage from "@/pages/events-public";
 
 import AdminDashboard from "@/pages/admin-dashboard";
 import AdminProfile from "@/pages/admin/profile";
@@ -235,6 +236,7 @@ function Router() {
       <Route path="/admin/invite/:token" component={AdminInviteAccept} />
       <Route path="/connect" component={ConnectPage} />
       <Route path="/request-account" component={RequestAccountPage} />
+      <Route path="/events" component={PublicEventsPage} />
       <Route path="/evangelism/e/:token/contact" component={EvangelismContactPage} />
       <Route path="/evangelism/e/:token/qr" component={EvangelismQrPage} />
 
