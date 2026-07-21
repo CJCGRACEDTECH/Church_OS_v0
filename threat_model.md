@@ -28,7 +28,7 @@ The mockup sandbox artifact is development-only and should be ignored unless pro
 ## Scan Anchors
 
 - **Production entry points:** `artifacts/api-server/src/index.ts`, `artifacts/api-server/src/app.ts`, `artifacts/api-server/src/routes/*.ts`, `artifacts/church-os/src/App.tsx`, `artifacts/church-os/src/components/auth-context.tsx`
-- **Highest-risk areas:** auth/JIT provisioning and public sign-up (`routes/auth.ts`, `middlewares/auth.ts`, `artifacts/church-os/src/App.tsx`), admin/invitation and settings control plane (`routes/admin.ts`, `routes/settings.ts`), member household/profile-derived linkage (`routes/member-household.ts`, `routes/auth.ts`), giving/payment/webhook logic (`routes/giving.ts`), attendance/check-in APIs (`routes/attendance.ts`, `routes/children-checkin.ts`)
+- **Highest-risk areas:** auth/JIT provisioning and public sign-up (`routes/auth.ts`, `middlewares/auth.ts`, `artifacts/church-os/src/App.tsx`), admin/invitation and settings control plane (`routes/admin.ts`, `routes/settings.ts`), member household/profile-derived linkage (`routes/member-household.ts`, `routes/auth.ts`), giving/payment/webhook logic (`routes/giving.ts`), attendance/check-in APIs (`routes/attendance.ts`, `routes/children-checkin.ts`), and event/church-profile URL fields rendered back into public or member-facing links (`routes/events.ts`, `routes/settings.ts`, `artifacts/church-os/src/pages/member/services.tsx`, `artifacts/church-os/src/pages/evangelism-public.tsx`)
 - **Public vs authenticated vs admin:** health endpoints, public sign-up, invite acceptance, and Stripe webhook handling are public or semi-public; member routes require auth; admin and permission endpoints must enforce role, permission, and church checks server-side
 - **Usually dev-only:** `artifacts/mockup-sandbox/**`, demo-session auth branches when `NODE_ENV !== production`
 
@@ -36,7 +36,7 @@ The mockup sandbox artifact is development-only and should be ignored unless pro
 
 ### Spoofing
 
-The system relies on Clerk for identity but makes local authorization decisions from application-managed user rows. Every protected API route must require a valid Clerk-authenticated request in production and must resolve the authenticated user to the correct local account without trusting client-controlled identifiers. Public sign-up and `/api/auth/me` JIT provisioning are especially sensitive: they must not let arbitrary internet users enroll themselves into a real church tenant or bind themselves to a local account without an intended approval or membership path. Admin invitation acceptance and any identity-linking flow must prove that the caller controls the intended account, not merely knows an invite token or email.
+The system relies on Clerk for identity but makes local authorization decisions from application-managed user rows. Every protected API route must require a valid Clerk-authenticated request in production and must resolve the authenticated user to the correct local account without trusting client-controlled identifiers. Public sign-up and `/api/auth/me` JIT provisioning are especially sensitive: they must not let arbitrary internet users enroll themselves into a real church tenant or bind themselves to a local account without an intended approval or membership path. Admin invitation acceptance and any identity-linking flow must prove that the caller controls the intended account, not merely knows an invite token or email, and email-based linking MUST require the identity provider to report that the email address is verified.
 
 ### Tampering
 
@@ -44,7 +44,7 @@ Admins can mutate membership, attendance, events, settings, campaigns, and admin
 
 ### Information Disclosure
 
-The application stores sensitive church-member, child, attendance, and giving data. API responses, exports, logs, and receipts must be scoped to the requesting user’s church and role, and must not expose admin control-plane data, donor records, invitation details, or child records through profile-derived heuristics such as shared address, email, or phone matches. Secrets and invite links must never be exposed through client code or broadly accessible logs.
+The application stores sensitive church-member, child, attendance, and giving data. API responses, exports, logs, and receipts must be scoped to the requesting user’s church and role, and must not expose admin control-plane data, donor records, invitation details, or child records through profile-derived heuristics such as shared address, email, or phone matches. Public onboarding flows must return uniform responses that do not confirm whether a person already exists in a church or another tenant. Secrets and invite links must never be exposed through client code or broadly accessible logs.
 
 ### Denial of Service
 
@@ -52,4 +52,4 @@ Public and authenticated endpoints that trigger external requests or heavier dat
 
 ### Elevation of Privilege
 
-The most important guarantees in this codebase are server-side role enforcement, permission enforcement, and church-level data isolation. Members must not reach admin capabilities, admins must not automatically gain super-admin powers, and super admins from one church must not manage users, invitations, settings, or giving records for another church. Any missing church filter on shared tables is a potential privilege-escalation or data-exposure flaw in this architecture.
+The most important guarantees in this codebase are server-side role enforcement, permission enforcement, and church-level data isolation. Members must not reach admin capabilities, admins must not automatically gain super-admin powers, and super admins from one church must not manage users, invitations, settings, or giving records for another church. Granular admin permissions such as directory-only, profile access, giving access, and check-in access must be enforced by the backend on every endpoint rather than assumed from UI visibility. Any missing church filter on shared tables is a potential privilege-escalation or data-exposure flaw in this architecture.
