@@ -275,8 +275,8 @@ function Router() {
       <Route path="/admin/settings">{() => <AdminRoute component={AdminSettings} />}</Route>
       <Route path="/admin/admins">{() => <Redirect to="/admin/settings?section=admins" />}</Route>
 
-      {/* Member routes — profile/give/services/household accessible to admins too */}
-      <Route path="/member">{() => <MemberRoute component={MemberDashboard} />}</Route>
+      {/* Member routes — all accessible to admins too */}
+      <Route path="/member">{() => <AnyAuthRoute component={MemberDashboard} />}</Route>
       <Route path="/member/profile">{() => <AnyAuthRoute component={MemberProfile} />}</Route>
       <Route path="/member/household">{() => <AnyAuthRoute component={MemberHousehold} />}</Route>
       <Route path="/member/give">{() => <AnyAuthRoute component={MemberGive} />}</Route>
