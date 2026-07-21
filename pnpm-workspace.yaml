@@ -150,7 +150,8 @@ overrides:
   "@expo/ngrok-bin>@expo/ngrok-bin-win32-x64": "-"
   # drizzle-kit uses esbuild internally on an older version that's vulnerable, this overrides it
   "@esbuild-kit/esm-loader": "npm:tsx@^4.21.0"
-  esbuild: "0.27.3"
+  # GHSA-g7r4-m6w7-qqqr — esbuild arbitrary file read on dev server (patched >=0.28.1)
+  esbuild: "^0.28.1"
   # Security: pin vulnerable transitive deps to patched versions
   # GHSA-c2c7-rcm5-vvqj, GHSA-3v7f-55p6-f55p — picomatch ReDoS + method injection
   "picomatch": "^4.0.4"
@@ -162,8 +163,8 @@ overrides:
   "lodash": "^4.18.1"
   # GHSA-48c2-rrv3-qjmp — yaml stack overflow
   "yaml": "^2.8.4"
-  # GHSA-f886-m6hf-6m8v — brace-expansion ReDoS
-  "brace-expansion": "^2.1.0"
+  # GHSA-3jxr-9vmj-r5cp — brace-expansion DoS via consecutive non-expanding {} groups
+  "brace-expansion": "^2.1.2"
   # GHSA-qx2v-qp2m-jg93 — postcss XSS
   "postcss": "^8.5.14"
   # GHSA-qjx8-664m-686j — js-cookie XSS via cookie injection
@@ -172,6 +173,18 @@ overrides:
   "qs": "^6.15.2"
   # CVE-2026-12143 — form-data vulnerability (transitive via twilio>axios)
   "form-data": "^4.0.6"
+  # GHSA-22p9-wv53-3rq4 — linkify-it quadratic scan loop ReDoS
+  "linkify-it": "^5.0.1"
+  # GHSA-52cp-r559-cp3m, GHSA-h67p-54hq-rp68 — js-yaml merge-key quadratic CPU DoS
+  "js-yaml": "^4.3.0"
+  # GHSA-gcfj-64vw-6mp9 and others — axios multiple vulns (proxy, prototype pollution, maxBodyLength)
+  "axios": "^1.18.0"
+  # GHSA-6v5v-wf23-fmfq — markdown-it smartquotes quadratic complexity DoS
+  "markdown-it": "^14.2.0"
+  # GHSA-4x5r-pxfx-6jf8 — @babel/core arbitrary file read via sourceMappingURL
+  "@babel/core": "^7.29.6"
+  # GHSA-v422-hmwv-36x6 — body-parser DoS via invalid limit value
+  "body-parser": "^2.3.0"
 
 allowBuilds:
   '@clerk/shared': true
