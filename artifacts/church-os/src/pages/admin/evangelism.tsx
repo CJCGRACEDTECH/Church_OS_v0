@@ -105,30 +105,47 @@ function downloadQrCode(fileName: string) {
 function printQrCode(event: OutreachEvent, qrUrl: string) {
   const printWindow = window.open("", "_blank", "noopener,noreferrer");
   if (!printWindow) return;
-  printWindow.document.write(`
-    <html>
-      <head>
-        <title>${event.eventName} QR Code</title>
-        <style>
-          body { font-family: Inter, Arial, sans-serif; margin: 0; padding: 48px; text-align: center; color: #0f172a; }
-          .card { border: 1px solid #dbeafe; border-radius: 18px; padding: 36px; display: inline-block; }
-          h1 { margin: 0 0 8px; font-size: 28px; }
-          p { margin: 0 0 24px; color: #475569; }
-          img { width: 360px; height: 360px; }
-          .url { margin-top: 20px; font-size: 12px; color: #64748b; max-width: 420px; overflow-wrap: anywhere; }
-        </style>
-      </head>
-      <body>
-        <div class="card">
-          <h1>${event.eventName}</h1>
-          <p>Scan to connect with our church.</p>
-          <img alt="Outreach QR code" src="https://api.qrserver.com/v1/create-qr-code/?size=720x720&data=${encodeURIComponent(qrUrl)}" />
-          <div class="url">${qrUrl}</div>
-        </div>
-      </body>
-    </html>
-  `);
-  printWindow.document.close();
+
+  const doc = printWindow.document;
+
+  doc.write("<!DOCTYPE html><html><head></head><body></body></html>");
+  doc.close();
+
+  doc.title = `${event.eventName} QR Code`;
+
+  const style = doc.createElement("style");
+  style.textContent =
+    "body { font-family: Inter, Arial, sans-serif; margin: 0; padding: 48px; text-align: center; color: #0f172a; }" +
+    ".card { border: 1px solid #dbeafe; border-radius: 18px; padding: 36px; display: inline-block; }" +
+    "h1 { margin: 0 0 8px; font-size: 28px; }" +
+    "p { margin: 0 0 24px; color: #475569; }" +
+    "img { width: 360px; height: 360px; }" +
+    ".url { margin-top: 20px; font-size: 12px; color: #64748b; max-width: 420px; overflow-wrap: anywhere; }";
+  doc.head.appendChild(style);
+
+  const card = doc.createElement("div");
+  card.className = "card";
+
+  const h1 = doc.createElement("h1");
+  h1.textContent = event.eventName;
+  card.appendChild(h1);
+
+  const p = doc.createElement("p");
+  p.textContent = "Scan to connect with our church.";
+  card.appendChild(p);
+
+  const img = doc.createElement("img");
+  img.alt = "Outreach QR code";
+  img.src = `https://api.qrserver.com/v1/create-qr-code/?size=720x720&data=${encodeURIComponent(qrUrl)}`;
+  card.appendChild(img);
+
+  const urlDiv = doc.createElement("div");
+  urlDiv.className = "url";
+  urlDiv.textContent = qrUrl;
+  card.appendChild(urlDiv);
+
+  doc.body.appendChild(card);
+
   printWindow.focus();
   printWindow.print();
 }
