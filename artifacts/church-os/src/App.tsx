@@ -14,6 +14,7 @@ import ConnectPage from "@/pages/connect";
 import RequestAccountPage from "@/pages/request-account";
 import { EvangelismContactPage, EvangelismQrPage } from "@/pages/evangelism-public";
 import PublicEventsPage from "@/pages/events-public";
+import PublicSermonsPage from "@/pages/sermons";
 
 import AdminDashboard from "@/pages/admin-dashboard";
 import AdminProfile from "@/pages/admin/profile";
@@ -24,6 +25,7 @@ import AdminAttendance from "@/pages/admin/attendance";
 import AdminCheckIn from "@/pages/admin/check-in";
 import AdminGiving from "@/pages/admin/giving";
 import AdminEvangelism from "@/pages/admin/evangelism";
+import AdminSermons from "@/pages/admin/sermons";
 import AdminSettings from "@/pages/admin/settings";
 import AdminInviteAccept from "@/pages/admin/invite-accept";
 
@@ -237,6 +239,7 @@ function Router() {
       <Route path="/connect" component={ConnectPage} />
       <Route path="/request-account" component={RequestAccountPage} />
       <Route path="/events" component={PublicEventsPage} />
+      <Route path="/sermons" component={PublicSermonsPage} />
       <Route path="/evangelism/e/:token/contact" component={EvangelismContactPage} />
       <Route path="/evangelism/e/:token/qr" component={EvangelismQrPage} />
 
@@ -256,6 +259,7 @@ function Router() {
       <Route path="/admin/evangelism/events/:id">{() => <AdminRoute component={AdminEvangelism} />}</Route>
       <Route path="/admin/evangelism/contacts">{() => <AdminRoute component={AdminEvangelism} />}</Route>
       <Route path="/admin/evangelism">{() => <AdminRoute component={AdminEvangelism} />}</Route>
+      <Route path="/admin/sermons">{() => <AdminRoute component={AdminSermons} />}</Route>
       <Route path="/admin/reports">{() => <Redirect to="/admin" />}</Route>
       <Route path="/admin/settings">{() => <AdminRoute component={AdminSettings} />}</Route>
       <Route path="/admin/admins">{() => <Redirect to="/admin/settings?section=admins" />}</Route>
