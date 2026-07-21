@@ -228,53 +228,8 @@ router.get("/auth/me", async (req, res): Promise<void> => {
         accountStatus: byEmail.role === "member" && byEmail.accountStatus === "pending" ? "active" : byEmail.accountStatus,
       };
     } else {
-      // Bootstrap: if no church exists yet (fresh production deploy), the first
-      // sign-in automatically becomes the super admin and creates the church.
-      const [existingChurch] = await db.select({ id: churchesTable.id }).from(churchesTable).limit(1);
-
-      if (existingChurch) {
-        res.status(403).json({ error: "No account found for this identity. Contact your church administrator to be added." });
-        return;
-      }
-
-      const SUPER_ADMIN_PERMISSIONS = [
-        "attendance_checkin", "attendance_management", "member_directory",
-        "member_profiles", "event_management", "followup_notes", "pastoral_notes",
-        "giving_summary", "giving_details", "giving_view_own", "giving_management",
-        "giving_reports", "campaign_management", "reports", "admin_management",
-        "system_settings",
-      ];
-
-      const firstName = clerkUser.firstName ?? email.split("@")[0];
-      const lastName = clerkUser.lastName ?? "Admin";
-
-      const [newChurch] = await db
-        .insert(churchesTable)
-        .values({ name: "CJC Church", slug: "cjc-international" })
-        .returning({ id: churchesTable.id });
-
-      const [newUser] = await db
-        .insert(usersTable)
-        .values({
-          churchId: newChurch.id,
-          email,
-          firstName,
-          lastName,
-          role: "admin",
-          adminLevel: "super_admin",
-          accountStatus: "active",
-          isActive: true,
-          clerkUserId,
-          memberStatus: "active_member",
-          profileStatus: "approved_member",
-        })
-        .returning({ id: usersTable.id, isActive: usersTable.isActive, accountStatus: usersTable.accountStatus });
-
-      await db.insert(adminPermissionsTable).values(
-        SUPER_ADMIN_PERMISSIONS.map((permission) => ({ userId: newUser.id, permission })),
-      );
-
-      localUser = { id: newUser.id, isActive: newUser.isActive, accountStatus: newUser.accountStatus };
+      res.status(403).json({ error: "No account found for this identity. Contact your church administrator to be added." });
+      return;
     }
   }
 
