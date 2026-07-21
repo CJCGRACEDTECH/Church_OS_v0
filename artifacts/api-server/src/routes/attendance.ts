@@ -524,34 +524,60 @@ router.post("/attendance/qr/:token/guest-check-in", async (req, res): Promise<vo
 
   const normalizedEmail = email.toLowerCase().trim();
 
+  // Only match existing visitor/pending records — never reuse active member or admin rows.
+  // This prevents unauthenticated callers from recording attendance on behalf of real church
+  // members or admins by submitting a known email or phone number.
   let visitor = (await db.select().from(usersTable).where(
-    and(eq(usersTable.churchId, session.churchId), eq(usersTable.email, normalizedEmail)),
+    and(
+      eq(usersTable.churchId, session.churchId),
+      eq(usersTable.email, normalizedEmail),
+      eq(usersTable.memberStatus, "visitor"),
+    ),
   ))[0];
 
   if (!visitor && phone) {
     const phoneMatches = await db.select().from(usersTable).where(
-      and(eq(usersTable.churchId, session.churchId), eq(usersTable.phoneNumber, phone)),
+      and(
+        eq(usersTable.churchId, session.churchId),
+        eq(usersTable.phoneNumber, phone),
+        eq(usersTable.memberStatus, "visitor"),
+      ),
     );
     if (phoneMatches.length === 1) visitor = phoneMatches[0];
   }
 
   if (!visitor) {
-    [visitor] = await db.insert(usersTable).values({
-      churchId: session.churchId,
-      email: normalizedEmail,
-      firstName,
-      lastName,
-      phoneNumber: phone,
-      role: "member",
-      memberStatus: "visitor",
-      profileStatus: "visitor",
-      accountStatus: "pending",
-      isActive: false,
-      firstTimeVisitor: true,
-    }).returning();
+    try {
+      [visitor] = await db.insert(usersTable).values({
+        churchId: session.churchId,
+        email: normalizedEmail,
+        firstName,
+        lastName,
+        phoneNumber: phone,
+        role: "member",
+        memberStatus: "visitor",
+        profileStatus: "visitor",
+        accountStatus: "pending",
+        isActive: false,
+        firstTimeVisitor: true,
+      }).returning();
+    } catch (err: unknown) {
+      // Only swallow unique-constraint violations (PostgreSQL error code 23505).
+      // These occur when the submitted email already belongs to a non-visitor church user
+      // that was correctly excluded by the visitor-only lookup above.
+      // Rethrow everything else so real DB failures surface as 5xx errors.
+      const pgCode = err != null && typeof err === "object" && "code" in err
+        ? (err as Record<string, unknown>).code
+        : undefined;
+      if (pgCode !== "23505") throw err;
+      // Return the same generic shape used for every success path so callers cannot
+      // infer whether the email belongs to an existing church account (enumeration prevention).
+      res.status(201).json({ message: "Check-in recorded." });
+      return;
+    }
   }
 
-  const [record] = await db.insert(attendanceRecordsTable).values({
+  await db.insert(attendanceRecordsTable).values({
     sessionId: session.id,
     memberId: visitor.id,
     attendanceStatus: "present",
@@ -560,9 +586,11 @@ router.post("/attendance/qr/:token/guest-check-in", async (req, res): Promise<vo
   }).onConflictDoUpdate({
     target: [attendanceRecordsTable.sessionId, attendanceRecordsTable.memberId],
     set: { attendanceStatus: "present", checkinSource: "qr_self_checkin", checkinTime: new Date() },
-  }).returning();
+  });
 
-  res.status(201).json({ record: serializeRecord(record, { firstName: visitor.firstName, lastName: visitor.lastName, email: visitor.email }) });
+  // All success paths return the same opaque message so callers cannot distinguish
+  // between a brand-new visitor and a returning visitor record (prevents enumeration).
+  res.status(201).json({ message: "Check-in recorded." });
 });
 
 export default router;
