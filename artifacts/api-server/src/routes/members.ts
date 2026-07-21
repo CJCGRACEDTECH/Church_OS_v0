@@ -9,7 +9,7 @@ import {
   parentGuardiansTable,
   usersTable,
 } from "@workspace/db";
-import { ADMIN_PERMISSIONS } from "../lib/admin-permissions";
+import { ADMIN_PERMISSIONS, getStoredAdminPermissions, isAdminLevel } from "../lib/admin-permissions";
 import { requireAdminPermission } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -84,6 +84,28 @@ function serializeMember(user: typeof usersTable.$inferSelect) {
     accountStatus: user.accountStatus,
     invitedAt: user.invitedAt ? user.invitedAt.toISOString() : null,
     inviteAcceptedAt: user.inviteAcceptedAt ? user.inviteAcceptedAt.toISOString() : null,
+    createdAt: user.createdAt.toISOString(),
+    updatedAt: user.updatedAt.toISOString(),
+  };
+}
+
+function serializeDirectoryMember(user: typeof usersTable.$inferSelect) {
+  const discipleshipParticipant = Boolean(user.smallGroup && user.smallGroup.toLowerCase().includes("[disciple]"));
+  return {
+    id: user.id,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    preferredName: user.preferredName,
+    profilePhotoUrl: user.profilePhotoUrl,
+    email: user.email,
+    phoneNumber: user.phoneNumber,
+    memberStatus: user.memberStatus,
+    ministryDepartment: user.ministryDepartment,
+    joinDate: user.joinDate,
+    baptismStatus: user.baptismStatus,
+    smallGroup: user.smallGroup,
+    discipleshipParticipant,
+    servingStatus: user.servingStatus,
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
   };
@@ -173,6 +195,16 @@ router.get("/admin/members", requireDirectoryAccess, async (req, res): Promise<v
     return;
   }
 
+  const [requester] = await db
+    .select({ adminLevel: usersTable.adminLevel })
+    .from(usersTable)
+    .where(eq(usersTable.id, req.localUserId));
+  const requesterPermissions = await getStoredAdminPermissions(
+    req.localUserId,
+    isAdminLevel(requester?.adminLevel) ? requester.adminLevel : null,
+  );
+  const hasProfileAccess = requesterPermissions.includes(ADMIN_PERMISSIONS.MEMBER_PROFILES);
+
   const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
   const memberStatus = typeof req.query.memberStatus === "string" ? req.query.memberStatus : "";
   const ministryDepartment = typeof req.query.ministryDepartment === "string" ? req.query.ministryDepartment : "";
@@ -207,7 +239,7 @@ router.get("/admin/members", requireDirectoryAccess, async (req, res): Promise<v
   const departments = Array.from(new Set(members.map((member) => member.ministryDepartment).filter(Boolean))).filter(isVisibleMinistryDepartment).sort();
 
   res.json({
-    members: members.map(serializeMember),
+    members: members.map(hasProfileAccess ? serializeMember : serializeDirectoryMember),
     filters: { ministryDepartments: departments },
   });
 });

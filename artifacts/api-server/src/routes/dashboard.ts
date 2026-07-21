@@ -66,6 +66,12 @@ router.get("/admin/dashboard/summary", requireRole("admin"), async (req, res): P
     return;
   }
 
+  const canSeeGiving = requesterPermissions.includes(ADMIN_PERMISSIONS.GIVING_MANAGEMENT)
+    || requesterPermissions.includes(ADMIN_PERMISSIONS.GIVING_SUMMARY);
+  const canSeeMembers = requesterPermissions.includes(ADMIN_PERMISSIONS.MEMBER_DIRECTORY);
+  const canSeeAttendance = requesterPermissions.includes(ADMIN_PERMISSIONS.ATTENDANCE_MANAGEMENT);
+  const canSeeChildren = requesterPermissions.includes(ADMIN_PERMISSIONS.ATTENDANCE_CHECKIN);
+
   const churchId = await getChurchId(req.localUserId);
   if (!churchId) { res.status(401).json({ error: "Requester not found." }); return; }
 
@@ -91,65 +97,93 @@ router.get("/admin/dashboard/summary", requireRole("admin"), async (req, res): P
     recentNewMembers,
     [givingSettingsRow],
   ] = await Promise.all([
-    db.select({ c: count() }).from(usersTable).where(and(
-      eq(usersTable.churchId, churchId),
-      eq(usersTable.role, "member"),
-      inArray(usersTable.memberStatus, ["member", "active_member"]),
-    )),
-    db.select({ c: count() }).from(usersTable).where(and(
-      eq(usersTable.churchId, churchId),
-      eq(usersTable.role, "member"),
-      inArray(usersTable.memberStatus, ["member", "active_member"]),
-      gte(usersTable.createdAt, thirtyDaysAgo),
-    )),
-    db.select({ c: count() }).from(usersTable).where(and(eq(usersTable.churchId, churchId), eq(usersTable.role, "member"), eq(usersTable.memberStatus, "visitor"))),
-    db.select({
-      id: usersTable.id,
-      memberStatus: usersTable.memberStatus,
-      servingStatus: usersTable.servingStatus,
-    }).from(usersTable).where(and(
-      eq(usersTable.churchId, churchId),
-      eq(usersTable.role, "member"),
-      inArray(usersTable.memberStatus, ["member", "active_member"]),
-    )),
-    db.select({ amountCents: donationsTable.amountCents, donationDate: donationsTable.donationDate })
-      .from(donationsTable)
-      .where(and(
-        eq(donationsTable.churchId, churchId),
-        eq(donationsTable.paymentStatus, "succeeded"),
-        gte(donationsTable.donationDate, yearStart),
-      )),
-    db.select({ c: count() }).from(givingCampaignsTable).where(and(eq(givingCampaignsTable.churchId, churchId), eq(givingCampaignsTable.status, "active"))),
-    db.select({ c: count() }).from(checkinRecordsTable).innerJoin(childrenTable, eq(checkinRecordsTable.childId, childrenTable.id)).where(and(eq(childrenTable.churchId, churchId), eq(checkinRecordsTable.status, "active"), gte(checkinRecordsTable.checkinTime, startOfToday), isNull(checkinRecordsTable.checkoutTime))),
-    db.select({ c: count() }).from(childrenTable).where(eq(childrenTable.churchId, churchId)),
-    db.select({
-      id: attendanceSessionsTable.id,
-      sessionName: attendanceSessionsTable.sessionName,
-      sessionDate: attendanceSessionsTable.sessionDate,
-      attendanceType: attendanceSessionsTable.attendanceType,
-    }).from(attendanceSessionsTable).where(and(eq(attendanceSessionsTable.churchId, churchId), eq(attendanceSessionsTable.attendanceType, "regular_service"))).orderBy(desc(attendanceSessionsTable.sessionDate)).limit(8),
-    db.select({
-      id: attendanceSessionsTable.id,
-      sessionName: attendanceSessionsTable.sessionName,
-      sessionDate: attendanceSessionsTable.sessionDate,
-      attendanceType: attendanceSessionsTable.attendanceType,
-    }).from(attendanceSessionsTable).where(and(eq(attendanceSessionsTable.churchId, churchId), eq(attendanceSessionsTable.attendanceType, "discipleship"))).orderBy(desc(attendanceSessionsTable.sessionDate)).limit(8),
-    db.select({ id: attendanceSessionsTable.id, sessionName: attendanceSessionsTable.sessionName, sessionDate: attendanceSessionsTable.sessionDate })
-      .from(attendanceSessionsTable).where(and(eq(attendanceSessionsTable.churchId, churchId), eq(attendanceSessionsTable.attendanceType, "regular_service"))).orderBy(desc(attendanceSessionsTable.sessionDate)).limit(8),
-    db.select({
-      childId: checkinRecordsTable.childId,
-      checkinTime: checkinRecordsTable.checkinTime,
-    })
-      .from(checkinRecordsTable)
-      .innerJoin(childrenTable, eq(checkinRecordsTable.childId, childrenTable.id))
-      .where(eq(childrenTable.churchId, churchId))
-      .orderBy(desc(checkinRecordsTable.checkinTime))
-      .limit(500),
-    db.select({ id: usersTable.id, firstName: usersTable.firstName, lastName: usersTable.lastName, memberStatus: usersTable.memberStatus, ministryDepartment: usersTable.ministryDepartment, createdAt: usersTable.createdAt })
-      .from(usersTable).where(and(eq(usersTable.churchId, churchId), eq(usersTable.role, "member"), gte(usersTable.createdAt, thirtyDaysAgo))).orderBy(desc(usersTable.createdAt)).limit(8),
-    db.select({ settings: systemSettingsTable.settings })
-      .from(systemSettingsTable)
-      .where(and(eq(systemSettingsTable.churchId, churchId), eq(systemSettingsTable.settingGroup, "giving"))),
+    canSeeMembers
+      ? db.select({ c: count() }).from(usersTable).where(and(
+          eq(usersTable.churchId, churchId),
+          eq(usersTable.role, "member"),
+          inArray(usersTable.memberStatus, ["member", "active_member"]),
+        ))
+      : Promise.resolve([{ c: 0 }]),
+    canSeeMembers
+      ? db.select({ c: count() }).from(usersTable).where(and(
+          eq(usersTable.churchId, churchId),
+          eq(usersTable.role, "member"),
+          inArray(usersTable.memberStatus, ["member", "active_member"]),
+          gte(usersTable.createdAt, thirtyDaysAgo),
+        ))
+      : Promise.resolve([{ c: 0 }]),
+    canSeeMembers
+      ? db.select({ c: count() }).from(usersTable).where(and(eq(usersTable.churchId, churchId), eq(usersTable.role, "member"), eq(usersTable.memberStatus, "visitor")))
+      : Promise.resolve([{ c: 0 }]),
+    canSeeAttendance
+      ? db.select({
+          id: usersTable.id,
+          memberStatus: usersTable.memberStatus,
+          servingStatus: usersTable.servingStatus,
+        }).from(usersTable).where(and(
+          eq(usersTable.churchId, churchId),
+          eq(usersTable.role, "member"),
+          inArray(usersTable.memberStatus, ["member", "active_member"]),
+        ))
+      : Promise.resolve([] as Array<{ id: number; memberStatus: typeof usersTable.$inferSelect.memberStatus; servingStatus: typeof usersTable.$inferSelect.servingStatus }>),
+    canSeeGiving
+      ? db.select({ amountCents: donationsTable.amountCents, donationDate: donationsTable.donationDate })
+          .from(donationsTable)
+          .where(and(
+            eq(donationsTable.churchId, churchId),
+            eq(donationsTable.paymentStatus, "succeeded"),
+            gte(donationsTable.donationDate, yearStart),
+          ))
+      : Promise.resolve([] as Array<{ amountCents: number; donationDate: Date }>),
+    canSeeGiving
+      ? db.select({ c: count() }).from(givingCampaignsTable).where(and(eq(givingCampaignsTable.churchId, churchId), eq(givingCampaignsTable.status, "active")))
+      : Promise.resolve([{ c: 0 as number }]),
+    canSeeChildren
+      ? db.select({ c: count() }).from(checkinRecordsTable).innerJoin(childrenTable, eq(checkinRecordsTable.childId, childrenTable.id)).where(and(eq(childrenTable.churchId, churchId), eq(checkinRecordsTable.status, "active"), gte(checkinRecordsTable.checkinTime, startOfToday), isNull(checkinRecordsTable.checkoutTime)))
+      : Promise.resolve([{ c: 0 as number }]),
+    canSeeChildren
+      ? db.select({ c: count() }).from(childrenTable).where(eq(childrenTable.churchId, churchId))
+      : Promise.resolve([{ c: 0 as number }]),
+    canSeeAttendance
+      ? db.select({
+          id: attendanceSessionsTable.id,
+          sessionName: attendanceSessionsTable.sessionName,
+          sessionDate: attendanceSessionsTable.sessionDate,
+          attendanceType: attendanceSessionsTable.attendanceType,
+        }).from(attendanceSessionsTable).where(and(eq(attendanceSessionsTable.churchId, churchId), eq(attendanceSessionsTable.attendanceType, "regular_service"))).orderBy(desc(attendanceSessionsTable.sessionDate)).limit(8)
+      : Promise.resolve([] as Array<{ id: number; sessionName: string; sessionDate: Date; attendanceType: typeof attendanceSessionsTable.$inferSelect.attendanceType }>),
+    canSeeAttendance
+      ? db.select({
+          id: attendanceSessionsTable.id,
+          sessionName: attendanceSessionsTable.sessionName,
+          sessionDate: attendanceSessionsTable.sessionDate,
+          attendanceType: attendanceSessionsTable.attendanceType,
+        }).from(attendanceSessionsTable).where(and(eq(attendanceSessionsTable.churchId, churchId), eq(attendanceSessionsTable.attendanceType, "discipleship"))).orderBy(desc(attendanceSessionsTable.sessionDate)).limit(8)
+      : Promise.resolve([] as Array<{ id: number; sessionName: string; sessionDate: Date; attendanceType: typeof attendanceSessionsTable.$inferSelect.attendanceType }>),
+    canSeeGiving
+      ? db.select({ id: attendanceSessionsTable.id, sessionName: attendanceSessionsTable.sessionName, sessionDate: attendanceSessionsTable.sessionDate })
+          .from(attendanceSessionsTable).where(and(eq(attendanceSessionsTable.churchId, churchId), eq(attendanceSessionsTable.attendanceType, "regular_service"))).orderBy(desc(attendanceSessionsTable.sessionDate)).limit(8)
+      : Promise.resolve([] as Array<{ id: number; sessionName: string; sessionDate: Date }>),
+    canSeeChildren
+      ? db.select({
+          childId: checkinRecordsTable.childId,
+          checkinTime: checkinRecordsTable.checkinTime,
+        })
+          .from(checkinRecordsTable)
+          .innerJoin(childrenTable, eq(checkinRecordsTable.childId, childrenTable.id))
+          .where(eq(childrenTable.churchId, churchId))
+          .orderBy(desc(checkinRecordsTable.checkinTime))
+          .limit(500)
+      : Promise.resolve([] as Array<{ childId: number; checkinTime: Date }>),
+    canSeeMembers
+      ? db.select({ id: usersTable.id, firstName: usersTable.firstName, lastName: usersTable.lastName, memberStatus: usersTable.memberStatus, ministryDepartment: usersTable.ministryDepartment, createdAt: usersTable.createdAt })
+          .from(usersTable).where(and(eq(usersTable.churchId, churchId), eq(usersTable.role, "member"), gte(usersTable.createdAt, thirtyDaysAgo))).orderBy(desc(usersTable.createdAt)).limit(8)
+      : Promise.resolve([] as Array<{ id: number; firstName: string; lastName: string; memberStatus: typeof usersTable.$inferSelect.memberStatus; ministryDepartment: string | null; createdAt: Date }>),
+    canSeeGiving
+      ? db.select({ settings: systemSettingsTable.settings })
+          .from(systemSettingsTable)
+          .where(and(eq(systemSettingsTable.churchId, churchId), eq(systemSettingsTable.settingGroup, "giving")))
+      : Promise.resolve([undefined]),
   ]);
 
   const memberCount = memberRows.length;
@@ -372,27 +406,27 @@ router.get("/admin/dashboard/summary", requireRole("admin"), async (req, res): P
   }
 
   res.json({
-    totalMembers: Number(totalMembersRow?.c ?? 0),
-    activeMembers,
-    newMembersLast30Days: Number(newMembersRow?.c ?? 0),
-    visitors: Number(visitorsRow?.c ?? 0),
-    givingMtdCents,
-    givingYtdCents,
-    givingMonthlyGoalCents,
-    givingMonthlyGoalPercent,
-    activeCampaigns: Number(activeCampaignsRow?.c ?? 0),
-    checkedInChildren: Number(checkedInRow?.c ?? 0),
-    totalChildren,
-    childrenMinistryAttendance: {
+    totalMembers: canSeeMembers ? Number(totalMembersRow?.c ?? 0) : null,
+    activeMembers: canSeeMembers ? activeMembers : null,
+    newMembersLast30Days: canSeeMembers ? Number(newMembersRow?.c ?? 0) : null,
+    visitors: canSeeMembers ? Number(visitorsRow?.c ?? 0) : null,
+    givingMtdCents: canSeeGiving ? givingMtdCents : null,
+    givingYtdCents: canSeeGiving ? givingYtdCents : null,
+    givingMonthlyGoalCents: canSeeGiving ? givingMonthlyGoalCents : null,
+    givingMonthlyGoalPercent: canSeeGiving ? givingMonthlyGoalPercent : null,
+    activeCampaigns: canSeeGiving ? Number(activeCampaignsRow?.c ?? 0) : null,
+    checkedInChildren: canSeeChildren ? Number(checkedInRow?.c ?? 0) : null,
+    totalChildren: canSeeChildren ? totalChildren : null,
+    childrenMinistryAttendance: canSeeChildren ? {
       averageCheckedIn: averageChildrenCheckedIn,
       attendanceRate: childrenAttendanceRate,
       latestCheckedIn: latestChildrenAttendance,
       totalRegistered: totalChildren,
-    },
-    attendanceRateLast4,
-    attendanceTrend,
-    givingTrend,
-    regularServiceAttendance: {
+    } : null,
+    attendanceRateLast4: canSeeAttendance ? attendanceRateLast4 : null,
+    attendanceTrend: canSeeAttendance ? attendanceTrend : null,
+    givingTrend: canSeeGiving ? givingTrend : null,
+    regularServiceAttendance: canSeeAttendance ? {
       averagePerSession: regularAveragePerSession,
       averageAttendanceRate: regularAverageAttendanceRate,
       latestSessionCount: latestRegularCount,
@@ -405,8 +439,8 @@ router.get("/admin/dashboard/summary", requireRole("admin"), async (req, res): P
         attendanceRate: memberCount > 0 ? Math.round((session.present / memberCount) * 100) : 0,
         breakdown: session.breakdown,
       })),
-    },
-    discipleshipAttendance: {
+    } : null,
+    discipleshipAttendance: canSeeAttendance ? {
       totalTaggedDisciples,
       latestCheckedIn,
       latestAttendanceRate,
@@ -419,18 +453,18 @@ router.get("/admin/dashboard/summary", requireRole("admin"), async (req, res): P
         totalTaggedDisciples: session.totalTaggedDisciples,
         attendanceRate: session.attendanceRate,
       })),
-    },
-    givingByService: {
+    } : null,
+    givingByService: canSeeGiving ? {
       last8RegularServices: givingByServiceLast8,
-    },
-    recentNewMembers: recentNewMembers.map((m) => ({
+    } : null,
+    recentNewMembers: canSeeMembers ? recentNewMembers.map((m) => ({
       id: m.id,
       firstName: m.firstName,
       lastName: m.lastName,
       memberStatus: m.memberStatus,
       ministryDepartment: m.ministryDepartment,
       createdAt: m.createdAt.toISOString(),
-    })),
+    })) : null,
     lastUpdated: now.toISOString(),
   });
 });

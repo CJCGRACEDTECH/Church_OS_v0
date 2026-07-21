@@ -113,38 +113,7 @@ router.get("/member/household", requireAuth, async (req, res): Promise<void> => 
     return;
   }
 
-  const hasFullAddress = !!(
-    member.streetAddress &&
-    member.city &&
-    member.state &&
-    member.zipCode
-  );
-
-  const householdMembers = hasFullAddress
-    ? await db
-      .select({
-        id: usersTable.id,
-        firstName: usersTable.firstName,
-        lastName: usersTable.lastName,
-        preferredName: usersTable.preferredName,
-        email: usersTable.email,
-        phoneNumber: usersTable.phoneNumber,
-        profilePhotoUrl: usersTable.profilePhotoUrl,
-        relationship: usersTable.emergencyContactRelationship,
-        memberStatus: usersTable.memberStatus,
-      })
-      .from(usersTable)
-      .where(and(
-        eq(usersTable.churchId, req.localChurchId),
-        eq(usersTable.role, "member"),
-        ne(usersTable.id, member.id),
-        eq(usersTable.streetAddress, member.streetAddress!),
-        eq(usersTable.city, member.city!),
-        eq(usersTable.state, member.state!),
-        eq(usersTable.zipCode, member.zipCode!),
-      ))
-      .orderBy(usersTable.lastName, usersTable.firstName)
-    : [];
+  const householdMembers: Array<{ id: number; firstName: string; lastName: string; preferredName: string | null; email: string; phoneNumber: string | null; profilePhotoUrl: string | null; relationship: string | null; memberStatus: typeof usersTable.$inferSelect.memberStatus }> = [];
 
   const linkedChildren = await db
     .select({
