@@ -14,7 +14,6 @@ export const ADMIN_ROUTES = {
   CHECK_IN: "/admin/check-in",
   GIVING: "/admin/giving",
   EVANGELISM: "/admin/evangelism",
-  SERMONS: "/admin/sermons",
   REPORTS: "/admin/reports",
   SETTINGS: "/admin/settings",
   ADMIN_MANAGEMENT: "/admin/admins",

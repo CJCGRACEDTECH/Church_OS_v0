@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "wouter";
-import { CalendarDays, BookOpen, HeartHandshake, ArrowRight } from "lucide-react";
+import { CalendarDays, HeartHandshake, ArrowRight } from "lucide-react";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -14,7 +14,6 @@ export default function HomePage() {
           <span className="text-white font-semibold text-base tracking-tight">CJC Church</span>
         </div>
         <div className="hidden md:flex items-center gap-6">
-          <Link href="/sermons" className="text-gray-400 text-sm hover:text-white transition-colors">Sermons</Link>
           <Link href="/events" className="text-gray-400 text-sm hover:text-white transition-colors">Events</Link>
           <Link href="/connect" className="text-gray-400 text-sm hover:text-white transition-colors">Connect</Link>
         </div>
@@ -63,14 +62,7 @@ export default function HomePage() {
 
       {/* Feature cards */}
       <section className="py-16 px-4 bg-gray-50">
-        <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <Link href="/sermons" className="group flex flex-col items-center text-center p-6 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all">
-            <div className="h-12 w-12 rounded-full bg-indigo-50 flex items-center justify-center mb-3 group-hover:bg-indigo-100 transition-colors">
-              <BookOpen className="h-6 w-6 text-indigo-600" />
-            </div>
-            <h3 className="font-semibold text-gray-900 mb-1">Sermons</h3>
-            <p className="text-sm text-gray-500">Watch and listen to recent messages from our pulpit.</p>
-          </Link>
+        <div className="max-w-2xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-6">
 
           <Link href="/events" className="group flex flex-col items-center text-center p-6 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all">
             <div className="h-12 w-12 rounded-full bg-indigo-50 flex items-center justify-center mb-3 group-hover:bg-indigo-100 transition-colors">

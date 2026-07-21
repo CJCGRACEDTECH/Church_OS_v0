@@ -12,7 +12,6 @@ import settingsRouter from "./settings";
 import memberHouseholdRouter from "./member-household";
 import publicOnboardingRouter from "./public-onboarding";
 import evangelismRouter from "./evangelism";
-import sermonsRouter from "./sermons";
 
 const router: IRouter = Router();
 
@@ -29,6 +28,5 @@ router.use(settingsRouter);
 router.use(memberHouseholdRouter);
 router.use(publicOnboardingRouter);
 router.use(evangelismRouter);
-router.use(sermonsRouter);
 
 export default router;

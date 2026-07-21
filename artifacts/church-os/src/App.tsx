@@ -14,7 +14,6 @@ import ConnectPage from "@/pages/connect";
 import RequestAccountPage from "@/pages/request-account";
 import { EvangelismContactPage, EvangelismQrPage } from "@/pages/evangelism-public";
 import PublicEventsPage from "@/pages/events-public";
-import PublicSermonsPage from "@/pages/sermons";
 
 import HomePage from "@/pages/home";
 import AdminDashboard from "@/pages/admin-dashboard";
@@ -26,7 +25,6 @@ import AdminAttendance from "@/pages/admin/attendance";
 import AdminCheckIn from "@/pages/admin/check-in";
 import AdminGiving from "@/pages/admin/giving";
 import AdminEvangelism from "@/pages/admin/evangelism";
-import AdminSermons from "@/pages/admin/sermons";
 import AdminSettings from "@/pages/admin/settings";
 import AdminInviteAccept from "@/pages/admin/invite-accept";
 
@@ -153,7 +151,7 @@ function AuthPageShell({ children }: { children: React.ReactNode }) {
           <span className="text-white font-semibold text-base tracking-tight">CJC Church</span>
         </div>
         <div className="hidden md:flex items-center gap-6">
-          {["Home", "About", "Sermons", "Events", "Connect"].map((item) => (
+          {["Home", "About", "Events", "Connect"].map((item) => (
             <a key={item} href="#" className="text-gray-400 text-sm hover:text-white transition-colors">{item}</a>
           ))}
         </div>
@@ -246,7 +244,6 @@ function Router() {
       <Route path="/connect" component={ConnectPage} />
       <Route path="/request-account" component={RequestAccountPage} />
       <Route path="/events" component={PublicEventsPage} />
-      <Route path="/sermons" component={PublicSermonsPage} />
       <Route path="/evangelism/e/:token/contact" component={EvangelismContactPage} />
       <Route path="/evangelism/e/:token/qr" component={EvangelismQrPage} />
 
@@ -266,7 +263,6 @@ function Router() {
       <Route path="/admin/evangelism/events/:id">{() => <AdminRoute component={AdminEvangelism} />}</Route>
       <Route path="/admin/evangelism/contacts">{() => <AdminRoute component={AdminEvangelism} />}</Route>
       <Route path="/admin/evangelism">{() => <AdminRoute component={AdminEvangelism} />}</Route>
-      <Route path="/admin/sermons">{() => <AdminRoute component={AdminSermons} />}</Route>
       <Route path="/admin/reports">{() => <Redirect to="/admin" />}</Route>
       <Route path="/admin/settings">{() => <AdminRoute component={AdminSettings} />}</Route>
       <Route path="/admin/admins">{() => <Redirect to="/admin/settings?section=admins" />}</Route>

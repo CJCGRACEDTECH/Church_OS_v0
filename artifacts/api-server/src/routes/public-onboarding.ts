@@ -1,11 +1,10 @@
-import { and, desc, eq, gte } from "drizzle-orm";
+import { and, eq, gte } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   churchesTable,
   db,
   eventsTable,
   householdUpdateRequestsTable,
-  sermonsTable,
   usersTable,
 } from "@workspace/db";
 import { calculateProfileCompletionPercent } from "../lib/onboarding";
@@ -326,40 +325,6 @@ router.get("/public/events", async (req, res): Promise<void> => {
       location: e.location,
       eventMode: e.eventMode,
       posterUrl: e.posterUrl,
-    })),
-  });
-});
-
-router.get("/public/sermons", async (req, res): Promise<void> => {
-  const church = await getDefaultChurch();
-  if (!church) {
-    res.json({ sermons: [] });
-    return;
-  }
-
-  const sermons = await db
-    .select()
-    .from(sermonsTable)
-    .where(
-      and(
-        eq(sermonsTable.churchId, church.id),
-        eq(sermonsTable.isPublished, true),
-      ),
-    )
-    .orderBy(desc(sermonsTable.sermonDate))
-    .limit(20);
-
-  res.json({
-    sermons: sermons.map((s) => ({
-      id: s.id,
-      title: s.title,
-      speakerName: s.speakerName,
-      seriesName: s.seriesName,
-      description: s.description,
-      youtubeVideoId: s.youtubeVideoId,
-      thumbnailUrl: `https://img.youtube.com/vi/${s.youtubeVideoId}/hqdefault.jpg`,
-      youtubeUrl: `https://www.youtube.com/watch?v=${s.youtubeVideoId}`,
-      sermonDate: s.sermonDate.toISOString(),
     })),
   });
 });
