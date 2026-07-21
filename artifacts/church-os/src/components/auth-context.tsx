@@ -50,36 +50,33 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function ClerkBackedAuthProvider({ children }: { children: ReactNode }) {
   const { isSignedIn, isLoaded: clerkLoaded } = useUser();
-  const { data: localUser, isLoading: localLoading, isFetching: localFetching, error: localError } = useGetMe();
+  const { data: localUser, isLoading: localLoading, error: localError } = useGetMe();
   const { signOut } = useClerk();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
 
-  // A 401 right after OAuth is transient — Clerk is still propagating the JWT.
-  // Hold the loading state while React Query is actively fetching/retrying so
-  // HomeRoute doesn't redirect to /sign-in and create a loop.
-  // Once all retries are exhausted (localFetching=false) treat it as a real
-  // error and fall through to the signout effect below.
+  // While Clerk says the user IS signed in, any error other than 403 is treated
+  // as transient — keep showing the loading spinner rather than redirecting to
+  // /sign-in. Reasons:
+  //   • 401 immediately after OAuth: normal gap while the JWT propagates (~1-5 s)
+  //   • Any future 401: Clerk automatically refreshes its short-lived tokens and
+  //     will set isSignedIn=false on its own if the session truly dies. We don't
+  //     need to sign out manually — that only creates redirect loops.
+  //   • 403: the only case where we must actively sign out (no local account).
   const errorStatus = localError ? (localError as { status?: number }).status : undefined;
-  const isTransientError = !!isSignedIn && !!localError && errorStatus !== 403 && (localLoading || localFetching);
+  const isTransientError = !!isSignedIn && !!localError && errorStatus !== 403;
   const isLoading = !clerkLoaded || (!!isSignedIn && (localLoading || isTransientError));
   const user = clerkLoaded && isSignedIn && localUser ? (localUser as LocalUser) : null;
 
-  // Sign the user out when:
-  //   • 403 — Clerk identity has no matching local account
-  //   • 401 after all retries exhausted — Clerk session is genuinely dead
-  // Do NOT sign out during active retries (localFetching=true): that window is
-  // the normal transient gap right after an OAuth redirect.
+  // Sign out only on 403 — Clerk identity exists but has no local DB account.
+  // (Clerk handles 401/session-expiry itself via token refresh + isSignedIn=false.)
   React.useEffect(() => {
-    const status = localError ? (localError as { status?: number }).status : undefined;
-    const retriesExhausted = !localLoading && !localFetching;
-    const isDeadSession = status === 403 || (status === 401 && retriesExhausted);
-    if (clerkLoaded && isSignedIn && retriesExhausted && isDeadSession) {
+    if (clerkLoaded && isSignedIn && !localLoading && errorStatus === 403) {
       void signOut().then(() => {
         queryClient.clear();
       });
     }
-  }, [clerkLoaded, isSignedIn, localLoading, localFetching, localError, signOut, queryClient]);
+  }, [clerkLoaded, isSignedIn, localLoading, errorStatus, signOut, queryClient]);
 
   const logout = () => {
     void signOut().then(() => {
