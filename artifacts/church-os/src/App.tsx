@@ -231,6 +231,11 @@ function MemberRoute({ component: C }: { component: React.ComponentType }) {
   return <ProtectedRoute component={C} allowedRoles={["member"]} />;
 }
 
+// Member pages that admins can also access (they are members of the church too)
+function AnyAuthRoute({ component: C }: { component: React.ComponentType }) {
+  return <ProtectedRoute component={C} allowedRoles={["admin", "member"]} />;
+}
+
 function Router() {
   return (
     <Switch>
@@ -270,13 +275,13 @@ function Router() {
       <Route path="/admin/settings">{() => <AdminRoute component={AdminSettings} />}</Route>
       <Route path="/admin/admins">{() => <Redirect to="/admin/settings?section=admins" />}</Route>
 
-      {/* Member routes */}
+      {/* Member routes — profile/give/services/household accessible to admins too */}
       <Route path="/member">{() => <MemberRoute component={MemberDashboard} />}</Route>
-      <Route path="/member/profile">{() => <MemberRoute component={MemberProfile} />}</Route>
-      <Route path="/member/household">{() => <MemberRoute component={MemberHousehold} />}</Route>
-      <Route path="/member/give">{() => <MemberRoute component={MemberGive} />}</Route>
-      <Route path="/member/services/:id">{() => <MemberRoute component={MemberServices} />}</Route>
-      <Route path="/member/services">{() => <MemberRoute component={MemberServices} />}</Route>
+      <Route path="/member/profile">{() => <AnyAuthRoute component={MemberProfile} />}</Route>
+      <Route path="/member/household">{() => <AnyAuthRoute component={MemberHousehold} />}</Route>
+      <Route path="/member/give">{() => <AnyAuthRoute component={MemberGive} />}</Route>
+      <Route path="/member/services/:id">{() => <AnyAuthRoute component={MemberServices} />}</Route>
+      <Route path="/member/services">{() => <AnyAuthRoute component={MemberServices} />}</Route>
       <Route path="/member/settings">{() => <Redirect to="/member/profile" />}</Route>
 
       <Route component={NotFound} />

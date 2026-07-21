@@ -9,6 +9,7 @@ import {
   CalendarDays,
   LogOut,
   Menu,
+  LayoutDashboard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -42,6 +43,17 @@ function SidebarNav() {
       </div>
 
       <div className="flex-1 overflow-y-auto py-4">
+        {user?.role === "admin" && (
+          <div className="px-3 pb-3">
+            <Link
+              href="/admin"
+              className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-blue-100/80 hover:text-white hover:bg-white/8 transition-colors border border-white/10"
+            >
+              <LayoutDashboard size={16} />
+              <span>Back to Admin Dashboard</span>
+            </Link>
+          </div>
+        )}
         <nav className="space-y-1 px-3">
           {NAV_ITEMS.map((item) => {
             const isActive = location === item.href;
@@ -77,7 +89,7 @@ function SidebarNav() {
             <p className="text-sm font-medium text-white truncate">
               {user?.firstName} {user?.lastName}
             </p>
-            <p className="text-xs text-blue-100/70 truncate">Member</p>
+            <p className="text-xs text-blue-100/70 truncate capitalize">{user?.role ?? "Member"}</p>
           </div>
         </div>
         <Button

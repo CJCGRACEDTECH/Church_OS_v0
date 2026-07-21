@@ -15,6 +15,7 @@ import {
   Inbox,
   Megaphone,
   PlayCircle,
+  UserCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -34,12 +35,14 @@ const NAV_ITEMS = [
   { label: "Evangelism", icon: Megaphone, href: ADMIN_ROUTES.EVANGELISM, permission: PERMISSIONS.EVENT_MANAGEMENT },
   { label: "Sermons", icon: PlayCircle, href: ADMIN_ROUTES.SERMONS, permission: PERMISSIONS.EVENT_MANAGEMENT },
   { label: "Settings", icon: Settings, href: ADMIN_ROUTES.SETTINGS, permission: PERMISSIONS.SYSTEM_SETTINGS },
+  { label: "My Member Profile", icon: UserCircle2, href: "/member/profile", memberPortal: true },
 ] satisfies Array<{
   label: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
   href: string;
   permission?: Permission;
   superAdminOnly?: boolean;
+  memberPortal?: boolean;
 }>;
 
 function SidebarNav() {
@@ -67,28 +70,33 @@ function SidebarNav() {
           {NAV_ITEMS.filter((item) => {
             if (isChildrenMinistryOnly && item.href === ADMIN_ROUTES.DASHBOARD) return false;
             if (item.superAdminOnly && user?.adminLevel !== "super_admin") return false;
+            if (item.memberPortal) return true;
             if (!item.permission) return true;
             return hasPermission("admin", item.permission, user?.adminPermissions);
-          }).map((item) => {
+          }).map((item, idx, arr) => {
             const isActive =
               item.href === "/admin"
                 ? location === item.href
                 : location === item.href || location.startsWith(item.href + "/");
+            const prevItem = arr[idx - 1];
+            const showDivider = item.memberPortal && prevItem && !prevItem.memberPortal;
             return (
-              <Link
-                key={item.label}
-                href={item.href}
-                className={`flex items-center justify-between px-3 py-2 rounded-md font-medium text-sm transition-colors ${
-                  isActive
-                    ? "bg-white/15 text-white"
-                    : "text-blue-100/80 hover:text-white hover:bg-white/8"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <item.icon size={18} className={isActive ? "text-[#D4AF37]" : ""} />
-                  <span>{item.label}</span>
-                </div>
-              </Link>
+              <React.Fragment key={item.label}>
+                {showDivider && <div className="my-2 border-t border-white/10" />}
+                <Link
+                  href={item.href}
+                  className={`flex items-center justify-between px-3 py-2 rounded-md font-medium text-sm transition-colors ${
+                    isActive
+                      ? "bg-white/15 text-white"
+                      : "text-blue-100/80 hover:text-white hover:bg-white/8"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <item.icon size={18} className={isActive ? "text-[#D4AF37]" : ""} />
+                    <span>{item.label}</span>
+                  </div>
+                </Link>
+              </React.Fragment>
             );
           })}
         </nav>
