@@ -14,6 +14,12 @@ import ConnectPage from "@/pages/connect";
 import RequestAccountPage from "@/pages/request-account";
 import { EvangelismContactPage, EvangelismQrPage } from "@/pages/evangelism-public";
 
+import HomePage from "@/pages/home";
+import AboutPage from "@/pages/about";
+import SermonsPage from "@/pages/sermons";
+import EventsPublicPage from "@/pages/events-public";
+import GivingPublicPage from "@/pages/giving-public";
+
 import AdminDashboard from "@/pages/admin-dashboard";
 import AdminProfile from "@/pages/admin/profile";
 import AdminMembers from "@/pages/admin/members";
@@ -56,9 +62,9 @@ const clerkAppearance = {
   theme: shadcn,
   cssLayerName: "clerk",
   options: {
-    logoPlacement: "none" as const,
+    logoPlacement: "inside" as const,
     logoLinkUrl: basePath || "/",
-    logoImageUrl: `${window.location.origin}${basePath}/cjc-logo.png`,
+    logoImageUrl: `${window.location.origin}${basePath}/cjc-logo.webp`,
     socialButtonsPlacement: "top" as const,
     socialButtonsVariant: "blockButton" as const,
   },
@@ -78,7 +84,7 @@ const clerkAppearance = {
     rootBox: "w-full flex justify-center",
     cardBox: "bg-white rounded-2xl shadow-xl w-[440px] max-w-full overflow-hidden border border-gray-100",
     card: "!shadow-none !border-0 !bg-transparent !rounded-none",
-    footer: "!shadow-none !border-0 !bg-transparent !rounded-none",
+    footer: "!hidden",
     headerTitle: "text-gray-900 font-semibold text-xl",
     headerSubtitle: "text-gray-500 text-sm",
     socialButtonsBlockButtonText: "text-gray-700 font-medium",
@@ -94,7 +100,8 @@ const clerkAppearance = {
     socialButtonsBlockButton: "border border-gray-200 hover:bg-gray-50 transition-colors",
     formButtonPrimary: "bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition-colors",
     formFieldInput: "border-gray-200 bg-gray-50 text-gray-900 focus:border-indigo-400 focus:ring-indigo-400",
-    footerAction: "bg-gray-50 border-t border-gray-100 px-6 py-4",
+    footerAction: "!hidden",
+    badge: "!hidden",
     dividerLine: "bg-gray-200",
     alert: "bg-red-50 border border-red-200 rounded-lg",
     otpCodeFieldInput: "border-gray-200 bg-gray-50 text-gray-900",
@@ -122,7 +129,7 @@ function ClerkQueryClientCacheInvalidator() {
   return null;
 }
 
-function HomeRedirect() {
+function HomeRoute() {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
@@ -133,9 +140,9 @@ function HomeRedirect() {
     );
   }
 
-  if (!user) return <Redirect to="/sign-in" />;
-  if (user.role === "admin") return <Redirect to="/admin" />;
-  return <Redirect to="/member" />;
+  if (user?.role === "admin") return <Redirect to="/admin" />;
+  if (user?.role === "member") return <Redirect to="/member" />;
+  return <HomePage />;
 }
 
 function AuthPageShell({ children }: { children: React.ReactNode }) {
@@ -172,19 +179,22 @@ function SignInPage() {
   return (
     <AuthPageShell>
       <div className="flex flex-col items-center">
-        <SignIn
-          routing="path"
-          path={`${basePath}/sign-in`}
-          signUpUrl={`${basePath}/sign-up`}
-          fallbackRedirectUrl={basePath || "/"}
-        />
-        <div className="w-[440px] max-w-full mt-3 flex flex-col items-center gap-2 rounded-2xl border border-gray-100 bg-white px-6 py-4 shadow-xl">
-          <Link href="/request-account" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
-            Already a member? Request account access
-          </Link>
-          <Link href="/connect" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
-            New here? Connect with us
-          </Link>
+        <div className="bg-white rounded-2xl shadow-xl w-[440px] max-w-full overflow-hidden border border-gray-100">
+          <SignIn
+            routing="path"
+            path={`${basePath}/sign-in`}
+            signUpUrl={`${basePath}/sign-up`}
+            fallbackRedirectUrl={basePath || "/"}
+            appearance={{ elements: { cardBox: "!shadow-none !border-0 !rounded-none w-full", rootBox: "w-full" } }}
+          />
+          <div className="border-t border-gray-100 bg-gray-50 px-6 py-4 flex flex-col items-center gap-2">
+            <Link href="/request-account" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
+              Already a member? Request account access
+            </Link>
+            <Link href="/connect" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
+              New here? Connect with us
+            </Link>
+          </div>
         </div>
       </div>
     </AuthPageShell>
@@ -224,7 +234,13 @@ function Router() {
       <Route path="/sign-in/*?" component={SignInPage} />
       <Route path="/sign-up/*?" component={SignUpPage} />
 
-      <Route path="/" component={HomeRedirect} />
+      {/* Public website pages */}
+      <Route path="/" component={HomeRoute} />
+      <Route path="/about" component={AboutPage} />
+      <Route path="/sermons" component={SermonsPage} />
+      <Route path="/events" component={EventsPublicPage} />
+      <Route path="/giving" component={GivingPublicPage} />
+
       <Route path="/unauthorized" component={Unauthorized} />
       <Route path="/attendance/check-in/:token" component={AttendanceCheckIn} />
       <Route path="/admin/invite/:token" component={AdminInviteAccept} />

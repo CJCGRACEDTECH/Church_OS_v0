@@ -1,8 +1,9 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, gte } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   churchesTable,
   db,
+  eventsTable,
   householdUpdateRequestsTable,
   usersTable,
 } from "@workspace/db";
@@ -288,6 +289,43 @@ router.post("/public/account-request", async (req, res): Promise<void> => {
       firstName,
       churchName: church.name,
     },
+  });
+});
+
+router.get("/public/events", async (req, res): Promise<void> => {
+  const church = await getDefaultChurch();
+  if (!church) {
+    res.json({ events: [] });
+    return;
+  }
+
+  const now = new Date();
+  const events = await db
+    .select()
+    .from(eventsTable)
+    .where(
+      and(
+        eq(eventsTable.churchId, church.id),
+        eq(eventsTable.visibility, "public"),
+        eq(eventsTable.status, "published"),
+        gte(eventsTable.endDatetime, now),
+      ),
+    )
+    .orderBy(eventsTable.startDatetime)
+    .limit(20);
+
+  res.json({
+    events: events.map((e) => ({
+      id: e.id,
+      title: e.title,
+      eventType: e.eventType,
+      description: e.description,
+      startDatetime: e.startDatetime.toISOString(),
+      endDatetime: e.endDatetime.toISOString(),
+      location: e.location,
+      eventMode: e.eventMode,
+      posterUrl: e.posterUrl,
+    })),
   });
 });
 

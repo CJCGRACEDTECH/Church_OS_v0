@@ -206,3 +206,13 @@
     @apply font-sans antialiased bg-background text-foreground;
   }
 }
+
+/* Hide Clerk development mode badge */
+.cl-badge,
+[class*="cl-badge"],
+[data-localization-key="badge__dev"],
+.cl-internal-badge,
+[class*="developmentBadge"],
+[class*="devBadge"] {
+  display: none !important;
+}
