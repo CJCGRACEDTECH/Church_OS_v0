@@ -4,7 +4,7 @@
 
 Church OS is a TypeScript monorepo with a React/Vite frontend (`artifacts/church-os`) and an Express 5 API (`artifacts/api-server`) backed by PostgreSQL via Drizzle. Clerk provides production authentication and identity, while the application stores church membership, roles, permissions, giving, attendance, children check-in, settings, and admin invitations in its own database. The production trust model is multi-role (`admin` vs `member`) and the schema is also church-scoped (`churchId` appears across core domain tables), so scans must treat cross-church data isolation as a security boundary wherever shared tables exist.
 
-The mockup sandbox artifact is development-only and should be ignored unless production reachability is demonstrated. This repl is not currently deployed, but production analysis should assume Replit-managed TLS and `NODE_ENV=production`.
+The mockup sandbox artifact is development-only and should be ignored unless production reachability is demonstrated. The application is actively deployed publicly at `https://cjcchurch.replit.app`, so public routes should be treated as internet-exposed. Production analysis should assume Replit-managed TLS and `NODE_ENV=production`.
 
 ## Assets
 
