@@ -37,8 +37,24 @@ import {
   type GivingCategory,
   type GivingSummary,
   type PaymentStatus,
+  type UnmatchedDonation,
 } from "@/lib/giving";
-import { BadgeDollarSign, ChevronDown, Download, Megaphone, Pencil, Plus, Search, ShieldCheck, Trash2, Users } from "lucide-react";
+import { BadgeDollarSign, ChevronDown, Download, HandCoins, Inbox, Link2, Megaphone, Pencil, Plus, Search, ShieldCheck, Trash2, Trophy, Users, UserX } from "lucide-react";
+
+type ReportSummary = {
+  totalCents: number;
+  count: number;
+  donorsCount: number;
+  byCategory: { key: string; totalCents: number; count: number }[];
+  byMethod: { key: string; totalCents: number; count: number }[];
+};
+
+type TopDonorsReport = {
+  donors: { memberId: number; name: string; email: string | null; totalCents: number; giftCount: number; lastGiftDate: string }[];
+  unattributed: { totalCents: number; count: number };
+};
+
+type MemberOption = { id: number; firstName: string; lastName: string; email: string };
 
 type CampaignForm = {
   campaignName: string;
@@ -62,7 +78,7 @@ const emptyCampaignForm: CampaignForm = {
   description: "",
   goalAmount: "10000",
   status: "active",
-  campaignCategory: "Gift/Offering",
+  campaignCategory: "Giftings",
   campaignImageUrl: "",
   startDate: new Date().toISOString().slice(0, 10),
   endDate: "",
@@ -101,6 +117,7 @@ export default function AdminGiving() {
   const [toDate, setToDate] = React.useState(`${thisYear}-12-31`);
   const [category, setCategory] = React.useState("");
   const [status, setStatus] = React.useState("");
+  const [method, setMethod] = React.useState("");
   const [campaignOpen, setCampaignOpen] = React.useState(false);
   const [campaignForm, setCampaignForm] = React.useState<CampaignForm>(emptyCampaignForm);
   const [campaignErrors, setCampaignErrors] = React.useState<CampaignErrors>({});
@@ -134,7 +151,7 @@ export default function AdminGiving() {
   });
 
   const donationsQuery = useQuery({
-    queryKey: ["admin-giving-donations", search, fromDate, toDate, category, status],
+    queryKey: ["admin-giving-donations", search, fromDate, toDate, category, status, method],
     queryFn: () => {
       const params = new URLSearchParams();
       if (search.trim()) params.set("search", search.trim());
@@ -142,6 +159,7 @@ export default function AdminGiving() {
       if (toDate) params.set("toDate", toDate);
       if (category) params.set("category", category);
       if (status) params.set("status", status);
+      if (method) params.set("method", method);
       return apiJson<{ donations: Donation[] }>(`/admin/giving/donations?${params}`);
     },
   });
@@ -280,6 +298,11 @@ export default function AdminGiving() {
               <Button variant="outline" onClick={exportCsv}>
                 <Download className="mr-2 h-4 w-4" /> Export CSV
               </Button>
+              <RecordDonationDialog campaigns={campaigns} onRecorded={() => {
+                void queryClient.invalidateQueries({ queryKey: ["admin-giving-donations"] });
+                void queryClient.invalidateQueries({ queryKey: ["admin-giving-summary"] });
+                void queryClient.invalidateQueries({ queryKey: ["admin-giving-reports"] });
+              }} />
               <Dialog open={campaignOpen} onOpenChange={setCampaignOpen}>
                 <DialogTrigger asChild><Button onClick={openNewCampaign}><Plus className="mr-2 h-4 w-4" /> New Campaign</Button></DialogTrigger>
                 <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
@@ -320,6 +343,10 @@ export default function AdminGiving() {
             </>
           )}
         </div>
+
+        <GivingReportsCard />
+
+        <UnmatchedQueueCard />
 
         <Card>
           <CardHeader>
@@ -407,7 +434,7 @@ export default function AdminGiving() {
             </CardHeader>
             <CollapsibleContent>
               <CardContent className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-[1fr_160px_160px_180px_160px]">
+            <div className="grid gap-3 md:grid-cols-[1fr_150px_150px_170px_140px_150px]">
               <div className="relative">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input className="pl-9" placeholder="Search donor name or email" value={search} onChange={(event) => setSearch(event.target.value)} />
@@ -416,9 +443,10 @@ export default function AdminGiving() {
               <Input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} title="To date" />
               <select value={category} onChange={(event) => setCategory(event.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
                 <option value="">All categories</option>
+                <option value="love_offering">Love Offering</option>
                 <option value="tithe">Tithe</option>
-                <option value="offering">Gift/Offering</option>
-                <option value="building_fund">Building Fund</option>
+                <option value="kingdom_commitment">Kingdom Commitment</option>
+                <option value="giftings">Giftings</option>
               </select>
               <select value={status} onChange={(event) => setStatus(event.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
                 <option value="">All statuses</option>
@@ -426,6 +454,17 @@ export default function AdminGiving() {
                 <option value="succeeded">Succeeded</option>
                 <option value="failed">Failed</option>
                 <option value="refunded">Refunded</option>
+                <option value="disputed">Disputed</option>
+              </select>
+              <select value={method} onChange={(event) => setMethod(event.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+                <option value="">All methods</option>
+                <option value="stripe">Card (Stripe)</option>
+                <option value="cash_app">Cash App</option>
+                <option value="paypal">PayPal</option>
+                <option value="square">Square</option>
+                <option value="venmo">Venmo</option>
+                <option value="zelle">Zelle</option>
+                <option value="manual">Manual</option>
               </select>
             </div>
             <div className="rounded-md border">
@@ -436,6 +475,7 @@ export default function AdminGiving() {
                     <TableHead>Date</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Method</TableHead>
                     <TableHead>Payment Type</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
                   </TableRow>
@@ -448,6 +488,7 @@ export default function AdminGiving() {
                         <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                         <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                         <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-14" /></TableCell>
                         <TableCell><Skeleton className="h-4 w-6" /></TableCell>
                         <TableCell><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
                       </TableRow>
@@ -462,13 +503,14 @@ export default function AdminGiving() {
                         <TableCell>{formatDate(donation.donationDate)}</TableCell>
                         <TableCell>{labelize(donation.givingCategory)}</TableCell>
                         <TableCell><Badge variant={statusVariant(donation.paymentStatus)}>{labelize(donation.paymentStatus)}</Badge></TableCell>
+                        <TableCell>{labelize(donation.paymentMethod ?? "stripe")}</TableCell>
                         <TableCell>{labelize(donation.donationType)}</TableCell>
                         <TableCell className="text-right font-medium">{dollars(donation.amountCents)}</TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={6} className="py-12 text-center">
+                      <TableCell colSpan={7} className="py-12 text-center">
                         <div className="flex flex-col items-center gap-2">
                           <Users className="h-8 w-8 text-muted-foreground/40" />
                           <p className="font-medium text-muted-foreground">No donations recorded yet</p>
@@ -606,5 +648,597 @@ function CampaignFormView({
 }
 
 function statusVariant(status: PaymentStatus) {
-  return status === "succeeded" ? "default" : status === "failed" || status === "refunded" ? "destructive" : "secondary";
+  return status === "succeeded" ? "default" : status === "failed" || status === "refunded" || status === "disputed" ? "destructive" : "secondary";
+}
+
+const RECORDABLE_METHODS: { value: string; label: string }[] = [
+  { value: "manual", label: "Cash / Check" },
+  { value: "zelle", label: "Zelle" },
+  { value: "cash_app", label: "Cash App (direct)" },
+  { value: "venmo", label: "Venmo (direct)" },
+  { value: "paypal", label: "PayPal (direct)" },
+  { value: "square", label: "Square (offline record)" },
+  { value: "square_card", label: "In-Person Card (Square)" },
+];
+
+function RecordDonationDialog({ campaigns, onRecorded }: { campaigns: GivingCampaign[]; onRecorded: () => void }) {
+  const { toast } = useToast();
+  const [open, setOpen] = React.useState(false);
+  const [donorMode, setDonorMode] = React.useState<"member" | "visitor">("member");
+  const [memberSearch, setMemberSearch] = React.useState("");
+  const [selectedMember, setSelectedMember] = React.useState<MemberOption | null>(null);
+  const [visitorName, setVisitorName] = React.useState("");
+  const [amount, setAmount] = React.useState("");
+  const [category, setCategory] = React.useState<GivingCategory>("tithe");
+  const [payMethod, setPayMethod] = React.useState("manual");
+  const [donationDate, setDonationDate] = React.useState(new Date().toISOString().slice(0, 10));
+  const [campaignId, setCampaignId] = React.useState("");
+  const [note, setNote] = React.useState("");
+  const [taxDeductible, setTaxDeductible] = React.useState(true);
+  const [squareLink, setSquareLink] = React.useState<string | null>(null);
+  const [squareIntentId, setSquareIntentId] = React.useState<number | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const membersQuery = useQuery({
+    queryKey: ["record-donation-member-search", memberSearch],
+    queryFn: () => apiJson<{ members: MemberOption[] }>(`/admin/members?search=${encodeURIComponent(memberSearch)}`),
+    enabled: open && donorMode === "member" && memberSearch.trim().length >= 2 && !selectedMember,
+  });
+
+  const intentQuery = useQuery({
+    queryKey: ["record-donation-intent", squareIntentId],
+    queryFn: () => apiJson<{ intent: { id: number; status: string } }>(`/admin/giving/intents/${squareIntentId}`),
+    enabled: squareIntentId !== null,
+    refetchInterval: 3000,
+  });
+
+  React.useEffect(() => {
+    if (intentQuery.data?.intent.status === "completed") {
+      toast({ title: "Card payment received", description: "The donation has been recorded." });
+      setSquareIntentId(null);
+      setSquareLink(null);
+      setOpen(false);
+      onRecorded();
+    }
+  }, [intentQuery.data?.intent.status]);
+
+  function reset() {
+    setDonorMode("member");
+    setMemberSearch("");
+    setSelectedMember(null);
+    setVisitorName("");
+    setAmount("");
+    setCategory("tithe");
+    setPayMethod("manual");
+    setDonationDate(new Date().toISOString().slice(0, 10));
+    setCampaignId("");
+    setNote("");
+    setTaxDeductible(true);
+    setSquareLink(null);
+    setSquareIntentId(null);
+    setError(null);
+  }
+
+  const record = useMutation({
+    mutationFn: async () => {
+      const donor = donorMode === "member"
+        ? { memberId: selectedMember?.id }
+        : { donorName: visitorName.trim() || undefined };
+      if (payMethod === "square_card") {
+        return apiJson<{ setupRequired?: boolean; message?: string; intentId?: number; paymentUrl?: string }>("/admin/giving/in-person", {
+          method: "POST",
+          body: JSON.stringify({ ...donor, amount: Number(amount), givingCategory: category, campaignId: campaignId ? Number(campaignId) : undefined }),
+        });
+      }
+      return apiJson<{ donation: Donation }>("/admin/giving/donations", {
+        method: "POST",
+        body: JSON.stringify({
+          ...donor,
+          amount: Number(amount),
+          givingCategory: category,
+          paymentMethod: payMethod,
+          donationDate,
+          campaignId: campaignId ? Number(campaignId) : undefined,
+          note: note.trim() || undefined,
+          taxDeductible,
+        }),
+      });
+    },
+    onSuccess: (data: { setupRequired?: boolean; message?: string; intentId?: number; paymentUrl?: string; donation?: Donation }) => {
+      if (data.setupRequired) {
+        setError(data.message ?? "Square is not connected yet.");
+        return;
+      }
+      if (data.paymentUrl && data.intentId) {
+        setSquareLink(data.paymentUrl);
+        setSquareIntentId(data.intentId);
+        return;
+      }
+      toast({ title: "Donation recorded", description: "The gift was added to the giving ledger." });
+      setOpen(false);
+      reset();
+      onRecorded();
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+
+  function submit() {
+    setError(null);
+    const amountNumber = Number(amount);
+    if (!Number.isFinite(amountNumber) || amountNumber <= 0) { setError("Enter an amount greater than $0."); return; }
+    if (donorMode === "member" && !selectedMember) { setError("Select a member, or switch to Visitor / anonymous."); return; }
+    record.mutate();
+  }
+
+  const memberResults = membersQuery.data?.members ?? [];
+
+  return (
+    <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) reset(); }}>
+      <DialogTrigger asChild>
+        <Button variant="secondary"><HandCoins className="mr-2 h-4 w-4" /> Record Donation</Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Record a Donation</DialogTitle>
+          <DialogDescription>Log a gift received by cash, check, Zelle, direct app payment — or take an in-person card payment.</DialogDescription>
+        </DialogHeader>
+
+        {squareLink ? (
+          <div className="space-y-4">
+            <div className="rounded-md border border-blue-100 bg-blue-50/60 p-4 text-sm">
+              <p className="font-medium">Square payment page is ready.</p>
+              <p className="mt-1 text-muted-foreground">Open it on this device (or send it to the giver) to take the card payment. This dialog updates automatically when the payment completes.</p>
+            </div>
+            <Button asChild className="w-full">
+              <a href={squareLink} target="_blank" rel="noreferrer">Open Square payment page</a>
+            </Button>
+            <p className="text-center text-sm text-muted-foreground">Waiting for payment…</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-2">
+              <Button type="button" size="sm" variant={donorMode === "member" ? "default" : "outline"} onClick={() => setDonorMode("member")}>Member</Button>
+              <Button type="button" size="sm" variant={donorMode === "visitor" ? "default" : "outline"} onClick={() => { setDonorMode("visitor"); setSelectedMember(null); }}>Visitor / anonymous</Button>
+            </div>
+
+            {donorMode === "member" ? (
+              selectedMember ? (
+                <div className="flex items-center justify-between rounded-md border border-blue-100 bg-blue-50/50 px-3 py-2">
+                  <div>
+                    <p className="text-sm font-medium">{selectedMember.firstName} {selectedMember.lastName}</p>
+                    <p className="text-xs text-muted-foreground">{selectedMember.email}</p>
+                  </div>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => { setSelectedMember(null); setMemberSearch(""); }}>Change</Button>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <Label htmlFor="record-member-search">Find member</Label>
+                  <Input id="record-member-search" placeholder="Search by name, email, or phone" value={memberSearch} onChange={(event) => setMemberSearch(event.target.value)} />
+                  {memberSearch.trim().length >= 2 && (
+                    <div className="max-h-44 overflow-y-auto rounded-md border">
+                      {membersQuery.isLoading ? (
+                        <p className="px-3 py-2 text-sm text-muted-foreground">Searching…</p>
+                      ) : memberResults.length > 0 ? (
+                        memberResults.slice(0, 8).map((member) => (
+                          <button key={member.id} type="button" className="flex w-full flex-col px-3 py-2 text-left hover:bg-blue-50" onClick={() => setSelectedMember(member)}>
+                            <span className="text-sm font-medium">{member.firstName} {member.lastName}</span>
+                            <span className="text-xs text-muted-foreground">{member.email}</span>
+                          </button>
+                        ))
+                      ) : (
+                        <p className="px-3 py-2 text-sm text-muted-foreground">No members match that search.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            ) : (
+              <div className="space-y-1.5">
+                <Label htmlFor="record-visitor-name">Giver name (optional)</Label>
+                <Input id="record-visitor-name" placeholder="e.g. First-time visitor" value={visitorName} onChange={(event) => setVisitorName(event.target.value)} />
+              </div>
+            )}
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="record-amount">Amount (USD)</Label>
+                <Input id="record-amount" type="number" min="0.01" step="0.01" placeholder="100.00" value={amount} onChange={(event) => setAmount(event.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="record-method">Method</Label>
+                <select id="record-method" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" value={payMethod} onChange={(event) => setPayMethod(event.target.value)}>
+                  {RECORDABLE_METHODS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="record-category">Giving Type</Label>
+                <select id="record-category" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" value={category} onChange={(event) => setCategory(event.target.value as GivingCategory)}>
+                  <option value="love_offering">Love Offering</option>
+                  <option value="tithe">Tithe</option>
+                  <option value="kingdom_commitment">Kingdom Commitment</option>
+                  <option value="giftings">Giftings</option>
+                </select>
+              </div>
+              {payMethod !== "square_card" && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="record-date">Date received</Label>
+                  <Input id="record-date" type="date" value={donationDate} onChange={(event) => setDonationDate(event.target.value)} />
+                </div>
+              )}
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="record-campaign">Campaign (optional)</Label>
+                <select id="record-campaign" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" value={campaignId} onChange={(event) => setCampaignId(event.target.value)}>
+                  <option value="">No campaign</option>
+                  {campaigns.map((campaign) => (
+                    <option key={campaign.id} value={campaign.id}>{campaign.campaignName}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {payMethod !== "square_card" && (
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="record-note">Note (optional)</Label>
+                  <Input id="record-note" placeholder="e.g. Zelle memo, check number" value={note} onChange={(event) => setNote(event.target.value)} />
+                </div>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={taxDeductible} onChange={(event) => setTaxDeductible(event.target.checked)} />
+                  Tax deductible
+                </label>
+              </>
+            )}
+
+            {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+
+            <Button className="w-full" onClick={submit} disabled={record.isPending}>
+              {record.isPending ? "Saving…" : payMethod === "square_card" ? "Create card payment" : "Record donation"}
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function GivingReportsCard() {
+  const [month, setMonth] = React.useState(new Date().toISOString().slice(0, 7));
+  const [expanded, setExpanded] = React.useState(true);
+
+  const monthStart = `${month}-01`;
+  const monthEnd = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0).toISOString().slice(0, 10);
+
+  const summaryQuery = useQuery({
+    queryKey: ["admin-giving-reports", "summary", month],
+    queryFn: () => apiJson<ReportSummary>(`/admin/giving/reports/summary?from=${monthStart}&to=${monthEnd}`),
+  });
+  const topDonorsQuery = useQuery({
+    queryKey: ["admin-giving-reports", "top-donors", month],
+    queryFn: () => apiJson<TopDonorsReport>(`/admin/giving/reports/top-donors?from=${monthStart}&to=${monthEnd}&limit=10`),
+  });
+
+  const report = summaryQuery.data;
+  const topDonors = topDonorsQuery.data;
+
+  return (
+    <Collapsible open={expanded} onOpenChange={setExpanded}>
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <CollapsibleTrigger asChild>
+              <button type="button" className="flex items-start gap-2 text-left">
+                <Trophy className="mt-0.5 h-5 w-5 text-amber-500" />
+                <div>
+                  <CardTitle>Monthly Report &amp; Top Donors</CardTitle>
+                  <CardDescription>Totals by category and method, plus your most generous givers for the month.</CardDescription>
+                </div>
+                <ChevronDown className={`mt-1 h-4 w-4 text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`} />
+              </button>
+            </CollapsibleTrigger>
+            <Input type="month" className="w-44" value={month} onChange={(event) => event.target.value && setMonth(event.target.value)} aria-label="Report month" />
+          </div>
+        </CardHeader>
+        <CollapsibleContent>
+          <CardContent className="space-y-6">
+            {summaryQuery.isLoading ? (
+              <Skeleton className="h-24 w-full" />
+            ) : (
+              <>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="rounded-lg border border-blue-100 bg-white p-4">
+                    <p className="text-sm text-muted-foreground">Total giving</p>
+                    <p className="mt-1 text-2xl font-semibold">{dollars(report?.totalCents ?? 0)}</p>
+                  </div>
+                  <div className="rounded-lg border border-blue-100 bg-white p-4">
+                    <p className="text-sm text-muted-foreground">Gifts</p>
+                    <p className="mt-1 text-2xl font-semibold">{report?.count ?? 0}</p>
+                  </div>
+                  <div className="rounded-lg border border-blue-100 bg-white p-4">
+                    <p className="text-sm text-muted-foreground">Unique donors</p>
+                    <p className="mt-1 text-2xl font-semibold">{report?.donorsCount ?? 0}</p>
+                  </div>
+                </div>
+
+                <div className="grid gap-6 lg:grid-cols-2">
+                  <div>
+                    <h3 className="mb-2 text-sm font-semibold text-muted-foreground">By category</h3>
+                    {report && report.byCategory.length > 0 ? (
+                      <div className="space-y-2">
+                        {report.byCategory.map((group) => (
+                          <div key={group.key} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+                            <span>{labelize(group.key)} <span className="text-xs text-muted-foreground">({group.count})</span></span>
+                            <span className="font-medium">{dollars(group.totalCents)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No gifts this month.</p>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="mb-2 text-sm font-semibold text-muted-foreground">By payment method</h3>
+                    {report && report.byMethod.length > 0 ? (
+                      <div className="space-y-2">
+                        {report.byMethod.map((group) => (
+                          <div key={group.key} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+                            <span>{labelize(group.key)} <span className="text-xs text-muted-foreground">({group.count})</span></span>
+                            <span className="font-medium">{dollars(group.totalCents)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No gifts this month.</p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="mb-2 text-sm font-semibold text-muted-foreground">Top donors</h3>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-10">#</TableHead>
+                          <TableHead>Donor</TableHead>
+                          <TableHead>Gifts</TableHead>
+                          <TableHead>Last Gift</TableHead>
+                          <TableHead className="text-right">Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {topDonorsQuery.isLoading ? (
+                          <TableRow><TableCell colSpan={5}><Skeleton className="h-4 w-full" /></TableCell></TableRow>
+                        ) : topDonors && topDonors.donors.length > 0 ? (
+                          <>
+                            {topDonors.donors.map((donor, index) => (
+                              <TableRow key={donor.memberId}>
+                                <TableCell className="font-medium">{index + 1}</TableCell>
+                                <TableCell>
+                                  <div className="font-medium">{donor.name}</div>
+                                  {donor.email && <div className="text-xs text-muted-foreground">{donor.email}</div>}
+                                </TableCell>
+                                <TableCell>{donor.giftCount}</TableCell>
+                                <TableCell>{formatDate(donor.lastGiftDate)}</TableCell>
+                                <TableCell className="text-right font-medium">{dollars(donor.totalCents)}</TableCell>
+                              </TableRow>
+                            ))}
+                            {topDonors.unattributed.count > 0 && (
+                              <TableRow>
+                                <TableCell />
+                                <TableCell className="text-muted-foreground">Unattributed gifts (no member linked)</TableCell>
+                                <TableCell className="text-muted-foreground">{topDonors.unattributed.count}</TableCell>
+                                <TableCell />
+                                <TableCell className="text-right text-muted-foreground">{dollars(topDonors.unattributed.totalCents)}</TableCell>
+                              </TableRow>
+                            )}
+                          </>
+                        ) : (
+                          <TableRow><TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">No donors recorded for this month yet.</TableCell></TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
+  );
+}
+
+const RESOLVE_CATEGORY_OPTIONS: { value: GivingCategory; label: string }[] = [
+  { value: "love_offering", label: "Love Offering" },
+  { value: "tithe", label: "Tithe" },
+  { value: "kingdom_commitment", label: "Kingdom Commitment" },
+  { value: "giftings", label: "Giftings" },
+];
+
+function UnmatchedQueueCard() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [expanded, setExpanded] = React.useState(false);
+  const [resolvingId, setResolvingId] = React.useState<number | null>(null);
+  const [memberSearch, setMemberSearch] = React.useState("");
+  const [selectedMember, setSelectedMember] = React.useState<MemberOption | null>(null);
+  const [category, setCategory] = React.useState<GivingCategory>("tithe");
+
+  const queueQuery = useQuery({
+    queryKey: ["admin-giving-unmatched"],
+    queryFn: () => apiJson<{ items: UnmatchedDonation[] }>("/admin/giving/unmatched?status=pending"),
+  });
+
+  const memberResultsQuery = useQuery({
+    queryKey: ["unmatched-member-search", memberSearch],
+    queryFn: () => apiJson<{ members: MemberOption[] }>(`/admin/members?search=${encodeURIComponent(memberSearch)}`),
+    enabled: resolvingId !== null && memberSearch.trim().length >= 2 && !selectedMember,
+  });
+
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: ["admin-giving-unmatched"] });
+    void queryClient.invalidateQueries({ queryKey: ["admin-giving-donations"] });
+    void queryClient.invalidateQueries({ queryKey: ["admin-giving-summary"] });
+    void queryClient.invalidateQueries({ queryKey: ["admin-giving-reports"] });
+  };
+
+  function resetResolveForm() {
+    setResolvingId(null);
+    setMemberSearch("");
+    setSelectedMember(null);
+    setCategory("tithe");
+  }
+
+  const resolve = useMutation({
+    mutationFn: (params: { id: number; action: string; extra?: Record<string, unknown> }) =>
+      apiJson(`/admin/giving/unmatched/${params.id}/resolve`, {
+        method: "POST",
+        body: JSON.stringify({ action: params.action, givingCategory: category, ...params.extra }),
+      }),
+    onSuccess: () => {
+      toast({ title: "Donation resolved" });
+      resetResolveForm();
+      invalidate();
+    },
+    onError: (error: Error) => toast({ title: "Could not resolve donation", description: error.message, variant: "destructive" }),
+  });
+
+  const items = queueQuery.data?.items ?? [];
+  const memberResults = memberResultsQuery.data?.members ?? [];
+  const activeItem = items.find((item) => item.id === resolvingId) ?? null;
+
+  return (
+    <Collapsible open={expanded} onOpenChange={setExpanded}>
+      <Card>
+        <CardHeader>
+          <CollapsibleTrigger asChild>
+            <button type="button" className="flex w-full items-start justify-between gap-4 text-left">
+              <div className="flex items-start gap-2">
+                <Inbox className="mt-0.5 h-5 w-5 text-amber-500" />
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    Unmatched Donations
+                    {items.length > 0 && <Badge variant="secondary">{items.length}</Badge>}
+                  </CardTitle>
+                  <CardDescription>Payments reported from Zelle, Cash App, Venmo, or PayPal that couldn't be automatically linked to a member.</CardDescription>
+                </div>
+              </div>
+              <ChevronDown className={`mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`} />
+            </button>
+          </CollapsibleTrigger>
+        </CardHeader>
+        <CollapsibleContent>
+          <CardContent className="space-y-3">
+            {queueQuery.isLoading ? (
+              <Skeleton className="h-16 w-full" />
+            ) : items.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">No unmatched donations right now — nice work staying on top of the queue.</p>
+            ) : (
+              items.map((item) => (
+                <div key={item.id} className="rounded-lg border p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{labelize(item.paymentMethod)}</Badge>
+                        <span className="font-semibold">{dollars(item.amountCents)}</span>
+                        <span className="text-sm text-muted-foreground">{formatDate(item.transactionDate)}</span>
+                      </div>
+                      <p className="mt-1 text-sm">
+                        {item.senderName ?? item.senderHandle ?? item.senderEmail ?? item.senderPhone ?? "Unknown sender"}
+                        {item.memo && <span className="text-muted-foreground"> — "{item.memo}"</span>}
+                      </p>
+                      {item.suggestedMatches && item.suggestedMatches.length > 0 && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Suggested: member #{item.suggestedMatches[0].memberId} ({item.suggestedMatches[0].confidence}% confidence — {item.suggestedMatches[0].reasons[0]})
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button size="sm" onClick={() => { setResolvingId(item.id); setCategory(item.givingCategory ?? "tithe"); }}>
+                        <Link2 className="mr-1.5 h-4 w-4" /> Link to member
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => resolve.mutate({ id: item.id, action: "anonymous" })}>
+                        <UserX className="mr-1.5 h-4 w-4" /> Anonymous
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => resolve.mutate({ id: item.id, action: "ignore" })}>Ignore</Button>
+                      <Button size="sm" variant="ghost" onClick={() => resolve.mutate({ id: item.id, action: "duplicate" })}>Duplicate</Button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </CollapsibleContent>
+      </Card>
+
+      <Dialog open={resolvingId !== null} onOpenChange={(open) => { if (!open) resetResolveForm(); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Link Donation to Member</DialogTitle>
+            <DialogDescription>
+              {activeItem && `${dollars(activeItem.amountCents)} via ${labelize(activeItem.paymentMethod)} on ${formatDate(activeItem.transactionDate)}`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedMember ? (
+              <div className="flex items-center justify-between rounded-md border border-blue-100 bg-blue-50/50 px-3 py-2">
+                <div>
+                  <p className="text-sm font-medium">{selectedMember.firstName} {selectedMember.lastName}</p>
+                  <p className="text-xs text-muted-foreground">{selectedMember.email}</p>
+                </div>
+                <Button type="button" size="sm" variant="ghost" onClick={() => { setSelectedMember(null); setMemberSearch(""); }}>Change</Button>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <Label htmlFor="unmatched-member-search">Find member</Label>
+                <Input id="unmatched-member-search" placeholder="Search by name, email, or phone" value={memberSearch} onChange={(event) => setMemberSearch(event.target.value)} />
+                {memberSearch.trim().length >= 2 && (
+                  <div className="max-h-44 overflow-y-auto rounded-md border">
+                    {memberResultsQuery.isLoading ? (
+                      <p className="px-3 py-2 text-sm text-muted-foreground">Searching…</p>
+                    ) : memberResults.length > 0 ? (
+                      memberResults.slice(0, 8).map((member) => (
+                        <button key={member.id} type="button" className="flex w-full flex-col px-3 py-2 text-left hover:bg-blue-50" onClick={() => setSelectedMember(member)}>
+                          <span className="text-sm font-medium">{member.firstName} {member.lastName}</span>
+                          <span className="text-xs text-muted-foreground">{member.email}</span>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="px-3 py-2 text-sm text-muted-foreground">No members match that search.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label htmlFor="unmatched-category">Giving Type</Label>
+              <select id="unmatched-category" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" value={category} onChange={(event) => setCategory(event.target.value as GivingCategory)}>
+                {RESOLVE_CATEGORY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              This sender's name, email, phone, and handle will be saved to {selectedMember ? `${selectedMember.firstName} ${selectedMember.lastName}'s` : "the member's"} profile, so future gifts from them match automatically.
+            </p>
+
+            <Button
+              className="w-full"
+              disabled={!selectedMember || resolve.isPending}
+              onClick={() => {
+                if (!resolvingId || !selectedMember) return;
+                resolve.mutate({ id: resolvingId, action: "link", extra: { memberId: selectedMember.id } });
+              }}
+            >
+              {resolve.isPending ? "Linking…" : "Link donation"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </Collapsible>
+  );
 }

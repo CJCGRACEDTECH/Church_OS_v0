@@ -284,9 +284,10 @@ router.get("/admin/dashboard/summary", requireRole("admin"), async (req, res): P
     sessionName: string;
     sessionDate: string;
     totalGiving: number;
+    loveOffering: number;
     tithe: number;
-    giftOffering: number;
-    buildingFund: number;
+    kingdomCommitment: number;
+    giftings: number;
   }> = [];
   if (orderedGivingSessions.length > 0) {
     const serviceSessionIds = orderedGivingSessions.map((session) => session.id);
@@ -349,19 +350,21 @@ router.get("/admin/dashboard/summary", requireRole("admin"), async (req, res): P
     givingByServiceLast8 = orderedGivingSessions.map((session) => {
       const sessionDateStr = dateKey(session.sessionDate);
       const matching = donationsByServiceId.get(session.id) ?? [];
+      const loveOffering = matching.filter((d) => d.givingCategory === "love_offering").reduce((sum, d) => sum + d.amountCents, 0);
       const tithe = matching.filter((d) => d.givingCategory === "tithe").reduce((sum, d) => sum + d.amountCents, 0);
-      const giftOffering = matching.filter((d) => d.givingCategory === "offering").reduce((sum, d) => sum + d.amountCents, 0);
-      const buildingFund = matching.filter((d) => d.givingCategory === "building_fund").reduce((sum, d) => sum + d.amountCents, 0);
-      const totalCents = tithe + giftOffering + buildingFund;
+      const kingdomCommitment = matching.filter((d) => d.givingCategory === "kingdom_commitment").reduce((sum, d) => sum + d.amountCents, 0);
+      const giftings = matching.filter((d) => d.givingCategory === "giftings").reduce((sum, d) => sum + d.amountCents, 0);
+      const totalCents = loveOffering + tithe + kingdomCommitment + giftings;
       return {
         sessionId: session.id,
         sessionName: session.sessionName,
         sessionDate: session.sessionDate.toISOString(),
         serviceDate: sessionDateStr,
         totalGiving: totalCents,
+        loveOffering,
         tithe,
-        giftOffering,
-        buildingFund,
+        kingdomCommitment,
+        giftings,
       };
     });
     givingTrend = givingByServiceLast8.map((session) => ({

@@ -433,24 +433,24 @@ const FRIDAY_DATES = [
 
 const GIVING_CAMPAIGNS = [
   {
-    campaignName: "Building Fund",
-    description: "Support facility improvements and long-term ministry space needs.",
+    campaignName: "Kingdom Commitment",
+    description: "Support long-term ministry commitments, expansion, and outreach priorities.",
     goalAmountCents: 7500000,
     startDate: "2026-01-01T00:00:00Z",
     endDate: "2026-12-31T23:59:59Z",
     status: "active" as const,
     campaignImageUrl: "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=900&q=80",
-    campaignCategory: "Building Fund",
+    campaignCategory: "Kingdom Commitment",
   },
   {
-    campaignName: "Community Gift Offering",
+    campaignName: "Giftings",
     description: "Support benevolence, outreach, and special church care needs.",
     goalAmountCents: 1800000,
     startDate: "2026-03-01T00:00:00Z",
     endDate: "2026-08-31T23:59:59Z",
     status: "active" as const,
     campaignImageUrl: "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=900&q=80",
-    campaignCategory: "Gift/Offering",
+    campaignCategory: "Giftings",
   },
 ];
 
@@ -475,12 +475,12 @@ const SAMPLE_DONATIONS = [
     amountCents: 5000,
     donationDate: "2026-02-09T16:00:00Z",
     donationType: "recurring" as const,
-    givingCategory: "offering" as const,
-    campaignName: "Community Gift Offering",
-    stripeCheckoutSessionId: "cs_demo_member_offering_recurring",
-    stripePaymentIntentId: "pi_demo_member_offering_recurring",
-    stripeSubscriptionId: "sub_demo_member_offering",
-    stripeReceiptUrl: "https://pay.stripe.com/receipts/demo-member-offering",
+    givingCategory: "giftings" as const,
+    campaignName: "Giftings",
+    stripeCheckoutSessionId: "cs_demo_member_giftings_recurring",
+    stripePaymentIntentId: "pi_demo_member_giftings_recurring",
+    stripeSubscriptionId: "sub_demo_member_giftings",
+    stripeReceiptUrl: "https://pay.stripe.com/receipts/demo-member-giftings",
     paymentStatus: "succeeded" as const,
     taxDeductible: true,
   },
@@ -490,11 +490,11 @@ const SAMPLE_DONATIONS = [
     amountCents: 25000,
     donationDate: "2026-03-16T14:15:00Z",
     donationType: "one_time" as const,
-    givingCategory: "building_fund" as const,
-    campaignName: "Building Fund",
-    stripeCheckoutSessionId: "cs_demo_morgan_building",
-    stripePaymentIntentId: "pi_demo_morgan_building",
-    stripeReceiptUrl: "https://pay.stripe.com/receipts/demo-morgan-building",
+    givingCategory: "kingdom_commitment" as const,
+    campaignName: "Kingdom Commitment",
+    stripeCheckoutSessionId: "cs_demo_morgan_kingdom_commitment",
+    stripePaymentIntentId: "pi_demo_morgan_kingdom_commitment",
+    stripeReceiptUrl: "https://pay.stripe.com/receipts/demo-morgan-kingdom-commitment",
     paymentStatus: "succeeded" as const,
     taxDeductible: true,
   },
@@ -504,7 +504,7 @@ const SAMPLE_DONATIONS = [
     amountCents: 7500,
     donationDate: "2026-04-07T18:45:00Z",
     donationType: "one_time" as const,
-    givingCategory: "offering" as const,
+    givingCategory: "love_offering" as const,
     campaignName: null,
     stripeCheckoutSessionId: "cs_demo_riley_offering",
     stripePaymentIntentId: "pi_demo_riley_offering",
@@ -522,9 +522,14 @@ async function seed() {
     await db.delete(schema.checkinRecordsTable);
     await db.delete(schema.attendanceRecordsTable);
     await db.delete(schema.attendanceSessionsTable);
+    await db.delete(schema.givingAuditLogTable);
+    await db.delete(schema.unmatchedDonationsTable);
+    await db.delete(schema.importBatchesTable);
+    await db.delete(schema.memberPaymentAliasesTable);
     await db.delete(schema.taxReceiptsTable);
     await db.delete(schema.recurringDonationsTable);
     await db.delete(schema.donationsTable);
+    await db.delete(schema.givingIntentsTable);
     await db.delete(schema.givingCampaignsTable);
     await db.delete(schema.systemSettingsTable);
     await db.delete(schema.churchProfileSettingsTable);
@@ -739,6 +744,9 @@ async function seed() {
       donationType: donationInput.donationType,
       givingCategory: donationInput.givingCategory,
       campaignId,
+      paymentMethod: "stripe" as const,
+      providerTransactionId: donationInput.stripePaymentIntentId,
+      providerReceiptUrl: donationInput.stripeReceiptUrl,
       stripeCheckoutSessionId: donationInput.stripeCheckoutSessionId,
       stripePaymentIntentId: donationInput.stripePaymentIntentId,
       stripeSubscriptionId: "stripeSubscriptionId" in donationInput ? donationInput.stripeSubscriptionId : null,
@@ -779,6 +787,72 @@ async function seed() {
     }
 
     console.log(`   donation: ${donation.donorName} ${donation.givingCategory} ${donation.paymentStatus}`);
+  }
+
+  const [intentMember] = await db
+    .select()
+    .from(schema.usersTable)
+    .where(eq(schema.usersTable.email, "member@churchos.test"));
+  if (intentMember) {
+    const SAMPLE_INTENTS = [
+      {
+        providerRef: "cs_demo_member_tithe_jan",
+        amountCents: 15000,
+        givingCategory: "tithe" as const,
+        paymentMethod: "stripe" as const,
+        donationType: "one_time" as const,
+        status: "completed" as const,
+      },
+      {
+        providerRef: "cs_demo_intent_pending",
+        amountCents: 5000,
+        givingCategory: "love_offering" as const,
+        paymentMethod: "stripe" as const,
+        donationType: "one_time" as const,
+        status: "pending" as const,
+      },
+    ];
+    for (const intentInput of SAMPLE_INTENTS) {
+      const [existingIntent] = await db
+        .select()
+        .from(schema.givingIntentsTable)
+        .where(eq(schema.givingIntentsTable.providerRef, intentInput.providerRef));
+      const intentValues = {
+        churchId: church.id,
+        memberId: intentMember.id,
+        donorName: `${intentMember.firstName} ${intentMember.lastName}`,
+        donorEmail: intentMember.email,
+        ...intentInput,
+      };
+      if (existingIntent) {
+        await db.update(schema.givingIntentsTable).set(intentValues).where(eq(schema.givingIntentsTable.id, existingIntent.id));
+      } else {
+        await db.insert(schema.givingIntentsTable).values(intentValues);
+      }
+      console.log(`   giving intent: ${intentInput.providerRef} (${intentInput.status})`);
+    }
+  }
+
+  console.log("🌱 Seeding payment aliases...");
+  const [rileyMember] = await db
+    .select()
+    .from(schema.usersTable)
+    .where(eq(schema.usersTable.email, "riley.carter@example.test"));
+  if (rileyMember) {
+    const [existingAlias] = await db
+      .select()
+      .from(schema.memberPaymentAliasesTable)
+      .where(eq(schema.memberPaymentAliasesTable.normalizedValue, "riley carter"));
+    if (!existingAlias) {
+      await db.insert(schema.memberPaymentAliasesTable).values({
+        churchId: church.id,
+        memberId: rileyMember.id,
+        aliasType: "zelle_name",
+        aliasValue: "Riley Carter",
+        normalizedValue: "riley carter",
+      });
+      console.log(`   payment alias: Zelle sender "Riley Carter" -> ${rileyMember.firstName} ${rileyMember.lastName}`);
+    }
   }
 
   console.log("🌱 Seeding Children Ministry sample data...");

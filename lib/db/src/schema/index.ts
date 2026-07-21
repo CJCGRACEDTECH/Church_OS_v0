@@ -6,6 +6,7 @@ export * from "./churches";
 export * from "./events";
 export * from "./evangelism";
 export * from "./giving";
+export * from "./giving-ledger";
 export * from "./household-requests";
 export * from "./oauth-accounts";
 export * from "./settings";

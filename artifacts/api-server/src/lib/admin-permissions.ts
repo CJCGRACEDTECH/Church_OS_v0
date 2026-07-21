@@ -66,6 +66,11 @@ export const PERMISSION_CATALOG: Array<{
     description: "View and manage giving records, tax status, and recurring giving.",
   },
   {
+    key: ADMIN_PERMISSIONS.GIVING_REPORTS,
+    label: "Giving Reports",
+    description: "View giving reports, monthly totals, and top donor summaries.",
+  },
+  {
     key: ADMIN_PERMISSIONS.CAMPAIGN_MANAGEMENT,
     label: "Campaign Management",
     description: "Create and manage giving campaigns.",

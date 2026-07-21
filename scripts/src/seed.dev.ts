@@ -823,8 +823,10 @@ async function seedDev() {
       await db.delete(schema.attendanceRecordsTable).where(eq(schema.attendanceRecordsTable.checkedInByUserId, u.id));
       await db.delete(schema.checkinRecordsTable).where(eq(schema.checkinRecordsTable.checkedInByUserId, u.id));
       await db.delete(schema.checkinRecordsTable).where(eq(schema.checkinRecordsTable.checkedOutByUserId, u.id));
+      await db.delete(schema.memberPaymentAliasesTable).where(eq(schema.memberPaymentAliasesTable.memberId, u.id));
       await db.delete(schema.donationsTable).where(eq(schema.donationsTable.memberId, u.id));
       await db.delete(schema.recurringDonationsTable).where(eq(schema.recurringDonationsTable.memberId, u.id));
+      await db.delete(schema.givingIntentsTable).where(eq(schema.givingIntentsTable.memberId, u.id));
       await db.delete(schema.taxReceiptsTable).where(eq(schema.taxReceiptsTable.memberId, u.id));
       await db.delete(schema.taxReceiptsTable).where(eq(schema.taxReceiptsTable.generatedByUserId, u.id));
       await db.delete(schema.adminPermissionsTable).where(eq(schema.adminPermissionsTable.userId, u.id));
@@ -1627,22 +1629,22 @@ async function seedDev() {
 
   const DEV_CAMPAIGNS = [
     {
-      campaignName: "Annual Building Fund 2026",
-      description: "Expand our main sanctuary to seat 600 people.",
+      campaignName: "Kingdom Commitment 2026",
+      description: "Support long-term ministry commitments, expansion, and outreach priorities.",
       goalAmountCents: 15_000_000,
       startDate: new Date("2026-01-01"),
       endDate: new Date("2026-12-31"),
       status: "active" as const,
-      campaignCategory: "Building Fund",
+      campaignCategory: "Kingdom Commitment",
     },
     {
-      campaignName: "Community Gift Offering 2026",
+      campaignName: "Giftings 2026",
       description: "Support benevolence, outreach, and special church care needs.",
       goalAmountCents: 4_500_000,
       startDate: new Date("2026-03-01"),
       endDate: new Date("2026-09-30"),
       status: "active" as const,
-      campaignCategory: "Gift/Offering",
+      campaignCategory: "Giftings",
     },
   ];
 
@@ -1671,7 +1673,7 @@ async function seedDev() {
   // ── Donations ──────────────────────────────────────────────────────────────
   console.log("\n💳  Seeding donations (150–300 successful transactions + 25 recurring tithe plans)...");
 
-  const GIVING_CATEGORIES = ["tithe", "offering", "building_fund"] as const;
+  const GIVING_CATEGORIES = ["love_offering", "tithe", "kingdom_commitment", "giftings"] as const;
 
   // 60+ active members get donation records.
   const givingMembers = shuffle(activeMembers, 42).slice(0, 65);
@@ -1701,10 +1703,10 @@ async function seedDev() {
       const category = GIVING_CATEGORIES[di % GIVING_CATEGORIES.length];
 
       const campaignId =
-        category === "building_fund"
-          ? (campaignIdMap.get("Annual Building Fund 2026") ?? null)
-          : category === "offering"
-          ? (campaignIdMap.get("Community Gift Offering 2026") ?? null)
+        category === "kingdom_commitment"
+          ? (campaignIdMap.get("Kingdom Commitment 2026") ?? null)
+          : category === "giftings"
+          ? (campaignIdMap.get("Giftings 2026") ?? null)
           : null;
 
       const csId = `cs_test_dev_${di}_${k}_${donor.id}`;
@@ -1727,6 +1729,9 @@ async function seedDev() {
           givingCategory: category,
           serviceSessionId,
           campaignId,
+          providerTransactionId: piId,
+          providerCustomerId: `cus_test_dev_${di}_${donor.id}`,
+          providerReceiptUrl: `https://pay.stripe.com/receipts/test_${piId}`,
           stripeCheckoutSessionId: csId,
           stripePaymentIntentId: piId,
           stripeCustomerId: `cus_test_dev_${di}_${donor.id}`,
@@ -1759,9 +1764,11 @@ async function seedDev() {
         amountCents: 2500,
         donationDate,
         donationType: "one_time",
-        givingCategory: "offering",
+        givingCategory: "love_offering",
         serviceSessionId: nextGivingServiceSessionId(),
         campaignId: null,
+        providerTransactionId: "pi_test_dev_visitor_0",
+        providerCustomerId: `cus_test_dev_visitor_${visitor.id}`,
         stripeCheckoutSessionId: csId,
         stripePaymentIntentId: "pi_test_dev_visitor_0",
         stripeCustomerId: `cus_test_dev_visitor_${visitor.id}`,
@@ -1795,6 +1802,8 @@ async function seedDev() {
         givingCategory: "tithe",
         serviceSessionId: nextGivingServiceSessionId(),
         campaignId: null,
+        providerTransactionId: "pi_test_dev_low_attendance_old",
+        providerCustomerId: `cus_test_dev_low_attendance_${lowAttendance.id}`,
         stripeCheckoutSessionId: csId,
         stripePaymentIntentId: "pi_test_dev_low_attendance_old",
         stripeCustomerId: `cus_test_dev_low_attendance_${lowAttendance.id}`,
@@ -1854,6 +1863,9 @@ async function seedDev() {
           givingCategory: "tithe",
           serviceSessionId: nextGivingServiceSessionId(),
           campaignId: null,
+          providerTransactionId: `pi_test_dev_recurring_${ri}_${member.id}`,
+          providerCustomerId: cusId,
+          providerReceiptUrl: `https://pay.stripe.com/receipts/test_pi_test_dev_recurring_${ri}_${member.id}`,
           stripeCheckoutSessionId: csId2,
           stripePaymentIntentId: `pi_test_dev_recurring_${ri}_${member.id}`,
           stripeSubscriptionId: subId,

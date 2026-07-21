@@ -83,9 +83,10 @@ type DashboardSummary = {
       sessionDate: string;
       serviceDate?: string;
       totalGiving: number;
+      loveOffering: number;
       tithe: number;
-      giftOffering: number;
-      buildingFund: number;
+      kingdomCommitment: number;
+      giftings: number;
     }>;
   };
   recentNewMembers: Array<{
@@ -213,9 +214,10 @@ export default function AdminDashboard() {
       sessionDate: session.sessionDate,
       serviceDate: session.sessionDate.slice(0, 10),
       totalGiving: session.totalCents,
+      loveOffering: 0,
       tithe: 0,
-      giftOffering: 0,
-      buildingFund: 0,
+      kingdomCommitment: 0,
+      giftings: 0,
     }))
     ?? [];
 
@@ -976,11 +978,12 @@ function GivingTrendCard({
                 <DialogHeader>
                   <DialogTitle>Giving per Service</DialogTitle>
                 </DialogHeader>
-                <div className="grid gap-3 sm:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                   <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Total Giving</p><p className="text-lg font-semibold">{compactDollars(trend.reduce((sum, s) => sum + s.totalGiving, 0))}</p></div>
+                  <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Love Offering</p><p className="text-lg font-semibold">{compactDollars(trend.reduce((sum, s) => sum + s.loveOffering, 0))}</p></div>
                   <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Tithe</p><p className="text-lg font-semibold">{compactDollars(trend.reduce((sum, s) => sum + s.tithe, 0))}</p></div>
-                  <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Gift/Offering</p><p className="text-lg font-semibold">{compactDollars(trend.reduce((sum, s) => sum + s.giftOffering, 0))}</p></div>
-                  <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Building Fund</p><p className="text-lg font-semibold">{compactDollars(trend.reduce((sum, s) => sum + s.buildingFund, 0))}</p></div>
+                  <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Kingdom Commitment</p><p className="text-lg font-semibold">{compactDollars(trend.reduce((sum, s) => sum + s.kingdomCommitment, 0))}</p></div>
+                  <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Giftings</p><p className="text-lg font-semibold">{compactDollars(trend.reduce((sum, s) => sum + s.giftings, 0))}</p></div>
                 </div>
                 <div className="mt-4 flex h-72 items-end gap-3 rounded-md border p-4">
                   {trend.map((session) => {
@@ -990,9 +993,10 @@ function GivingTrendCard({
                       <div key={session.sessionId} className="group relative flex flex-1 flex-col items-center gap-2">
                         <div className="flex h-56 w-full items-end">
                           <div className="w-full overflow-hidden rounded-t-md" style={{ height: `${pct}%` }}>
+                            <div className="bg-sky-500" style={{ height: `${session.totalGiving > 0 ? (session.loveOffering / session.totalGiving) * 100 : 0}%` }} />
                             <div className="bg-emerald-700" style={{ height: `${session.totalGiving > 0 ? (session.tithe / session.totalGiving) * 100 : 0}%` }} />
-                            <div className="bg-emerald-500" style={{ height: `${session.totalGiving > 0 ? (session.giftOffering / session.totalGiving) * 100 : 0}%` }} />
-                            <div className="bg-lime-500" style={{ height: `${session.totalGiving > 0 ? (session.buildingFund / session.totalGiving) * 100 : 0}%` }} />
+                            <div className="bg-amber-500" style={{ height: `${session.totalGiving > 0 ? (session.kingdomCommitment / session.totalGiving) * 100 : 0}%` }} />
+                            <div className="bg-lime-500" style={{ height: `${session.totalGiving > 0 ? (session.giftings / session.totalGiving) * 100 : 0}%` }} />
                           </div>
                         </div>
                         <div className="text-center"><p className="text-xs font-medium">{compactDollars(session.totalGiving)}</p><p className="text-[10px] text-muted-foreground">{label}</p></div>
@@ -1000,7 +1004,7 @@ function GivingTrendCard({
                           <span className="font-semibold">{session.sessionName}</span>
                           <span className="text-muted-foreground">{label}</span>
                           <span className="font-medium text-foreground">{compactDollars(session.totalGiving)} total</span>
-                          <span className="text-muted-foreground">Tithe {compactDollars(session.tithe)} · Offering {compactDollars(session.giftOffering)} · Building {compactDollars(session.buildingFund)}</span>
+                          <span className="text-muted-foreground">Love {compactDollars(session.loveOffering)} · Tithe {compactDollars(session.tithe)} · Kingdom {compactDollars(session.kingdomCommitment)} · Giftings {compactDollars(session.giftings)}</span>
                         </div>
                       </div>
                     );
@@ -1045,16 +1049,18 @@ function GivingTrendCard({
                   day: "numeric",
                 });
                 const tithePct = session.totalGiving > 0 ? (session.tithe / session.totalGiving) * 100 : 0;
-                const offeringPct = session.totalGiving > 0 ? (session.giftOffering / session.totalGiving) * 100 : 0;
-                const buildingPct = session.totalGiving > 0 ? (session.buildingFund / session.totalGiving) * 100 : 0;
+                const loveOfferingPct = session.totalGiving > 0 ? (session.loveOffering / session.totalGiving) * 100 : 0;
+                const kingdomCommitmentPct = session.totalGiving > 0 ? (session.kingdomCommitment / session.totalGiving) * 100 : 0;
+                const giftingsPct = session.totalGiving > 0 ? (session.giftings / session.totalGiving) * 100 : 0;
                 return (
                   <div key={i} className="flex-1 flex flex-col items-center group relative">
                     <div className="w-full flex flex-col justify-end h-24 relative">
                       {session.totalGiving > 0 ? (
                         <div className="w-full absolute bottom-0 overflow-hidden rounded-t-sm" style={{ height: `${Math.max(pct, 5)}%` }}>
+                          <div className="bg-sky-500" style={{ height: `${loveOfferingPct}%` }} />
                           <div className="bg-emerald-700" style={{ height: `${tithePct}%` }} />
-                          <div className="bg-emerald-500" style={{ height: `${offeringPct}%` }} />
-                          <div className="bg-lime-500" style={{ height: `${buildingPct}%` }} />
+                          <div className="bg-amber-500" style={{ height: `${kingdomCommitmentPct}%` }} />
+                          <div className="bg-lime-500" style={{ height: `${giftingsPct}%` }} />
                         </div>
                       ) : (
                         <div className="w-full rounded-t-sm border border-dashed border-muted-foreground/30 absolute bottom-0 bg-muted/30" style={{ height: "8%" }} />
@@ -1066,9 +1072,10 @@ function GivingTrendCard({
                     <div className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 hidden group-hover:flex bg-popover text-popover-foreground text-xs rounded px-2.5 py-2 shadow border whitespace-nowrap z-10 flex-col items-start">
                       <span className="font-medium">{session.sessionName}</span>
                       <span>Total: {compactDollars(session.totalGiving)}</span>
+                      <span className="text-muted-foreground">Love Offering: {compactDollars(session.loveOffering)}</span>
                       <span className="text-muted-foreground">Tithe: {compactDollars(session.tithe)}</span>
-                      <span className="text-muted-foreground">Gift/Offering: {compactDollars(session.giftOffering)}</span>
-                      <span className="text-muted-foreground">Building Fund: {compactDollars(session.buildingFund)}</span>
+                      <span className="text-muted-foreground">Kingdom Commitment: {compactDollars(session.kingdomCommitment)}</span>
+                      <span className="text-muted-foreground">Giftings: {compactDollars(session.giftings)}</span>
                     </div>
                   </div>
                 );
@@ -1076,16 +1083,20 @@ function GivingTrendCard({
             </div>
             <div className="flex items-center gap-4 text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-sm bg-sky-500" />
+                Love Offering
+              </span>
+              <span className="flex items-center gap-1.5">
                 <span className="inline-block h-2.5 w-2.5 rounded-sm bg-emerald-700" />
                 Tithe
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="inline-block h-2.5 w-2.5 rounded-sm bg-emerald-500" />
-                Gift/Offering
+                <span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-500" />
+                Kingdom Commitment
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="inline-block h-2.5 w-2.5 rounded-sm bg-lime-500" />
-                Building Fund
+                Giftings
               </span>
             </div>
           </div>

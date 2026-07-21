@@ -21,9 +21,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
+import { ALIAS_TYPES, type AliasType, type MemberPaymentAlias } from "@/lib/giving";
 import { PERMISSIONS } from "@/lib/permissions";
 import { readProfilePhotoFile } from "@/lib/profile-photo";
-import { ArrowLeft, BarChart3, Mail, Pencil, Phone, Plus, Search, ShieldCheck, UserRound, Users } from "lucide-react";
+import { ArrowLeft, BarChart3, Fingerprint, Mail, Pencil, Phone, Plus, Search, ShieldCheck, Trash2, UserRound, Users } from "lucide-react";
 
 type MemberStatus = "visitor" | "member" | "active_member";
 type WritableMemberStatus = "visitor" | "member";
@@ -883,6 +884,10 @@ function MemberProfile({ memberId }: { memberId: number }) {
                 </div>
               </CardContent>
             </Card>
+
+            {user?.adminPermissions?.includes(PERMISSIONS.GIVING_MANAGEMENT) && (
+              <PaymentAliasesCard memberId={memberId} />
+            )}
           </>
         ) : (
           <Card>
@@ -893,5 +898,87 @@ function MemberProfile({ memberId }: { memberId: number }) {
         )}
       </div>
     </AdminLayout>
+  );
+}
+
+function PaymentAliasesCard({ memberId }: { memberId: number }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [aliasType, setAliasType] = React.useState<AliasType>("zelle_name");
+  const [aliasValue, setAliasValue] = React.useState("");
+
+  const aliasesQuery = useQuery({
+    queryKey: ["member-payment-aliases", memberId],
+    queryFn: () => apiJson<{ aliases: MemberPaymentAlias[] }>(`/admin/members/${memberId}/payment-aliases`),
+  });
+
+  const addAlias = useMutation({
+    mutationFn: () => apiJson<{ alias: MemberPaymentAlias }>(`/admin/members/${memberId}/payment-aliases`, {
+      method: "POST",
+      body: JSON.stringify({ aliasType, aliasValue }),
+    }),
+    onSuccess: () => {
+      setAliasValue("");
+      void queryClient.invalidateQueries({ queryKey: ["member-payment-aliases", memberId] });
+      toast({ title: "Payment alias saved" });
+    },
+    onError: (error: Error) => toast({ title: "Could not save alias", description: error.message, variant: "destructive" }),
+  });
+
+  const deleteAlias = useMutation({
+    mutationFn: (aliasId: number) => apiJson<{ ok: boolean }>(`/admin/members/${memberId}/payment-aliases/${aliasId}`, { method: "DELETE" }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["member-payment-aliases", memberId] });
+      toast({ title: "Alias removed" });
+    },
+    onError: (error: Error) => toast({ title: "Could not remove alias", description: error.message, variant: "destructive" }),
+  });
+
+  const aliases = aliasesQuery.data?.aliases ?? [];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><Fingerprint className="h-5 w-5" /> Payment Aliases</CardTitle>
+        <CardDescription>Saved Cash App, Venmo, PayPal, or Zelle identifiers used to auto-match direct payments to this member.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-[200px_1fr_auto]">
+          <select
+            className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+            value={aliasType}
+            onChange={(event) => setAliasType(event.target.value as AliasType)}
+          >
+            {ALIAS_TYPES.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+          <Input placeholder="e.g. $morgan-cash or morgan@paypal.com" value={aliasValue} onChange={(event) => setAliasValue(event.target.value)} />
+          <Button onClick={() => aliasValue.trim() && addAlias.mutate()} disabled={addAlias.isPending || !aliasValue.trim()}>
+            <Plus className="mr-2 h-4 w-4" /> Add
+          </Button>
+        </div>
+
+        <div className="space-y-2">
+          {aliasesQuery.isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading aliases…</p>
+          ) : aliases.length > 0 ? (
+            aliases.map((alias) => (
+              <div key={alias.id} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+                <div>
+                  <span className="font-medium">{ALIAS_TYPES.find((option) => option.value === alias.aliasType)?.label ?? alias.aliasType}</span>
+                  <span className="ml-2 text-muted-foreground">{alias.aliasValue}</span>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => deleteAlias.mutate(alias.id)} disabled={deleteAlias.isPending}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground">No payment aliases saved yet. Add one so future gifts sent to this handle match automatically.</p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
