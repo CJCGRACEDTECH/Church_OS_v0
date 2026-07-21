@@ -59,10 +59,12 @@ function ClerkBackedAuthProvider({ children }: { children: ReactNode }) {
   const user = clerkLoaded && isSignedIn && localUser ? (localUser as LocalUser) : null;
 
   // If Clerk says the user is signed in but the backend has no matching local
-  // account (403), automatically sign them out so the sign-in page can render
-  // instead of looping between "/" and "/sign-in" forever.
+  // account (403 only), automatically sign them out so the sign-in page can
+  // render cleanly. We must NOT sign out on 401 — that status is transient
+  // right after an OAuth redirect while Clerk is still establishing the JWT.
   React.useEffect(() => {
-    if (clerkLoaded && isSignedIn && !localLoading && localError) {
+    const status = localError ? (localError as { status?: number }).status : undefined;
+    if (clerkLoaded && isSignedIn && !localLoading && status === 403) {
       void signOut().then(() => {
         queryClient.clear();
       });
