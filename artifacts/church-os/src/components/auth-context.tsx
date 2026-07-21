@@ -55,7 +55,13 @@ function ClerkBackedAuthProvider({ children }: { children: ReactNode }) {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
 
-  const isLoading = !clerkLoaded || (!!isSignedIn && localLoading);
+  // A non-403 error while Clerk says the user IS signed in is transient (e.g.
+  // the 401 that fires right after OAuth before the JWT propagates). Treat it
+  // as still-loading so HomeRoute / ProtectedRoute don't redirect to /sign-in
+  // and create a loop.  Only 403 means "genuinely no local account."
+  const errorStatus = localError ? (localError as { status?: number }).status : undefined;
+  const isTransientError = !!isSignedIn && !!localError && errorStatus !== 403;
+  const isLoading = !clerkLoaded || (!!isSignedIn && (localLoading || isTransientError));
   const user = clerkLoaded && isSignedIn && localUser ? (localUser as LocalUser) : null;
 
   // If Clerk says the user is signed in but the backend has no matching local
