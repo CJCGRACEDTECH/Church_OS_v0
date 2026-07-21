@@ -524,7 +524,9 @@ router.post("/attendance/qr/:token/guest-check-in", async (req, res): Promise<vo
 
   const normalizedEmail = email.toLowerCase().trim();
 
-  let visitor = (await db.select().from(usersTable).where(eq(usersTable.email, normalizedEmail)))[0];
+  let visitor = (await db.select().from(usersTable).where(
+    and(eq(usersTable.churchId, session.churchId), eq(usersTable.email, normalizedEmail)),
+  ))[0];
 
   if (!visitor && phone) {
     const phoneMatches = await db.select().from(usersTable).where(
