@@ -224,14 +224,21 @@ router.get("/auth/me", async (req, res): Promise<void> => {
   if (!localUser) {
     const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
     const clerkUser = await clerkClient.users.getUser(clerkUserId);
-    const primaryEmail = clerkUser.emailAddresses.find(
+    const primaryEmailObj = clerkUser.emailAddresses.find(
       (e) => e.id === clerkUser.primaryEmailAddressId,
-    )?.emailAddress;
+    );
 
-    if (!primaryEmail) {
-      res.status(400).json({ error: "Clerk account has no verified email." });
+    if (!primaryEmailObj?.emailAddress) {
+      res.status(400).json({ error: "Clerk account has no primary email." });
       return;
     }
+
+    if (primaryEmailObj.verification?.status !== "verified") {
+      res.status(403).json({ error: "Email address must be verified before signing in. Please verify your email and try again." });
+      return;
+    }
+
+    const primaryEmail = primaryEmailObj.emailAddress;
 
     const email = normalizeEmail(primaryEmail);
 

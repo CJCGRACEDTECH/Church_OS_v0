@@ -84,19 +84,17 @@ router.post("/public/connect", async (req, res): Promise<void> => {
     .where(eq(usersTable.email, email));
 
   if (duplicate && duplicate.churchId !== church.id) {
-    res.status(409).json({
-      error: "This email is already attached to another Church OS account. Please contact the church office for help.",
-    });
+    res.status(201).json({ message: "Thank you for connecting with us.", profile: { firstName, churchName: church.name } });
     return;
   }
 
-  let profile = duplicate?.churchId === church.id && duplicate.role === "member"
-    ? { id: duplicate.id, firstName: duplicate.firstName }
-    : null;
+  let profileId: number;
 
-  if (!profile) {
+  if (duplicate?.churchId === church.id && duplicate.role === "member") {
+    profileId = duplicate.id;
+  } else {
     const smallGroup = discipleshipInterest === true ? "[disciple-interest]" : null;
-    [profile] = await db
+    const [created] = await db
       .insert(usersTable)
       .values({
         churchId: church.id,
@@ -126,10 +124,8 @@ router.post("/public/connect", async (req, res): Promise<void> => {
         accountStatus: "pending",
         isActive: false,
       })
-      .returning({
-        id: usersTable.id,
-        firstName: usersTable.firstName,
-      });
+      .returning({ id: usersTable.id });
+    profileId = created.id;
   }
 
   const message = [
@@ -149,7 +145,7 @@ router.post("/public/connect", async (req, res): Promise<void> => {
     .insert(householdUpdateRequestsTable)
     .values({
       churchId: church.id,
-      memberId: profile.id,
+      memberId: profileId,
       requestType: "connect_form",
       message,
       status: "submitted",
@@ -158,8 +154,7 @@ router.post("/public/connect", async (req, res): Promise<void> => {
   res.status(201).json({
     message: "Thank you for connecting with us.",
     profile: {
-      id: profile.id,
-      firstName: profile.firstName,
+      firstName,
       churchName: church.name,
     },
   });
@@ -201,15 +196,21 @@ router.post("/public/account-request", async (req, res): Promise<void> => {
     .where(eq(usersTable.email, email));
 
   if (matchedByEmail && matchedByEmail.churchId !== church.id) {
-    res.status(409).json({ error: "This email is already attached to another Church OS account. Please contact the church office for help." });
+    res.status(202).json({ message: "Your account request was received.", request: { firstName, churchName: church.name } });
     return;
   }
 
-  let profile = matchedByEmail?.churchId === church.id && matchedByEmail.role === "member"
-    ? { id: matchedByEmail.id, firstName: matchedByEmail.firstName, lastName: matchedByEmail.lastName, matched: true }
+  let profileId: number;
+  let matchNote: string;
+
+  const sameChurchMatch = matchedByEmail?.churchId === church.id && matchedByEmail.role === "member"
+    ? matchedByEmail
     : null;
 
-  if (!profile && phoneNumber) {
+  if (sameChurchMatch) {
+    profileId = sameChurchMatch.id;
+    matchNote = `Possible existing member match: ${sameChurchMatch.firstName} ${sameChurchMatch.lastName}`;
+  } else if (phoneNumber) {
     const [matchedByPhone] = await db
       .select({
         id: usersTable.id,
@@ -220,11 +221,30 @@ router.post("/public/account-request", async (req, res): Promise<void> => {
       .where(and(eq(usersTable.churchId, church.id), eq(usersTable.role, "member"), eq(usersTable.phoneNumber, phoneNumber)));
 
     if (matchedByPhone) {
-      profile = { id: matchedByPhone.id, firstName: matchedByPhone.firstName, lastName: matchedByPhone.lastName, matched: true };
+      profileId = matchedByPhone.id;
+      matchNote = `Possible existing member match by phone: ${matchedByPhone.firstName} ${matchedByPhone.lastName}`;
+    } else {
+      const [created] = await db
+        .insert(usersTable)
+        .values({
+          churchId: church.id,
+          firstName,
+          lastName,
+          email,
+          phoneNumber,
+          preferredContactMethod: preferredContactMethod === "phone" || preferredContactMethod === "text" ? preferredContactMethod : "email",
+          memberStatus: "visitor",
+          profileStatus: "pending_review",
+          profileCompletionPercent: calculateProfileCompletionPercent({ firstName, lastName, email, phoneNumber }),
+          role: "member",
+          accountStatus: "pending",
+          isActive: false,
+        })
+        .returning({ id: usersTable.id });
+      profileId = created.id;
+      matchNote = "No existing member match found";
     }
-  }
-
-  if (!profile) {
+  } else {
     const [created] = await db
       .insert(usersTable)
       .values({
@@ -241,25 +261,22 @@ router.post("/public/account-request", async (req, res): Promise<void> => {
         accountStatus: "pending",
         isActive: false,
       })
-      .returning({
-        id: usersTable.id,
-        firstName: usersTable.firstName,
-        lastName: usersTable.lastName,
-      });
-    profile = { ...created, matched: false };
+      .returning({ id: usersTable.id });
+    profileId = created.id;
+    matchNote = "No existing member match found";
   }
 
   const message = [
     "Member account access requested.",
     "",
-    `Match status: ${profile.matched ? `Possible existing member match: ${profile.firstName} ${profile.lastName}` : "No existing member match found"}`,
+    `Match status: ${matchNote}`,
     preferredContactMethod ? `Preferred contact: ${preferredContactMethod}` : null,
     reason ? `Reason: ${reason}` : null,
   ].filter(Boolean).join("\n");
 
   await db.insert(householdUpdateRequestsTable).values({
     churchId: church.id,
-    memberId: profile.id,
+    memberId: profileId,
     requestType: "account_request",
     message,
     status: "submitted",
@@ -270,7 +287,6 @@ router.post("/public/account-request", async (req, res): Promise<void> => {
     request: {
       firstName,
       churchName: church.name,
-      matchedExistingProfile: profile.matched,
     },
   });
 });
