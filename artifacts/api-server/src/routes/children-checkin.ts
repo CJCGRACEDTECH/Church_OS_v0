@@ -371,11 +371,12 @@ router.post("/admin/checkin/children/:childId/check-in", requireCheckInAccess, a
   }
 
   const classroom = textOrNull(req.body?.classroom) ?? child.classroom;
+  const generatedCode = pickupCode();
   await db.insert(checkinRecordsTable).values({
     childId,
     checkedInByUserId: req.localUserId,
     classroom,
-    pickupCode: pickupCode(),
+    pickupCode: generatedCode,
     status: "active",
   });
 
@@ -385,15 +386,21 @@ router.post("/admin/checkin/children/:childId/check-in", requireCheckInAccess, a
     .where(eq(childrenTable.id, childId))
     .returning();
 
-  res.json({ child: await serializeChild(updatedChild) });
+  res.json({ child: await serializeChild(updatedChild), pickupCode: generatedCode });
 });
 
 router.post("/admin/checkin/children/:childId/check-out", requireCheckInAccess, async (req, res): Promise<void> => {
   const childId = Number(req.params.childId);
   const guardianId = Number(req.body?.guardianId);
+  const submittedCode = typeof req.body?.pickupCode === "string" ? req.body.pickupCode.trim().toUpperCase() : "";
   const churchId = await getRequesterChurchId(req.localUserId);
   if (!Number.isInteger(childId) || !Number.isInteger(guardianId) || !churchId) {
     res.status(400).json({ error: "Child and pickup person are required." });
+    return;
+  }
+
+  if (!submittedCode) {
+    res.status(400).json({ error: "Pickup security code is required." });
     return;
   }
 
@@ -425,6 +432,11 @@ router.post("/admin/checkin/children/:childId/check-out", requireCheckInAccess, 
 
   if (!activeRecord) {
     res.status(409).json({ error: "Child is not currently checked in." });
+    return;
+  }
+
+  if (!activeRecord.pickupCode || activeRecord.pickupCode.toUpperCase() !== submittedCode) {
+    res.status(403).json({ error: "Incorrect pickup security code." });
     return;
   }
 

@@ -138,6 +138,7 @@ export default function AdminCheckIn() {
   const [registerOpen, setRegisterOpen] = React.useState(false);
   const [activeExpanded, setActiveExpanded] = React.useState(false);
   const [historyOpen, setHistoryOpen] = React.useState(false);
+  const [pickupCodeDisplay, setPickupCodeDisplay] = React.useState<{ childName: string; code: string } | null>(null);
 
   const childrenQuery = useQuery({
     queryKey: ["children-checkin"],
@@ -192,23 +193,23 @@ export default function AdminCheckIn() {
   });
 
   const checkIn = useMutation({
-    mutationFn: (child: Child) => apiJson<{ child: Child }>(`/admin/checkin/children/${child.id}/check-in`, {
+    mutationFn: (child: Child) => apiJson<{ child: Child; pickupCode: string }>(`/admin/checkin/children/${child.id}/check-in`, {
       method: "POST",
       body: JSON.stringify({ classroom: child.classroom }),
     }),
-    onSuccess: (data) => {
+    onSuccess: (data, child) => {
       setSelectedChildId(data.child.id);
-      toast({ title: "Child checked in" });
+      setPickupCodeDisplay({ childName: `${child.firstName} ${child.lastName}`, code: data.pickupCode });
       void refresh();
     },
     onError: (error) => toast({ title: "Check-in failed", description: error.message, variant: "destructive" }),
   });
 
   const checkOut = useMutation({
-    mutationFn: ({ childId, guardianId }: { childId: number; guardianId: number }) =>
+    mutationFn: ({ childId, guardianId, pickupCode }: { childId: number; guardianId: number; pickupCode: string }) =>
       apiJson<{ child: Child }>(`/admin/checkin/children/${childId}/check-out`, {
         method: "POST",
-        body: JSON.stringify({ guardianId }),
+        body: JSON.stringify({ guardianId, pickupCode }),
       }),
     onSuccess: (data) => {
       setSelectedChildId(data.child.id);
@@ -261,6 +262,31 @@ export default function AdminCheckIn() {
 
   return (
     <AdminLayout>
+      {pickupCodeDisplay && (
+        <Dialog open onOpenChange={(open) => { if (!open) setPickupCodeDisplay(null); }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-green-600" />
+                Child Checked In
+              </DialogTitle>
+              <DialogDescription>
+                Give this security code to the pickup family for <strong>{pickupCodeDisplay.childName}</strong>. It will be required at check-out.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col items-center gap-3 py-2">
+              <div className="rounded-lg border-2 border-green-200 bg-green-50 px-8 py-4 text-center">
+                <p className="text-xs font-semibold uppercase tracking-widest text-green-700 mb-1">Pickup Security Code</p>
+                <p className="text-4xl font-mono font-bold tracking-widest text-green-800">{pickupCodeDisplay.code}</p>
+              </div>
+              <p className="text-xs text-muted-foreground text-center">Keep this code private. Staff will ask for it when the child is picked up.</p>
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setPickupCodeDisplay(null)}>Done</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
       <div className="mx-auto max-w-7xl space-y-6">
         <PageHeader
           eyebrow="Children Ministry"
@@ -349,7 +375,7 @@ export default function AdminCheckIn() {
                             )}
                           </div>
                         </div>
-                        <CheckoutDialog child={child} isPending={checkOut.isPending} onCheckout={(guardianId) => checkOut.mutate({ childId: child.id, guardianId })} />
+                        <CheckoutDialog child={child} isPending={checkOut.isPending} onCheckout={(guardianId, pickupCode) => checkOut.mutate({ childId: child.id, guardianId, pickupCode })} />
                       </div>
                     </div>
                   ))}
@@ -448,7 +474,7 @@ export default function AdminCheckIn() {
                                 {isExpanded ? "Hide" : "Details"}
                               </Button>
                               {child.checkinStatus === "checked_in" ? (
-                                <CheckoutDialog child={child} isPending={checkOut.isPending} onCheckout={(guardianId) => checkOut.mutate({ childId: child.id, guardianId })} />
+                                <CheckoutDialog child={child} isPending={checkOut.isPending} onCheckout={(guardianId, pickupCode) => checkOut.mutate({ childId: child.id, guardianId, pickupCode })} />
                               ) : (
                                 <CheckinConfirmDialog child={child} isPending={checkIn.isPending} onConfirm={() => checkIn.mutate(child)} />
                               )}
@@ -1330,13 +1356,15 @@ function CheckoutDialog({
 }: {
   child: Child;
   isPending: boolean;
-  onCheckout: (guardianId: number) => void;
+  onCheckout: (guardianId: number, pickupCode: string) => void;
 }) {
   const authorizedGuardians = child.guardians.filter((guardian) => guardian.authorizedPickup);
   const [guardianId, setGuardianId] = React.useState<string>("");
+  const [pickupCode, setPickupCode] = React.useState("");
 
   React.useEffect(() => {
     setGuardianId(authorizedGuardians[0]?.id ? String(authorizedGuardians[0].id) : "");
+    setPickupCode("");
   }, [child.id, authorizedGuardians[0]?.id]);
 
   return (
@@ -1350,7 +1378,7 @@ function CheckoutDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Check Out {childName(child)}</DialogTitle>
-          <DialogDescription>Only authorized pickup contacts can be selected.</DialogDescription>
+          <DialogDescription>Select the authorized pickup contact and enter their security code.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
@@ -1369,6 +1397,19 @@ function CheckoutDialog({
               ))}
             </select>
           </div>
+          <div className="space-y-2">
+            <Label htmlFor={`code-${child.id}`}>Pickup Security Code</Label>
+            <Input
+              id={`code-${child.id}`}
+              value={pickupCode}
+              onChange={(event) => setPickupCode(event.target.value.toUpperCase())}
+              placeholder="e.g. A1B2C3"
+              className="font-mono tracking-widest uppercase"
+              maxLength={6}
+              autoComplete="off"
+            />
+            <p className="text-xs text-muted-foreground">The 6-character code given to the family at check-in.</p>
+          </div>
           {authorizedGuardians.length === 0 && (
             <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
               Add an authorized pickup contact before checking this child out.
@@ -1377,8 +1418,8 @@ function CheckoutDialog({
         </div>
         <DialogFooter>
           <Button
-            disabled={!guardianId || isPending}
-            onClick={() => onCheckout(Number(guardianId))}
+            disabled={!guardianId || !pickupCode.trim() || isPending}
+            onClick={() => onCheckout(Number(guardianId), pickupCode.trim())}
           >
             Confirm Check-Out
           </Button>
