@@ -1,4 +1,5 @@
 import React from "react";
+import { apiJson } from "@/lib/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import AdminLayout from "@/components/AdminLayout";
 import PageHeader from "@/components/PageHeader";
@@ -90,18 +91,6 @@ function extractYouTubeId(input: string): string {
   return trimmed;
 }
 
-async function apiJson<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`/api${path}`, {
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body.error ?? `Request failed (${res.status})`);
-  }
-  return res.json() as Promise<T>;
-}
 
 function formatDate(isoDate: string): string {
   return new Date(isoDate).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });

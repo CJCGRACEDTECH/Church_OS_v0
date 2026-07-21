@@ -70,19 +70,7 @@ export const emptyEventForm: EventFormState = {
   status: "draft",
 };
 
-export async function apiJson<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`/api${path}`, {
-    credentials: "include",
-    headers: {
-      "content-type": "application/json",
-      ...(options?.headers ?? {}),
-    },
-    ...options,
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error ?? "Request failed");
-  return data as T;
-}
+export { apiJson } from "@/lib/api";
 
 export function labelize(value: string | null | undefined) {
   if (!value) return "Not set";

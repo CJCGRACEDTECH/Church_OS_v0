@@ -26,6 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { customFetch } from "@workspace/api-client-react";
 import {
   apiJson,
   dollars,
@@ -110,11 +111,7 @@ export default function AdminGiving() {
 
   async function exportCsv() {
     try {
-      const response = await fetch("/api/admin/giving/export.csv", {
-        credentials: "include",
-      });
-      if (!response.ok) throw new Error("Export failed.");
-      const blob = await response.blob();
+      const blob = await customFetch<Blob>("/api/admin/giving/export.csv", { responseType: "blob" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;

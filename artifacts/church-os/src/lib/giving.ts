@@ -71,19 +71,7 @@ export type GivingSummary = {
   activeCampaigns: number;
 };
 
-export async function apiJson<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`/api${path}`, {
-    credentials: "include",
-    headers: {
-      "content-type": "application/json",
-      ...(options?.headers ?? {}),
-    },
-    ...options,
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error ?? "Request failed");
-  return data as T;
-}
+export { apiJson } from "@/lib/api";
 
 export function dollars(cents: number) {
   return `$${(cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

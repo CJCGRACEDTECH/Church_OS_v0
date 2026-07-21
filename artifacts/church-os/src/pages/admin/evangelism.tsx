@@ -1,4 +1,5 @@
 import React from "react";
+import { apiJson } from "@/lib/api";
 import { Link, useLocation, useRoute } from "wouter";
 import { QRCodeSVG } from "qrcode.react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -57,19 +58,6 @@ const emptyForm: EventFormState = {
   notes: "",
 };
 
-async function apiJson<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`/api${path}`, {
-    credentials: "include",
-    headers: {
-      "content-type": "application/json",
-      ...(options?.headers ?? {}),
-    },
-    ...options,
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error ?? "Request failed");
-  return data as T;
-}
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" }).format(new Date(value));

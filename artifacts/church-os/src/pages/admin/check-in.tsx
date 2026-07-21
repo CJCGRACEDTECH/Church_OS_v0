@@ -1,4 +1,5 @@
 import React from "react";
+import { apiJson } from "@/lib/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import AdminLayout from "@/components/AdminLayout";
 import PageHeader from "@/components/PageHeader";
@@ -79,19 +80,6 @@ type MemberContact = {
   phoneNumber: string | null;
 };
 
-async function apiJson<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`/api${path}`, {
-    credentials: "include",
-    headers: {
-      "content-type": "application/json",
-      ...(options?.headers ?? {}),
-    },
-    ...options,
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error ?? "Request failed");
-  return data as T;
-}
 
 function relationshipLabel(value: string) {
   if (value === "emergency_contact") return "Emergency Contact";

@@ -1,4 +1,5 @@
 import React from "react";
+import { apiJson } from "@/lib/api";
 import { Link, useLocation, useRoute } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import AdminLayout from "@/components/AdminLayout";
@@ -141,19 +142,6 @@ const emptyMemberForm: MemberFormState = {
   emergencyContactRelationship: "",
 };
 
-async function apiJson<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`/api${path}`, {
-    credentials: "include",
-    headers: {
-      "content-type": "application/json",
-      ...(options?.headers ?? {}),
-    },
-    ...options,
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error ?? "Request failed");
-  return data as T;
-}
 
 function labelize(value: string | null | undefined) {
   if (!value) return "Not set";

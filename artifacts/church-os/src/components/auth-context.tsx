@@ -1,4 +1,4 @@
-import React, { createContext, useContext, ReactNode, useLayoutEffect } from "react";
+import React, { createContext, useContext, ReactNode, useLayoutEffect, useRef } from "react";
 import { useClerk, useUser } from "@clerk/react";
 import { useGetMe, setAuthTokenGetter, getGetMeQueryKey } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
@@ -85,6 +85,22 @@ function ClerkBackedAuthProvider({ children }: { children: ReactNode }) {
   const isTransientError = !!isSignedIn && !!localError && errorStatus !== 403;
   const isLoading = !clerkLoaded || (!!isSignedIn && (localLoading || isTransientError));
   const user = clerkLoaded && isSignedIn && localUser ? (localUser as LocalUser) : null;
+
+  // When localUser first resolves (user just authenticated), any queries that
+  // fired earlier without a token are stuck in 401 error state (retry:false).
+  // Invalidate everything except /api/auth/me so they refetch with the token.
+  const prevUserIdRef = useRef<number | null>(null);
+  React.useEffect(() => {
+    if (localUser && localUser.id !== prevUserIdRef.current) {
+      prevUserIdRef.current = localUser.id;
+      void queryClient.invalidateQueries({
+        predicate: (query) => {
+          const key = query.queryKey;
+          return !(Array.isArray(key) && key[0] === "/api/auth/me");
+        },
+      });
+    }
+  }, [localUser, queryClient]);
 
   // Sign out only on 403 — Clerk identity exists but has no local DB account.
   // (Clerk handles 401/session-expiry itself via token refresh + isSignedIn=false.)
