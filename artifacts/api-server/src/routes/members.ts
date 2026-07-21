@@ -56,6 +56,7 @@ async function getRequesterChurchId(userId: number) {
 
 function serializeMember(user: typeof usersTable.$inferSelect) {
   const discipleshipParticipant = Boolean(user.smallGroup && user.smallGroup.toLowerCase().includes("[disciple]"));
+  const isAdmin = user.role === "admin";
   return {
     id: user.id,
     firstName: user.firstName,
@@ -66,13 +67,13 @@ function serializeMember(user: typeof usersTable.$inferSelect) {
     phoneNumber: user.phoneNumber,
     dateOfBirth: user.dateOfBirth,
     gender: user.gender,
-    memberStatus: user.memberStatus,
+    memberStatus: isAdmin ? "active_member" as const : user.memberStatus,
     ministryDepartment: user.ministryDepartment,
     joinDate: user.joinDate,
     baptismStatus: user.baptismStatus,
     smallGroup: user.smallGroup,
     discipleshipParticipant,
-    servingStatus: user.servingStatus,
+    servingStatus: isAdmin ? "serving" as const : user.servingStatus,
     streetAddress: user.streetAddress,
     city: user.city,
     state: user.state,
@@ -91,6 +92,7 @@ function serializeMember(user: typeof usersTable.$inferSelect) {
 
 function serializeDirectoryMember(user: typeof usersTable.$inferSelect) {
   const discipleshipParticipant = Boolean(user.smallGroup && user.smallGroup.toLowerCase().includes("[disciple]"));
+  const isAdmin = user.role === "admin";
   return {
     id: user.id,
     firstName: user.firstName,
@@ -99,13 +101,13 @@ function serializeDirectoryMember(user: typeof usersTable.$inferSelect) {
     profilePhotoUrl: user.profilePhotoUrl,
     email: user.email,
     phoneNumber: user.phoneNumber,
-    memberStatus: user.memberStatus,
+    memberStatus: isAdmin ? "active_member" as const : user.memberStatus,
     ministryDepartment: user.ministryDepartment,
     joinDate: user.joinDate,
     baptismStatus: user.baptismStatus,
     smallGroup: user.smallGroup,
     discipleshipParticipant,
-    servingStatus: user.servingStatus,
+    servingStatus: isAdmin ? "serving" as const : user.servingStatus,
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
   };
