@@ -213,6 +213,7 @@ router.get("/admin/members", requireDirectoryAccess, async (req, res): Promise<v
 
   const filters = [
     eq(usersTable.churchId, churchId),
+    eq(usersTable.role, "member"),
     ...(search
       ? [
           or(
@@ -254,7 +255,7 @@ router.get("/admin/members/:id", requireProfileAccess, async (req, res): Promise
   const [member] = await db
     .select()
     .from(usersTable)
-    .where(and(eq(usersTable.id, memberId), eq(usersTable.churchId, churchId)));
+    .where(and(eq(usersTable.id, memberId), eq(usersTable.churchId, churchId), eq(usersTable.role, "member")));
 
   if (!member) {
     res.status(404).json({ error: "Member not found." });
@@ -276,10 +277,7 @@ router.get("/admin/members/:id", requireProfileAccess, async (req, res): Promise
     .innerJoin(parentGuardiansTable, eq(childGuardianRelationshipsTable.guardianId, parentGuardiansTable.id))
     .where(and(
       eq(childrenTable.churchId, churchId),
-      or(
-        eq(parentGuardiansTable.email, member.email),
-        member.phoneNumber ? eq(parentGuardiansTable.phoneNumber, member.phoneNumber) : undefined,
-      ),
+      eq(parentGuardiansTable.memberId, member.id),
     ))
     .orderBy(childrenTable.lastName, childrenTable.firstName);
 
@@ -395,7 +393,7 @@ router.patch("/admin/members/:id", requireProfileAccess, async (req, res): Promi
     const [member] = await db
       .update(usersTable)
       .set(payload)
-      .where(and(eq(usersTable.id, memberId), eq(usersTable.churchId, churchId)))
+      .where(and(eq(usersTable.id, memberId), eq(usersTable.churchId, churchId), eq(usersTable.role, "member")))
       .returning();
 
     if (!member) {
