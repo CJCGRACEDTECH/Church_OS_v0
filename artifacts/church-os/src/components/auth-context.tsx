@@ -1,6 +1,6 @@
-import React, { createContext, useContext, ReactNode } from "react";
+import React, { createContext, useContext, ReactNode, useLayoutEffect } from "react";
 import { useClerk, useUser } from "@clerk/react";
-import { useGetMe } from "@workspace/api-client-react";
+import { useGetMe, setAuthTokenGetter, getGetMeQueryKey } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -50,10 +50,28 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function ClerkBackedAuthProvider({ children }: { children: ReactNode }) {
   const { isSignedIn, isLoaded: clerkLoaded } = useUser();
-  const { data: localUser, isLoading: localLoading, error: localError } = useGetMe();
-  const { signOut } = useClerk();
+  const clerk = useClerk();
+  const { signOut } = clerk;
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
+
+  // In Replit's proxied dev environment, Clerk's __session cookie does not
+  // propagate across the service boundary to the Express backend. Register a
+  // getter that attaches Authorization: Bearer <clerk-jwt> to every request.
+  // useLayoutEffect runs before any useEffect so the getter is in place
+  // before React Query fires its first fetch.
+  useLayoutEffect(() => {
+    setAuthTokenGetter(() => clerk.session?.getToken() ?? null);
+    return () => { setAuthTokenGetter(null); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Only fire the /api/auth/me request after Clerk has fully loaded and
+  // confirmed the user is signed in — by which point clerk.session is
+  // guaranteed to be populated so the Bearer token getter returns a real JWT.
+  const { data: localUser, isLoading: localLoading, error: localError } = useGetMe({
+    query: { queryKey: getGetMeQueryKey(), enabled: clerkLoaded && !!isSignedIn },
+  });
 
   // While Clerk says the user IS signed in, any error other than 403 is treated
   // as transient — keep showing the loading spinner rather than redirecting to
