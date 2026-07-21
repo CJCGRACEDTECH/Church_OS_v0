@@ -155,23 +155,26 @@ function memberStatusClass(status: MemberStatus) {
   return "border-border bg-muted text-muted-foreground";
 }
 
-type InviteStatus = "not_invited" | "invited" | "accepted";
+type InviteStatus = "not_invited" | "pending" | "accepted" | "active";
 
-function inviteStatus(member: Pick<Member, "invitedAt" | "inviteAcceptedAt">): InviteStatus {
+function inviteStatus(member: Pick<Member, "invitedAt" | "inviteAcceptedAt" | "accountStatus">): InviteStatus {
   if (member.inviteAcceptedAt) return "accepted";
-  if (member.invitedAt) return "invited";
+  if (member.accountStatus === "active") return "active";
+  if (member.invitedAt) return "pending";
   return "not_invited";
 }
 
 function inviteStatusLabel(status: InviteStatus) {
   if (status === "accepted") return "Accepted";
-  if (status === "invited") return "Invited";
+  if (status === "active") return "Active";
+  if (status === "pending") return "Pending";
   return "Not Invited";
 }
 
 function inviteStatusClass(status: InviteStatus) {
   if (status === "accepted") return "border-green-200 bg-green-500/10 text-green-700 dark:text-green-400";
-  if (status === "invited") return "border-blue-200 bg-blue-500/10 text-blue-700 dark:text-blue-400";
+  if (status === "active") return "border-emerald-200 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400";
+  if (status === "pending") return "border-amber-200 bg-amber-500/10 text-amber-700 dark:text-amber-400";
   return "border-border bg-muted text-muted-foreground";
 }
 
