@@ -17,6 +17,14 @@ function textOrNull(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+const ALLOWED_URL_SCHEMES = /^https?:\/\//i;
+
+function safeUrlOrNull(value: unknown): string | null {
+  const text = textOrNull(value);
+  if (!text) return null;
+  return ALLOWED_URL_SCHEMES.test(text) ? text : null;
+}
+
 function requiredText(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -111,9 +119,9 @@ function eventPayload(body: unknown) {
     endDatetime,
     location: textOrNull(record.location),
     eventMode: enumValue(record.eventMode, EVENT_MODES, "in_person"),
-    zoomLink: textOrNull(record.zoomLink),
-    youtubeLink: textOrNull(record.youtubeLink),
-    posterUrl: textOrNull(record.posterUrl),
+    zoomLink: safeUrlOrNull(record.zoomLink),
+    youtubeLink: safeUrlOrNull(record.youtubeLink),
+    posterUrl: safeUrlOrNull(record.posterUrl),
     isRecurring,
     recurrencePattern,
     recurrenceDay: isRecurring ? recurrenceDay : null,

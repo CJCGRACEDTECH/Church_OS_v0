@@ -324,6 +324,14 @@ router.patch("/admin/giving/donations/:id", requireGivingManagement, async (req,
   res.json({ donation: serializeDonation(donation) });
 });
 
+const CSV_FORMULA_CHARS = /^[=+\-@|%\t\r]/;
+
+function csvSafeString(value: string | null | undefined): string {
+  const str = value ?? "";
+  const sanitized = CSV_FORMULA_CHARS.test(str) ? `\t${str}` : str;
+  return `"${sanitized.replace(/"/g, '""')}"`;
+}
+
 router.get("/admin/giving/export.csv", requireGivingManagement, async (req, res) => {
   const rows = await db
     .select({
@@ -346,13 +354,13 @@ router.get("/admin/giving/export.csv", requireGivingManagement, async (req, res)
   const csvRows = ["Donation ID,Donor Name,Donor Email,Amount,Date,Type,Category,Campaign,Status,Tax Deductible,Receipt Issued"];
   rows.forEach((row) => csvRows.push([
     row.id,
-    JSON.stringify(row.donorName),
-    row.donorEmail,
+    csvSafeString(row.donorName),
+    csvSafeString(row.donorEmail),
     (row.amountCents / 100).toFixed(2),
     row.donationDate.toISOString(),
     row.donationType,
     row.givingCategory,
-    JSON.stringify(row.campaignName ?? ""),
+    csvSafeString(row.campaignName),
     row.paymentStatus,
     row.taxDeductible ? "yes" : "no",
     row.receiptIssued ? "yes" : "no",

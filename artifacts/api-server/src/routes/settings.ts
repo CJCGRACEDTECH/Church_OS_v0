@@ -93,6 +93,14 @@ function cleanText(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+const ALLOWED_URL_SCHEMES = /^https?:\/\//i;
+
+function safeUrlOrNull(value: unknown): string | null {
+  const text = cleanText(value);
+  if (!text) return null;
+  return ALLOWED_URL_SCHEMES.test(text) ? text : null;
+}
+
 function objectValue(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
@@ -185,18 +193,18 @@ router.patch("/admin/settings/church-profile", requireAdminPermission(ADMIN_PERM
 
   const [updated] = await db.update(churchProfileSettingsTable).set({
     churchName,
-    churchLogoUrl: cleanText(req.body?.churchLogoUrl),
+    churchLogoUrl: safeUrlOrNull(req.body?.churchLogoUrl),
     churchAddress: cleanText(req.body?.churchAddress),
     churchPhoneNumber: cleanText(req.body?.churchPhoneNumber),
     churchEmail: cleanText(req.body?.churchEmail),
-    websiteUrl: cleanText(req.body?.websiteUrl),
+    websiteUrl: safeUrlOrNull(req.body?.websiteUrl),
     churchEin: cleanText(req.body?.churchEin),
     timezone: cleanText(req.body?.timezone) ?? "America/New_York",
     defaultLanguage: cleanText(req.body?.defaultLanguage) ?? "English",
-    youtubeUrl: cleanText(req.body?.youtubeUrl),
-    facebookUrl: cleanText(req.body?.facebookUrl),
-    instagramUrl: cleanText(req.body?.instagramUrl),
-    defaultZoomLink: cleanText(req.body?.defaultZoomLink),
+    youtubeUrl: safeUrlOrNull(req.body?.youtubeUrl),
+    facebookUrl: safeUrlOrNull(req.body?.facebookUrl),
+    instagramUrl: safeUrlOrNull(req.body?.instagramUrl),
+    defaultZoomLink: safeUrlOrNull(req.body?.defaultZoomLink),
     updatedByUserId: req.localUserId,
   }).where(eq(churchProfileSettingsTable.id, profile.id)).returning();
 
