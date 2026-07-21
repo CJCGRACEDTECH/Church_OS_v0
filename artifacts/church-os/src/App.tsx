@@ -14,12 +14,6 @@ import ConnectPage from "@/pages/connect";
 import RequestAccountPage from "@/pages/request-account";
 import { EvangelismContactPage, EvangelismQrPage } from "@/pages/evangelism-public";
 
-import HomePage from "@/pages/home";
-import AboutPage from "@/pages/about";
-import SermonsPage from "@/pages/sermons";
-import EventsPublicPage from "@/pages/events-public";
-import GivingPublicPage from "@/pages/giving-public";
-
 import AdminDashboard from "@/pages/admin-dashboard";
 import AdminProfile from "@/pages/admin/profile";
 import AdminMembers from "@/pages/admin/members";
@@ -129,7 +123,7 @@ function ClerkQueryClientCacheInvalidator() {
   return null;
 }
 
-function HomeRoute() {
+function HomeRedirect() {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
@@ -142,7 +136,7 @@ function HomeRoute() {
 
   if (user?.role === "admin") return <Redirect to="/admin" />;
   if (user?.role === "member") return <Redirect to="/member" />;
-  return <HomePage />;
+  return <Redirect to="/sign-in" />;
 }
 
 function AuthPageShell({ children }: { children: React.ReactNode }) {
@@ -234,12 +228,7 @@ function Router() {
       <Route path="/sign-in/*?" component={SignInPage} />
       <Route path="/sign-up/*?" component={SignUpPage} />
 
-      {/* Public website pages */}
-      <Route path="/" component={HomeRoute} />
-      <Route path="/about" component={AboutPage} />
-      <Route path="/sermons" component={SermonsPage} />
-      <Route path="/events" component={EventsPublicPage} />
-      <Route path="/giving" component={GivingPublicPage} />
+      <Route path="/" component={HomeRedirect} />
 
       <Route path="/unauthorized" component={Unauthorized} />
       <Route path="/attendance/check-in/:token" component={AttendanceCheckIn} />
