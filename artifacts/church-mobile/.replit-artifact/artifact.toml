@@ -19,7 +19,6 @@ localPort = 18878
 run = "pnpm --filter @workspace/church-mobile run dev"
 
 [services.production]
-build = [ "pnpm", "--filter", "@workspace/church-mobile", "run", "build" ]
 run = [ "pnpm", "--filter", "@workspace/church-mobile", "run", "serve" ]
 
 [services.env]
