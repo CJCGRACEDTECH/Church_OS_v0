@@ -50,13 +50,24 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function ClerkBackedAuthProvider({ children }: { children: ReactNode }) {
   const { isSignedIn, isLoaded: clerkLoaded } = useUser();
-  const { data: localUser, isLoading: localLoading } = useGetMe();
+  const { data: localUser, isLoading: localLoading, error: localError } = useGetMe();
   const { signOut } = useClerk();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
 
   const isLoading = !clerkLoaded || (!!isSignedIn && localLoading);
   const user = clerkLoaded && isSignedIn && localUser ? (localUser as LocalUser) : null;
+
+  // If Clerk says the user is signed in but the backend has no matching local
+  // account (403), automatically sign them out so the sign-in page can render
+  // instead of looping between "/" and "/sign-in" forever.
+  React.useEffect(() => {
+    if (clerkLoaded && isSignedIn && !localLoading && localError) {
+      void signOut().then(() => {
+        queryClient.clear();
+      });
+    }
+  }, [clerkLoaded, isSignedIn, localLoading, localError, signOut, queryClient]);
 
   const logout = () => {
     void signOut().then(() => {
