@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, inArray, isNull, lte } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNull, lte, or } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   attendanceRecordsTable,
@@ -85,6 +85,7 @@ router.get("/admin/dashboard/summary", requireRole("admin"), async (req, res): P
     [totalMembersRow],
     [newMembersRow],
     [visitorsRow],
+    [activeMembersByStatusRow],
     memberRows,
     ytdDonations,
     [activeCampaignsRow],
@@ -114,6 +115,15 @@ router.get("/admin/dashboard/summary", requireRole("admin"), async (req, res): P
       : Promise.resolve([{ c: 0 }]),
     canSeeMembers
       ? db.select({ c: count() }).from(usersTable).where(and(eq(usersTable.churchId, churchId), eq(usersTable.role, "member"), eq(usersTable.memberStatus, "visitor")))
+      : Promise.resolve([{ c: 0 }]),
+    canSeeMembers
+      ? db.select({ c: count() }).from(usersTable).where(and(
+          eq(usersTable.churchId, churchId),
+          or(
+            eq(usersTable.role, "admin"),
+            and(eq(usersTable.role, "member"), eq(usersTable.memberStatus, "active_member")),
+          ),
+        ))
       : Promise.resolve([{ c: 0 }]),
     canSeeAttendance
       ? db.select({
@@ -407,7 +417,7 @@ router.get("/admin/dashboard/summary", requireRole("admin"), async (req, res): P
 
   res.json({
     totalMembers: canSeeMembers ? Number(totalMembersRow?.c ?? 0) : null,
-    activeMembers: canSeeMembers ? activeMembers : null,
+    activeMembers: canSeeMembers ? Number(activeMembersByStatusRow?.c ?? 0) : null,
     newMembersLast30Days: canSeeMembers ? Number(newMembersRow?.c ?? 0) : null,
     visitors: canSeeMembers ? Number(visitorsRow?.c ?? 0) : null,
     givingMtdCents: canSeeGiving ? givingMtdCents : null,
