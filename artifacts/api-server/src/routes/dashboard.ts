@@ -100,14 +100,14 @@ router.get("/admin/dashboard/summary", requireRole("admin"), async (req, res): P
     canSeeMembers
       ? db.select({ c: count() }).from(usersTable).where(and(
           eq(usersTable.churchId, churchId),
-          eq(usersTable.role, "member"),
+          inArray(usersTable.role, ["member", "admin"]),
           inArray(usersTable.memberStatus, ["member", "active_member"]),
         ))
       : Promise.resolve([{ c: 0 }]),
     canSeeMembers
       ? db.select({ c: count() }).from(usersTable).where(and(
           eq(usersTable.churchId, churchId),
-          eq(usersTable.role, "member"),
+          inArray(usersTable.role, ["member", "admin"]),
           inArray(usersTable.memberStatus, ["member", "active_member"]),
           gte(usersTable.createdAt, thirtyDaysAgo),
         ))
@@ -122,7 +122,7 @@ router.get("/admin/dashboard/summary", requireRole("admin"), async (req, res): P
           servingStatus: usersTable.servingStatus,
         }).from(usersTable).where(and(
           eq(usersTable.churchId, churchId),
-          eq(usersTable.role, "member"),
+          inArray(usersTable.role, ["member", "admin"]),
           inArray(usersTable.memberStatus, ["member", "active_member"]),
         ))
       : Promise.resolve([] as Array<{ id: number; memberStatus: typeof usersTable.$inferSelect.memberStatus; servingStatus: typeof usersTable.$inferSelect.servingStatus }>),
@@ -177,7 +177,7 @@ router.get("/admin/dashboard/summary", requireRole("admin"), async (req, res): P
       : Promise.resolve([] as Array<{ childId: number; checkinTime: Date }>),
     canSeeMembers
       ? db.select({ id: usersTable.id, firstName: usersTable.firstName, lastName: usersTable.lastName, memberStatus: usersTable.memberStatus, ministryDepartment: usersTable.ministryDepartment, createdAt: usersTable.createdAt })
-          .from(usersTable).where(and(eq(usersTable.churchId, churchId), eq(usersTable.role, "member"), gte(usersTable.createdAt, thirtyDaysAgo))).orderBy(desc(usersTable.createdAt)).limit(8)
+          .from(usersTable).where(and(eq(usersTable.churchId, churchId), inArray(usersTable.role, ["member", "admin"]), gte(usersTable.createdAt, thirtyDaysAgo))).orderBy(desc(usersTable.createdAt)).limit(8)
       : Promise.resolve([] as Array<{ id: number; firstName: string; lastName: string; memberStatus: typeof usersTable.$inferSelect.memberStatus; ministryDepartment: string | null; createdAt: Date }>),
     canSeeGiving
       ? db.select({ settings: systemSettingsTable.settings })
