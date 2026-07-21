@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, or } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import { Router, type IRouter, type Request } from "express";
 import {
   attendanceRecordsTable,
@@ -213,7 +213,7 @@ router.get("/admin/members", requireDirectoryAccess, async (req, res): Promise<v
 
   const filters = [
     eq(usersTable.churchId, churchId),
-    eq(usersTable.role, "member"),
+    inArray(usersTable.role, ["member", "admin"]),
     ...(search
       ? [
           or(
@@ -255,7 +255,7 @@ router.get("/admin/members/:id", requireProfileAccess, async (req, res): Promise
   const [member] = await db
     .select()
     .from(usersTable)
-    .where(and(eq(usersTable.id, memberId), eq(usersTable.churchId, churchId), eq(usersTable.role, "member")));
+    .where(and(eq(usersTable.id, memberId), eq(usersTable.churchId, churchId), inArray(usersTable.role, ["member", "admin"])));
 
   if (!member) {
     res.status(404).json({ error: "Member not found." });
@@ -393,7 +393,7 @@ router.patch("/admin/members/:id", requireProfileAccess, async (req, res): Promi
     const [member] = await db
       .update(usersTable)
       .set(payload)
-      .where(and(eq(usersTable.id, memberId), eq(usersTable.churchId, churchId), eq(usersTable.role, "member")))
+      .where(and(eq(usersTable.id, memberId), eq(usersTable.churchId, churchId), inArray(usersTable.role, ["member", "admin"])))
       .returning();
 
     if (!member) {
