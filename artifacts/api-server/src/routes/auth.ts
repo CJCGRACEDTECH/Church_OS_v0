@@ -1,11 +1,12 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq, gte } from "drizzle-orm";
 import {
   db,
   usersTable,
   churchesTable,
   oauthAccountsTable,
   adminPermissionsTable,
+  adminInvitationsTable,
 } from "@workspace/db";
 import { UpdateProfileBody } from "@workspace/api-zod";
 import { getAuth, createClerkClient } from "@clerk/express";
@@ -215,21 +216,57 @@ router.get("/auth/me", async (req, res): Promise<void> => {
       .where(eq(usersTable.email, email));
 
     if (byEmail) {
+      const activateNow = byEmail.accountStatus === "pending";
       await db
         .update(usersTable)
         .set({
           clerkUserId,
-          ...(byEmail.role === "member" && byEmail.accountStatus === "pending" ? { accountStatus: "active" as const } : {}),
+          ...(activateNow ? { accountStatus: "active" as const } : {}),
         })
         .where(eq(usersTable.id, byEmail.id));
       localUser = {
         id: byEmail.id,
         isActive: byEmail.isActive,
-        accountStatus: byEmail.role === "member" && byEmail.accountStatus === "pending" ? "active" : byEmail.accountStatus,
+        accountStatus: activateNow ? "active" : byEmail.accountStatus,
       };
     } else {
-      res.status(403).json({ error: "No account found for this identity. Contact your church administrator to be added." });
-      return;
+      // Check for a pending admin invite so the invited user can sign in
+      // before they explicitly accept the invite token.
+      const [pendingInvite] = await db
+        .select({
+          id: adminInvitationsTable.id,
+          firstName: adminInvitationsTable.firstName,
+          lastName: adminInvitationsTable.lastName,
+          churchId: adminInvitationsTable.churchId,
+        })
+        .from(adminInvitationsTable)
+        .where(
+          and(
+            eq(adminInvitationsTable.email, email),
+            eq(adminInvitationsTable.status, "pending"),
+            gte(adminInvitationsTable.expiresAt, new Date()),
+          ),
+        );
+
+      if (pendingInvite) {
+        const [newUser] = await db
+          .insert(usersTable)
+          .values({
+            email,
+            firstName: pendingInvite.firstName,
+            lastName: pendingInvite.lastName,
+            churchId: pendingInvite.churchId,
+            role: "member",
+            accountStatus: "active",
+            isActive: true,
+            clerkUserId,
+          })
+          .returning({ id: usersTable.id, isActive: usersTable.isActive, accountStatus: usersTable.accountStatus });
+        localUser = newUser;
+      } else {
+        res.status(403).json({ error: "No account found for this identity. Contact your church administrator to be added." });
+        return;
+      }
     }
   }
 
