@@ -494,4 +494,73 @@ router.get("/member/attendance/history", requireAuth, async (req, res): Promise<
   });
 });
 
+router.get("/attendance/qr/:token/public", async (req, res): Promise<void> => {
+  const token = String(req.params.token);
+  const [session] = await db.select().from(attendanceSessionsTable).where(eq(attendanceSessionsTable.qrToken, token));
+  if (!session) { res.status(404).json({ error: "Attendance session not found." }); return; }
+  const expired = !session.qrEnabled || session.sessionStatus !== "active" || session.qrExpiration < new Date();
+  res.json({ session: serializeSession(session), expired });
+});
+
+router.post("/attendance/qr/:token/guest-check-in", async (req, res): Promise<void> => {
+  const token = String(req.params.token);
+  const [session] = await db.select().from(attendanceSessionsTable).where(eq(attendanceSessionsTable.qrToken, token));
+  if (!session) { res.status(404).json({ error: "Attendance session not found." }); return; }
+  if (!session.qrEnabled || session.sessionStatus !== "active" || session.qrExpiration < new Date()) {
+    res.status(410).json({ error: "This QR check-in is expired or closed." });
+    return;
+  }
+
+  const body = typeof req.body === "object" && req.body ? req.body as Record<string, unknown> : {};
+  const firstName = textOrNull(body.firstName);
+  const lastName = textOrNull(body.lastName);
+  const email = textOrNull(body.email);
+  const phone = textOrNull(body.phone);
+
+  if (!firstName || !lastName || !email || !phone) {
+    res.status(400).json({ error: "Full name, email, and phone are required." });
+    return;
+  }
+
+  const normalizedEmail = email.toLowerCase().trim();
+
+  let visitor = (await db.select().from(usersTable).where(eq(usersTable.email, normalizedEmail)))[0];
+
+  if (!visitor && phone) {
+    const phoneMatches = await db.select().from(usersTable).where(
+      and(eq(usersTable.churchId, session.churchId), eq(usersTable.phoneNumber, phone)),
+    );
+    if (phoneMatches.length === 1) visitor = phoneMatches[0];
+  }
+
+  if (!visitor) {
+    [visitor] = await db.insert(usersTable).values({
+      churchId: session.churchId,
+      email: normalizedEmail,
+      firstName,
+      lastName,
+      phoneNumber: phone,
+      role: "member",
+      memberStatus: "visitor",
+      profileStatus: "visitor",
+      accountStatus: "pending",
+      isActive: false,
+      firstTimeVisitor: true,
+    }).returning();
+  }
+
+  const [record] = await db.insert(attendanceRecordsTable).values({
+    sessionId: session.id,
+    memberId: visitor.id,
+    attendanceStatus: "present",
+    checkinSource: "qr_self_checkin",
+    completionStatus: session.attendanceType === "discipleship" ? "attended" : null,
+  }).onConflictDoUpdate({
+    target: [attendanceRecordsTable.sessionId, attendanceRecordsTable.memberId],
+    set: { attendanceStatus: "present", checkinSource: "qr_self_checkin", checkinTime: new Date() },
+  }).returning();
+
+  res.status(201).json({ record: serializeRecord(record, { firstName: visitor.firstName, lastName: visitor.lastName, email: visitor.email }) });
+});
+
 export default router;
