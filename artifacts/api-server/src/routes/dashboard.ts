@@ -108,9 +108,11 @@ router.get("/admin/dashboard/summary", requireRole("admin"), async (req, res): P
     canSeeMembers
       ? db.select({ c: count() }).from(usersTable).where(and(
           eq(usersTable.churchId, churchId),
-          inArray(usersTable.role, ["member", "admin"]),
-          inArray(usersTable.memberStatus, ["member", "active_member"]),
           gte(usersTable.createdAt, thirtyDaysAgo),
+          or(
+            eq(usersTable.role, "admin"),
+            and(eq(usersTable.role, "member"), inArray(usersTable.memberStatus, ["member", "active_member"])),
+          ),
         ))
       : Promise.resolve([{ c: 0 }]),
     canSeeMembers
