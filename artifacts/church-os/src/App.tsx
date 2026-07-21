@@ -132,12 +132,16 @@ function HomeRoute() {
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    if (!isLoading && user) {
-      setLocation(user.role === "admin" ? "/admin" : "/member", { replace: true });
+    if (!isLoading) {
+      if (user) {
+        setLocation(user.role === "admin" ? "/admin" : "/member", { replace: true });
+      } else {
+        setLocation("/sign-in", { replace: true });
+      }
     }
   }, [isLoading, user, setLocation]);
 
-  return <HomePage />;
+  return null;
 }
 
 function AuthPageShell({ children }: { children: React.ReactNode }) {
