@@ -142,12 +142,10 @@ const emptyMemberForm: MemberFormState = {
 };
 
 async function apiJson<T>(path: string, options?: RequestInit): Promise<T> {
-  const demoToken = sessionStorage.getItem("demo_token");
   const response = await fetch(`/api${path}`, {
     credentials: "include",
     headers: {
       "content-type": "application/json",
-      ...(demoToken ? { authorization: `Bearer ${demoToken}` } : {}),
       ...(options?.headers ?? {}),
     },
     ...options,

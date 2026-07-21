@@ -1,6 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, eq, or } from "drizzle-orm";
-import jwt from "jsonwebtoken";
+import { eq } from "drizzle-orm";
 import {
   db,
   usersTable,
@@ -170,39 +169,6 @@ async function findAuthProfileByUserId(userId: number): Promise<AuthProfile | nu
 }
 
 router.get("/auth/me", async (req, res): Promise<void> => {
-  // Dev-only: allow demo sessions via Bearer token (proxy-safe) or cookie
-  if (process.env.NODE_ENV !== "production") {
-    const secret = process.env.SESSION_SECRET ?? "dev-demo-secret";
-    let demoToken: string | undefined;
-    const authHeader = req.headers.authorization;
-    if (authHeader?.startsWith("Bearer ")) {
-      const candidate = authHeader.slice(7);
-      try {
-        const p = jwt.verify(candidate, secret) as { sub?: string };
-        if (p.sub && /^\d+$/.test(p.sub)) demoToken = candidate;
-      } catch { /* not a demo token */ }
-    }
-    if (!demoToken) demoToken = req.cookies?.demo_session as string | undefined;
-
-    if (demoToken) {
-      try {
-        const payload = jwt.verify(demoToken, secret) as { sub: string };
-        const userId = parseInt(payload.sub, 10);
-        const [demoUser] = await db
-          .select({ id: usersTable.id, isActive: usersTable.isActive, accountStatus: usersTable.accountStatus })
-          .from(usersTable)
-          .where(eq(usersTable.id, userId));
-        if (demoUser?.isActive && demoUser.accountStatus === "active") {
-          await db.update(usersTable).set({ lastLoginAt: new Date() }).where(eq(usersTable.id, demoUser.id));
-          const profile = await findAuthProfileByUserId(demoUser.id);
-          if (!profile) { res.status(500).json({ error: "Failed to load profile." }); return; }
-          res.json(serializeUser(profile));
-          return;
-        }
-      } catch { /* fall through to Clerk */ }
-    }
-  }
-
   if (!process.env.CLERK_SECRET_KEY) {
     res.status(401).json({ error: "Not authenticated" });
     return;
@@ -322,50 +288,6 @@ router.patch("/auth/profile", requireAuth, async (req, res): Promise<void> => {
   }
 
   res.json(serializeUser(profile));
-});
-
-const DEMO_EMAILS: Record<string, string | string[]> = {
-  super_admin: "superadmin@churchos.test",
-  admin: "admin4@churchos.test",
-  children_ministry: "admin5@churchos.test",
-  member: "member@churchos.test",
-};
-
-router.post("/auth/demo-session", async (req, res) => {
-  if (process.env.NODE_ENV === "production") {
-    res.status(404).json({ error: "Not found" });
-    return;
-  }
-
-  const role = typeof req.body?.role === "string" ? req.body.role : "";
-  const candidates = DEMO_EMAILS[role];
-  if (!candidates) {
-    res.status(400).json({ error: "role must be 'super_admin', 'admin', 'children_ministry', or 'member'" });
-    return;
-  }
-  const email = Array.isArray(candidates) ? candidates[Math.floor(Math.random() * candidates.length)] : candidates;
-
-  const [user] = await db
-    .select({ id: usersTable.id, role: usersTable.role, accountStatus: usersTable.accountStatus })
-    .from(usersTable)
-    .where(eq(usersTable.email, email));
-
-  if (!user || user.accountStatus !== "active") {
-    res.status(404).json({
-      error: "Access profile not found. Contact your administrator.",
-    });
-    return;
-  }
-
-  const secret = process.env.SESSION_SECRET ?? "dev-demo-secret";
-  const token = jwt.sign({ sub: String(user.id), role: user.role }, secret, { expiresIn: "24h" });
-
-  res.json({ ok: true, role: user.role, token });
-});
-
-router.delete("/auth/demo-session", (req, res) => {
-  res.clearCookie("demo_session", { path: "/" });
-  res.json({ ok: true });
 });
 
 export default router;

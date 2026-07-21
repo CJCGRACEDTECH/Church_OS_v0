@@ -110,10 +110,8 @@ export default function AdminGiving() {
 
   async function exportCsv() {
     try {
-      const demoToken = sessionStorage.getItem("demo_token");
       const response = await fetch("/api/admin/giving/export.csv", {
         credentials: "include",
-        headers: demoToken ? { authorization: `Bearer ${demoToken}` } : {},
       });
       if (!response.ok) throw new Error("Export failed.");
       const blob = await response.blob();

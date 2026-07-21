@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Switch, Route, Redirect, Link, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -168,89 +168,7 @@ function AuthPageShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-const DEMO_ACCOUNTS = [
-  { label: "Super Admin Access", role: "super_admin", color: "bg-indigo-600 hover:bg-indigo-700" },
-  { label: "Admin Access", role: "admin", color: "bg-sky-600 hover:bg-sky-700" },
-  { label: "Children Ministry Access", role: "children_ministry", color: "bg-amber-600 hover:bg-amber-700" },
-  { label: "Member Access", role: "member", color: "bg-slate-600 hover:bg-slate-700" },
-];
-
-function DemoLoginButtons() {
-  const [, setLocation] = useLocation();
-  const [loadingIdx, setLoadingIdx] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleDemo(idx: number) {
-    setLoadingIdx(idx);
-    setError(null);
-    try {
-      const res = await fetch("/api/auth/demo-session", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ role: DEMO_ACCOUNTS[idx].role }),
-        credentials: "include",
-      });
-      const data = await res.json() as { ok?: boolean; role?: string; token?: string; error?: string };
-      if (!res.ok || !data.ok) {
-        setError(data.error ?? "Could not start session.");
-        return;
-      }
-      sessionStorage.setItem("demo_mode", "true");
-      sessionStorage.setItem("demo_token", data.token ?? "");
-      setLocation(data.role === "admin" ? "/admin" : "/member");
-      window.location.reload();
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Could not start session.";
-      setError(msg);
-    } finally {
-      setLoadingIdx(null);
-    }
-  }
-
-  return (
-    <div className="w-[560px] max-w-full mt-3">
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 px-6 py-4">
-        <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-3">Quick Access</p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {DEMO_ACCOUNTS.map((acct, idx) => (
-            <button
-              key={acct.role}
-              onClick={() => handleDemo(idx)}
-              disabled={loadingIdx !== null}
-              className={`flex-1 ${acct.color} text-white text-sm font-medium rounded-lg py-2 px-3 transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5`}
-            >
-              {loadingIdx === idx ? (
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent inline-block" />
-              ) : null}
-              {acct.label}
-            </button>
-          ))}
-        </div>
-        {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
-      </div>
-    </div>
-  );
-}
-
 function SignInPage() {
-  if (!clerkPubKey) {
-    return (
-      <AuthPageShell>
-        <div className="flex flex-col items-center">
-          <div className="w-[440px] max-w-full flex flex-col items-center gap-2 rounded-2xl border border-gray-100 bg-white px-6 py-4 shadow-xl">
-            <Link href="/request-account" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
-              Already a member? Request account access
-            </Link>
-            <Link href="/connect" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
-              New here? Connect with us
-            </Link>
-          </div>
-          <DemoLoginButtons />
-        </div>
-      </AuthPageShell>
-    );
-  }
-
   return (
     <AuthPageShell>
       <div className="flex flex-col items-center">
@@ -268,7 +186,6 @@ function SignInPage() {
             New here? Connect with us
           </Link>
         </div>
-        <DemoLoginButtons />
       </div>
     </AuthPageShell>
   );
@@ -288,7 +205,6 @@ function SignUpPage() {
             New here? Connect with us
           </Link>
         </div>
-        <DemoLoginButtons />
       </div>
     </AuthPageShell>
   );
@@ -353,19 +269,6 @@ function Router() {
 
 function ClerkProviderWithRoutes() {
   const [, setLocation] = useLocation();
-
-  if (!clerkPubKey) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <AuthProvider clerkEnabled={false}>
-            <Router />
-          </AuthProvider>
-          <Toaster />
-        </TooltipProvider>
-      </QueryClientProvider>
-    );
-  }
 
   return (
     <ClerkProvider
