@@ -1,8 +1,13 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "ebNZ0OMDmpA_ExCFzwSgl"
 uri = "file://artifacts/church-mobile/assets/images/icon.png"
 type = "image"
 title = "generated_image"
+
+[[outputs]]
+id = "2h3H650MrlcyFgXPLqP_l"
+uri = "file://church-os-project.zip"
+type = "unspecified"
+title = "Church OS – Project Source Code"
