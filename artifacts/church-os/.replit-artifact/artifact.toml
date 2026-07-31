@@ -19,12 +19,7 @@ run = "pnpm -w run dev:replit"
 
 [services.production]
 build = [ "pnpm", "run", "build:replit" ]
-publicDir = "artifacts/church-os/dist/public"
-serve = "static"
-
-[[services.production.rewrites]]
-from = "/*"
-to = "/index.html"
+run = "node scripts/start-unified.mjs"
 
 [services.env]
 PORT = "25363"
