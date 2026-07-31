@@ -213,7 +213,6 @@ html.js-anim .animate-on-scroll {
 .cjc-site-footer {
   position: relative;
   z-index: 10;
-  margin-top: -80px;
   padding-top: 36px;
   background: var(--cjc-navy);
   color: #cbd1df;
@@ -321,7 +320,6 @@ html.js-anim .animate-on-scroll {
 @media (max-width: 560px) {
   .cjc-v0-brand span { font-size: 18px; }
   .cjc-site-footer {
-    margin-top: -54px;
     padding-top: 22px;
   }
   .cjc-site-footer__main {
