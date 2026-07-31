@@ -28,7 +28,7 @@
 
     .watch-hero {
       position: relative;
-      min-height: min(460px, 54vh);
+      min-height: min(640px, 70vh);
       display: flex;
       align-items: flex-end;
       overflow: hidden;
@@ -66,7 +66,7 @@
     .eyebrow {
       display: flex; align-items: center; gap: 10px;
       margin: 0 0 16px;
-      color: #d8bd72;
+      color: #e0c474;
       font-size: 14px;
       font-weight: 800;
       letter-spacing: .13em;
@@ -141,13 +141,17 @@
       margin-bottom: 26px;
     }
     .eyebrow-small {
+      display: flex;
+      align-items: center;
+      gap: 10px;
       margin: 0 0 7px;
-      color: var(--blue);
+      color: var(--cjc-gold, #c29b34);
       font-size: 11.5px;
       font-weight: 800;
       letter-spacing: .07em;
       text-transform: uppercase;
     }
+    .eyebrow-small::before { content: ""; display: block; width: 28px; height: 2px; background: currentColor; flex-shrink: 0; }
     .section-title {
       margin: 0;
       font-size: 34px;
@@ -305,14 +309,15 @@
     }
     .video-card {
       display: block; color: inherit; text-decoration: none;
-      transition: transform .20s ease;
+      transition: transform .22s ease;
     }
     .video-card:hover { transform: translateY(-4px); }
+    .video-card:active { transform: translateY(-2px); }
     .video-card__image {
       position: relative;
       aspect-ratio: 16 / 9;
       overflow: hidden;
-      border-radius: 7px;
+      border-radius: 8px;
       background: #e9edf5;
       box-shadow: var(--cjc-shadow-soft);
     }
@@ -349,9 +354,9 @@
       .video-grid  { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     @media (max-width: 560px) {
-      .watch-hero { min-height: 360px; padding: 0 20px; background-position: 58% center; }
-      .watch-hero::after { height: 110px; }
-      .watch-hero__inner { padding: 48px 0 44px; }
+      .watch-hero { min-height: 540px; padding: 0 20px; background-position: 58% center; }
+      .watch-hero::after { height: 150px; }
+      .watch-hero__inner { padding: 100px 0 58px; }
       .watch-content { padding: 42px 20px 60px; }
       .watch-content::before { height: 80px; }
       .watch-section { margin-bottom: 50px; }

@@ -20,13 +20,13 @@
       background: var(--cjc-navy) url("/assets/community-worship.jpg") center 42% / cover no-repeat;
       color: #fff;
     }
-    .give-hero::before { content: ""; position: absolute; inset: 0; background: rgba(9, 15, 35, .70); }
+    .give-hero::before { content: ""; position: absolute; inset: 0; background: rgba(9, 15, 35, .82); }
     .give-hero::after {
       content: "";
       position: absolute;
       left: 0; right: 0; bottom: 0;
-      height: 180px;
-      background: linear-gradient(to bottom, transparent 0%, rgba(248, 249, 252, .26) 38%, rgba(248, 249, 252, .74) 78%, var(--cjc-page-bg) 100%);
+      height: 260px;
+      background: linear-gradient(to bottom, transparent 0%, rgba(248,249,252,.18) 32%, rgba(248,249,252,.58) 58%, rgba(248,249,252,.88) 80%, #f8f9fc 100%);
       pointer-events: none;
       z-index: 1;
     }
@@ -95,27 +95,27 @@
       min-height: 52px;
       padding: 0 24px;
       border-radius: 7px;
-      background: #635bff;
+      background: var(--cjc-blue, #4760ff);
       color: #fff;
       font-size: 16px;
       font-weight: 700;
       text-decoration: none;
       transition: background .16s ease, transform .14s ease, box-shadow .16s ease;
-      box-shadow: 0 2px 9px rgba(99,91,255,.30);
+      box-shadow: 0 2px 9px rgba(71,96,255,.30);
     }
-    .stripe-give-btn:hover { background: #4f46e5; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(99,91,255,.38); }
+    .stripe-give-btn:hover { background: var(--cjc-blue-deep, #3348c7); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(71,96,255,.38); }
     .stripe-give-btn svg { flex: 0 0 auto; }
     .stripe-give-recurring { display: flex; align-items: center; gap: 7px; padding: 10px 13px; border-radius: 6px; background: #f0fdf4; color: #166534; font-size: 12.5px; line-height: 1.4; }
     .stripe-give-recurring svg { flex: 0 0 auto; color: #16a34a; }
     .stripe-give-trust { display: flex; align-items: center; gap: 6px; justify-content: center; color: var(--cjc-muted); font-size: 11px; margin-top: 2px; }
     .stripe-give-trust svg { flex: 0 0 auto; color: #22c55e; }
-    .impact { padding: 62px 0 68px; background: var(--cjc-surface); position: relative; }
+    .impact { padding: 62px 0 68px; background: var(--cjc-surface); position: relative; margin-top: -60px; padding-top: 122px; }
     .impact::before {
       content: "";
       position: absolute;
       top: 0; left: 0; right: 0;
-      height: 110px;
-      background: linear-gradient(to bottom, var(--cjc-page-bg) 0%, transparent 100%);
+      height: 120px;
+      background: linear-gradient(to bottom, #f8f9fc 0%, rgba(248,249,252,.76) 30%, transparent 100%);
       pointer-events: none;
       z-index: 1;
     }
@@ -126,6 +126,9 @@
     .impact-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 17px; }
     .impact-card { overflow: hidden; border: 1px solid var(--cjc-line); border-radius: 8px; background: #fff; box-shadow: var(--cjc-shadow-soft); transition: transform .22s ease, box-shadow .22s ease; }
     .impact-card:hover { transform: translateY(-3px); box-shadow: var(--cjc-shadow-float); }
+    .impact-grid .impact-card:nth-child(1) { animation-delay: 0s; }
+    .impact-grid .impact-card:nth-child(2) { animation-delay: 0.08s; }
+    .impact-grid .impact-card:nth-child(3) { animation-delay: 0.16s; }
     .impact-card img { width: 100%; aspect-ratio: 16 / 10; display: block; object-fit: cover; transition: transform .30s ease; }
     .impact-card:hover img { transform: scale(1.03); }
     .impact-card__copy { padding: 19px; }
@@ -149,6 +152,10 @@
       box-shadow: var(--cjc-shadow-soft);
     }
     a.method:hover { transform: translateY(-3px); border-color: #aebaff; box-shadow: var(--cjc-shadow-float); }
+    .methods-grid .method:nth-child(1) { animation-delay: 0s; }
+    .methods-grid .method:nth-child(2) { animation-delay: 0.08s; }
+    .methods-grid .method:nth-child(3) { animation-delay: 0.16s; }
+    .methods-grid .method:nth-child(4) { animation-delay: 0.24s; }
     .method__logo { width: 42px; height: 42px; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--cjc-line); border-radius: 7px; background: #fff; }
     .method__logo img { width: 29px; height: 29px; display: block; object-fit: contain; }
     .method__body { min-width: 0; }
@@ -179,8 +186,8 @@
       content: "";
       position: absolute;
       top: 0; left: 0; right: 0;
-      height: 100px;
-      background: linear-gradient(to bottom, var(--cjc-page-bg) 0%, transparent 100%);
+      height: 110px;
+      background: linear-gradient(to bottom, #f8f9fc 0%, rgba(248,249,252,.74) 32%, transparent 100%);
       pointer-events: none;
       z-index: 1;
     }
@@ -197,13 +204,15 @@
     }
     @media (max-width: 620px) {
       .give-hero { min-height: 620px; background-position: 58% center; }
-      .give-hero::after { height: 150px; }
-      .give-hero__inner { padding: 160px 0 68px; }
+      .give-hero::after { height: 170px; }
+      .give-hero__inner { width: min(100% - 40px, 1280px); padding: 160px 0 68px; }
       .give-main { width: min(100% - 32px, 1280px); margin-top: -36px; padding-bottom: 60px; }
       .give-layout { gap: 28px; padding: 24px 20px; }
       .give-panel { padding: 21px; }
-      .impact, .methods { padding: 52px 0 56px; }
-      .impact::before, .giving-trust::after { height: 90px; }
+      .impact { margin-top: -40px; padding-top: 92px; padding-bottom: 56px; }
+      .methods { padding: 52px 0 56px; }
+      .impact::before { height: 100px; }
+      .giving-trust::after { height: 90px; }
       .impact__inner, .methods__inner { width: min(100% - 40px, 1280px); }
       .impact-card { display: block; }
       .impact-card img { height: auto; aspect-ratio: 16 / 10; }

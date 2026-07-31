@@ -1,7 +1,7 @@
 :root {
   --cjc-navy: #181d2e;
   --cjc-ink: #171c2c;
-  --cjc-muted: #687083;
+  --cjc-muted: #5f6b7e;
   --cjc-blue: #4760ff;
   --cjc-blue-deep: #3348c7;
   --cjc-blue-soft: #edf1ff;
@@ -102,6 +102,7 @@ html.js-anim .animate-on-scroll {
   text-decoration: none !important;
   font-size: 14px;
   font-weight: 650;
+  padding-bottom: 9px;
   transition: color .18s ease;
 }
 .cjc-v0-nav a:hover { color: #fff !important; }
@@ -122,10 +123,10 @@ html.js-anim .animate-on-scroll {
 .cjc-v0-actions { display: flex; align-items: center; gap: 10px; }
 .cjc-v0-login, .cjc-v0-give, .cjc-button {
   display: inline-flex;
-  min-height: 40px;
+  min-height: 42px;
   align-items: center;
   justify-content: center;
-  padding: 0 18px;
+  padding: 0 20px;
   border: 0;
   border-radius: 6px;
   background: var(--cjc-blue);
@@ -133,6 +134,7 @@ html.js-anim .animate-on-scroll {
   text-decoration: none !important;
   font-size: 14px;
   font-weight: 750;
+  line-height: 1;
   transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
 }
 .cjc-v0-login { background: var(--cjc-blue); }
@@ -144,8 +146,18 @@ html.js-anim .animate-on-scroll {
   transform: translateY(-2px);
   box-shadow: 0 9px 22px rgba(29, 50, 139, .22);
 }
+.cjc-v0-login:active, .cjc-v0-give:active, .cjc-button:active {
+  transform: translateY(0);
+}
 .cjc-button--light { background: #fff; color: var(--cjc-ink) !important; }
-.cjc-button--outline { border: 1px solid currentColor; background: transparent; }
+.cjc-button--outline { 
+  border: 1px solid currentColor; 
+  background: transparent;
+  color: #fff !important;
+}
+.cjc-button--outline:hover {
+  background: rgba(255, 255, 255, .12);
+}
 .cjc-v0-mobile { display: none; margin-left: auto; position: relative; }
 .cjc-v0-mobile summary {
   width: 40px;
@@ -177,14 +189,16 @@ html.js-anim .animate-on-scroll {
 }
 .cjc-v0-mobile nav a {
   display: block;
-  padding: 11px 12px;
-  border-radius: 4px;
+  padding: 12px 13px;
+  border-radius: 5px;
   color: #20283a !important;
   text-decoration: none !important;
   font-size: 14px;
   font-weight: 650;
+  transition: background .16s ease, transform .16s ease;
 }
 .cjc-v0-mobile nav a:hover { background: var(--cjc-blue-soft); }
+.cjc-v0-mobile nav a:active { transform: scale(0.98); }
 .cjc-v0-mobile nav .cjc-v0-mobile__action {
   margin-top: 6px;
   background: var(--cjc-blue);
@@ -201,13 +215,15 @@ html.js-anim .animate-on-scroll {
   background: var(--cjc-navy);
   color: #cbd1df;
   font-size: 14px;
+  margin-top: -60px;
+  padding-top: 60px;
 }
 .cjc-site-footer::before {
   content: "";
   position: absolute;
   top: 0; left: 0; right: 0;
-  height: 100px;
-  background: linear-gradient(to bottom, var(--cjc-page-bg) 0%, transparent 100%);
+  height: 120px;
+  background: linear-gradient(to bottom, #f8f9fc 0%, rgba(248,249,252,.82) 26%, rgba(248,249,252,.46) 56%, transparent 100%);
   pointer-events: none;
   z-index: 1;
 }
@@ -255,8 +271,8 @@ html.js-anim .animate-on-scroll {
   margin-top: 15px;
 }
 .cjc-social-row a {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   display: grid;
   place-items: center;
   border: 1px solid #454d63;
@@ -267,7 +283,10 @@ html.js-anim .animate-on-scroll {
 .cjc-social-row a:hover {
   transform: translateY(-2px);
   border-color: var(--cjc-gold);
-  background: rgba(194, 155, 52, .08);
+  background: rgba(194, 155, 52, .10);
+}
+.cjc-social-row a:active {
+  transform: translateY(0);
 }
 .cjc-social-row img {
   width: 20px;
@@ -309,6 +328,13 @@ html.js-anim .animate-on-scroll {
 
 @media (max-width: 560px) {
   .cjc-v0-brand span { font-size: 16px; }
+  .cjc-site-footer {
+    margin-top: -40px;
+    padding-top: 40px;
+  }
+  .cjc-site-footer::before {
+    height: 100px;
+  }
   .cjc-site-footer__main {
     width: min(100% - 40px, 1160px);
     grid-template-columns: 1fr;
@@ -318,5 +344,6 @@ html.js-anim .animate-on-scroll {
   .cjc-site-footer__legal {
     width: min(100% - 40px, 1160px);
     flex-direction: column;
+    gap: 6px;
   }
 }
