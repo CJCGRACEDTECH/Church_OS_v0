@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle2, HeartHandshake } from "lucide-react";
+import { PublicSiteHeader } from "@/components/public-site-header";
 
 type ConnectFormState = {
   firstName: string;
@@ -160,6 +161,26 @@ export default function ConnectPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [confirmation, setConfirmation] = React.useState<{ firstName: string; churchName: string } | null>(null);
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+  const publicWebsiteUrl =
+    (import.meta.env.VITE_PUBLIC_CHURCH_WEBSITE_URL as string | undefined)?.replace(/\/+$/, "") || null;
+  const givingUrl =
+    (import.meta.env.VITE_PUBLIC_GIVING_URL as string | undefined) ||
+    (publicWebsiteUrl ? `${publicWebsiteUrl}/give` : "/give");
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ministryInterest = params.get("ministryInterest")?.trim();
+    const discipleshipInterest = params.get("discipleshipInterest")?.trim();
+    if (!ministryInterest && !discipleshipInterest) return;
+    setForm((current) => ({
+      ...current,
+      ministryInterest: ministryInterest || current.ministryInterest,
+      discipleshipInterest:
+        discipleshipInterest === "true" || discipleshipInterest === "false"
+          ? discipleshipInterest
+          : current.discipleshipInterest,
+    }));
+  }, []);
 
   const set = (key: keyof ConnectFormState, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -182,17 +203,11 @@ export default function ConnectPage() {
 
   return (
     <main className="min-h-screen bg-[#eef0f8]">
-      <header className="border-b border-white/10 bg-[#181d2e]">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-          <Link href="/sign-in" className="flex items-center gap-3">
-            <img src={`${basePath}/cjc-logo.webp`} alt="CJC Church" className="h-10 w-auto" style={{ mixBlendMode: "screen" }} />
-            <span className="font-semibold text-white">CJC Church</span>
-          </Link>
-          <Button asChild variant="outline" className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white">
-            <Link href="/sign-in">Member Login</Link>
-          </Button>
-        </div>
-      </header>
+      <PublicSiteHeader
+        basePath={basePath}
+        publicWebsiteUrl={publicWebsiteUrl}
+        givingUrl={givingUrl}
+      />
 
       <div className="mx-auto grid max-w-6xl gap-6 px-4 py-8 lg:grid-cols-[0.8fr_1.45fr]">
         <section className="space-y-4">

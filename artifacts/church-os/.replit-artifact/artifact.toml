@@ -1,6 +1,6 @@
 kind = "web"
 previewPath = "/"
-title = "Church OS"
+title = "CJC Church"
 version = "1.0.0"
 id = "artifacts/church-os"
 router = "path"
@@ -15,10 +15,10 @@ paths = [ "/" ]
 localPort = 25363
 
 [services.development]
-run = "pnpm --filter @workspace/church-os run dev"
+run = "pnpm -w run dev:replit"
 
 [services.production]
-build = [ "pnpm", "--filter", "@workspace/church-os", "run", "build" ]
+build = [ "pnpm", "run", "build:replit" ]
 publicDir = "artifacts/church-os/dist/public"
 serve = "static"
 
@@ -29,3 +29,5 @@ to = "/index.html"
 [services.env]
 PORT = "25363"
 BASE_PATH = "/"
+API_INTERNAL_PORT = "8083"
+API_INTERNAL_URL = "http://127.0.0.1:8080"

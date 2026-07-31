@@ -1,6 +1,6 @@
 import React from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { Link, useRoute } from "wouter";
+import { useRoute } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle2, HeartHandshake, Instagram, Loader2, MapPin, Youtube } from "lucide-react";
+import { PublicSiteHeader } from "@/components/public-site-header";
 
 type PublicOutreachEvent = {
   eventName: string;
@@ -68,6 +69,11 @@ const emptyContactForm: PublicContactForm = {
 };
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+const publicWebsiteUrl =
+  (import.meta.env.VITE_PUBLIC_CHURCH_WEBSITE_URL as string | undefined)?.replace(/\/+$/, "") || null;
+const givingUrl =
+  (import.meta.env.VITE_PUBLIC_GIVING_URL as string | undefined) ||
+  (publicWebsiteUrl ? `${publicWebsiteUrl}/give` : "/give");
 
 async function publicApiJson<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${basePath}/api${path}`, {
@@ -94,14 +100,11 @@ function publicContactUrl(path: string) {
 function PublicShell({ children }: { children: React.ReactNode }) {
   return (
     <main className="min-h-screen bg-[#eef0f8]">
-      <header className="border-b border-white/10 bg-[#181d2e]">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4">
-          <Link href="/sign-in" className="flex items-center gap-3">
-            <img src={`${basePath}/cjc-logo.webp`} alt="CJC Church" className="h-10 w-auto" style={{ mixBlendMode: "screen" }} />
-            <span className="font-semibold text-white">CJC Church</span>
-          </Link>
-        </div>
-      </header>
+      <PublicSiteHeader
+        basePath={basePath}
+        publicWebsiteUrl={publicWebsiteUrl}
+        givingUrl={givingUrl}
+      />
       <div className="mx-auto max-w-4xl px-4 py-6 sm:py-10">{children}</div>
     </main>
   );

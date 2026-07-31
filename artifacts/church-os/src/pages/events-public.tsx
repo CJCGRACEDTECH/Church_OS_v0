@@ -4,6 +4,7 @@ import { CalendarDays, Clock, Globe, MapPin, Video } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PublicSiteHeader } from "@/components/public-site-header";
 
 type PublicEvent = {
   id: number;
@@ -140,25 +141,19 @@ export default function PublicEventsPage() {
   }, []);
 
   const upcoming = events.filter((e) => new Date(e.endDatetime) >= new Date());
+  const publicWebsiteUrl =
+    (import.meta.env.VITE_PUBLIC_CHURCH_WEBSITE_URL as string | undefined)?.replace(/\/+$/, "") || null;
+  const givingUrl =
+    (import.meta.env.VITE_PUBLIC_GIVING_URL as string | undefined) ||
+    (publicWebsiteUrl ? `${publicWebsiteUrl}/give` : "/give");
 
   return (
     <main className="min-h-screen bg-[#eef0f8]">
-      <header className="border-b border-white/10 bg-[#181d2e]">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-          <Link href="/sign-in" className="flex items-center gap-3">
-            <img src={`${basePath}/cjc-logo.webp`} alt="CJC Church" className="h-10 w-auto" style={{ mixBlendMode: "screen" }} />
-            <span className="font-semibold text-white">CJC Church</span>
-          </Link>
-          <nav className="flex items-center gap-4">
-            <Link href="/connect" className="text-sm text-gray-300 hover:text-white transition-colors">
-              Connect
-            </Link>
-            <Link href="/sign-in" className="text-sm border border-white/20 rounded-md px-4 py-1.5 text-white hover:bg-white/10 transition-colors">
-              Login
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <PublicSiteHeader
+        basePath={basePath}
+        publicWebsiteUrl={publicWebsiteUrl}
+        givingUrl={givingUrl}
+      />
 
       <div className="mx-auto max-w-5xl px-4 py-10">
         <div className="mb-8">

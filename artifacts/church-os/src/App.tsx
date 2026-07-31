@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth, ProtectedRoute } from "@/components/auth-context";
 import { ClerkProvider, SignIn, useClerk } from "@clerk/react";
 import { shadcn } from "@clerk/themes";
+import { PublicSiteHeader } from "@/components/public-site-header";
 
 import Unauthorized from "@/pages/unauthorized";
 import NotFound from "@/pages/not-found";
@@ -47,6 +48,10 @@ const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+const publicWebsiteUrl = (import.meta.env.VITE_PUBLIC_CHURCH_WEBSITE_URL as string | undefined)?.replace(/\/+$/, "") || null;
+const publicGivingUrl =
+  (import.meta.env.VITE_PUBLIC_GIVING_URL as string | undefined) ||
+  (publicWebsiteUrl ? `${publicWebsiteUrl}/give` : "/give");
 
 function stripBase(path: string): string {
   return basePath && path.startsWith(basePath)
@@ -59,13 +64,13 @@ const clerkAppearance = {
   cssLayerName: "clerk",
   options: {
     logoPlacement: "inside" as const,
-    logoLinkUrl: basePath || "/",
+    logoLinkUrl: publicWebsiteUrl || basePath || "/",
     logoImageUrl: `${window.location.origin}${basePath}/cjc-logo.webp`,
     socialButtonsPlacement: "top" as const,
     socialButtonsVariant: "blockButton" as const,
   },
   variables: {
-    colorPrimary: "#6366f1",
+    colorPrimary: "#4760ff",
     colorForeground: "#111827",
     colorMutedForeground: "#6b7280",
     colorDanger: "#ef4444",
@@ -145,21 +150,11 @@ function HomeRoute() {
 function AuthPageShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-[100dvh] flex-col" style={{ background: "#eef0f8" }}>
-      <nav style={{ background: "#181d2e" }} className="flex items-center justify-between px-6 py-3">
-        <div className="flex items-center gap-3">
-          <img src={`${basePath}/cjc-logo.webp`} alt="CJC Church" className="h-10 w-auto" style={{ mixBlendMode: "screen" }} />
-          <span className="text-white font-semibold text-base tracking-tight">CJC Church</span>
-        </div>
-        <div className="hidden md:flex items-center gap-6">
-          {["Home", "About", "Events", "Connect"].map((item) => (
-            <a key={item} href="#" className="text-gray-400 text-sm hover:text-white transition-colors">{item}</a>
-          ))}
-        </div>
-        <div className="flex items-center gap-2">
-          <button className="text-white text-sm border border-white/20 rounded-md px-4 py-1.5 hover:bg-white/10 transition-colors">Login</button>
-          <button className="bg-indigo-600 text-white text-sm rounded-md px-4 py-1.5 hover:bg-indigo-700 transition-colors font-medium">Give</button>
-        </div>
-      </nav>
+      <PublicSiteHeader
+        basePath={basePath}
+        publicWebsiteUrl={publicWebsiteUrl}
+        givingUrl={publicGivingUrl}
+      />
 
       <div className="flex flex-1 items-center justify-center px-4 py-12">
         {children}
@@ -191,6 +186,11 @@ function SignInPage() {
             <Link href="/connect" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
               New here? Connect with us
             </Link>
+            {publicWebsiteUrl && (
+              <a href={publicWebsiteUrl} className="text-sm text-gray-500 hover:text-gray-800">
+                Back to CJC Church website
+              </a>
+            )}
           </div>
         </div>
       </div>

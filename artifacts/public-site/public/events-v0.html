@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Weekly services and upcoming events at Christ Jesus Centered Church in Springfield, Virginia.">
+  <title>Services &amp; Events | CJC Church</title>
+  <link rel="icon" type="image/png" href="/assets/cdn.prod.website-files.com/6a04d98e3c973b192832db7f/6a165091c7e001a8f1334049_Untitled%20design%20(25).png">
+  <style>
+    :root {
+      --navy: #181d2e;
+      --ink: #171c2c;
+      --muted: #687083;
+      --blue: #4760ff;
+      --blue-dark: #2f46c7;
+      --blue-soft: #edf1ff;
+      --gold: #caa84a;
+      --gold-soft: #f7f0dc;
+      --line: #dfe4ed;
+      --surface: #f5f7fb;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #fff;
+      color: var(--ink);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    .events-hero {
+      position: relative;
+      min-height: min(650px, 72vh);
+      display: flex;
+      align-items: flex-end;
+      overflow: hidden;
+      background: var(--navy) url("/assets/events-hero.jpg") center 42% / cover no-repeat;
+    }
+
+    .events-hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(9, 15, 35, .66);
+    }
+
+    .events-hero__inner {
+      position: relative;
+      width: min(1160px, calc(100% - 48px));
+      margin: 0 auto;
+      padding: 104px 0 76px;
+      color: #fff;
+    }
+
+    .eyebrow {
+      margin: 0 0 12px;
+      color: #a98a35;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .events-hero .eyebrow { color: #dfc373; }
+
+    h1 {
+      max-width: 780px;
+      margin: 0;
+      font-size: clamp(45px, 6vw, 76px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .events-hero__copy {
+      max-width: 650px;
+      margin: 20px 0 0;
+      color: #e3e6ef;
+      font-size: 18px;
+      line-height: 1.6;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 30px;
+    }
+
+    .button {
+      display: inline-flex;
+      min-height: 46px;
+      align-items: center;
+      justify-content: center;
+      padding: 0 19px;
+      border: 1px solid #fff;
+      border-radius: 6px;
+      background: #fff;
+      color: var(--navy);
+      font-size: 14px;
+      font-weight: 780;
+      text-decoration: none;
+      transition: transform .18s ease, background .18s ease;
+    }
+
+    .button:hover { transform: translateY(-1px); }
+    .button--outline { background: transparent; color: #fff; }
+    .button--outline:hover { background: rgba(255, 255, 255, .1); }
+
+    .schedule,
+    .special-events__inner {
+      width: min(1160px, calc(100% - 48px));
+      margin: 0 auto;
+    }
+
+    .schedule { padding: 80px 0 92px; }
+
+    .section-heading {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(300px, 500px);
+      gap: 44px;
+      align-items: end;
+      margin-bottom: 32px;
+    }
+
+    .section-heading h2 {
+      margin: 0;
+      font-size: clamp(32px, 4vw, 48px);
+      line-height: 1.08;
+    }
+
+    .section-heading > p {
+      margin: 0 0 3px;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.65;
+    }
+
+    .service-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .service-card {
+      position: relative;
+      min-width: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fff;
+      box-shadow: 0 10px 28px rgba(21, 30, 56, .07);
+      transition: transform .2s ease, box-shadow .2s ease;
+    }
+
+    .service-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 16px 34px rgba(21, 30, 56, .11);
+    }
+
+    .service-card__image {
+      position: relative;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+      background: var(--navy);
+    }
+
+    .service-card__image::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 21, 41, .12);
+    }
+
+    .service-card__image img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+      transition: transform .35s ease;
+    }
+
+    .service-card:hover img { transform: scale(1.025); }
+
+    .service-card__body { padding: 22px; }
+
+    .service-card__meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 14px;
+      color: var(--blue-dark);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .language {
+      padding: 4px 7px;
+      border-radius: 4px;
+      background: var(--blue-soft);
+      color: #3348bc;
+      font-size: 10px;
+      line-height: 1.3;
+      text-align: right;
+      text-transform: none;
+    }
+
+    .service-card--english .language {
+      background: var(--gold-soft);
+      color: #785e17;
+    }
+
+    .service-card h3 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.2;
+    }
+
+    .service-card__time {
+      display: block;
+      margin-top: 12px;
+      font-size: 18px;
+      line-height: 1.2;
+    }
+
+    .service-card__detail {
+      min-height: 42px;
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .service-card__detail a {
+      color: var(--blue-dark);
+      font-weight: 750;
+      text-decoration: none;
+    }
+
+    .special-events {
+      padding: 78px 0 88px;
+      background: var(--surface);
+      border-top: 1px solid var(--line);
+    }
+
+    .special-events__grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .event-card {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fff;
+      box-shadow: 0 8px 24px rgba(21, 30, 56, .06);
+    }
+
+    .event-card__media {
+      position: relative;
+      aspect-ratio: 16 / 10;
+      overflow: hidden;
+      background: var(--navy);
+    }
+
+    .event-card__media img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+
+    .event-card__media--fallback img {
+      filter: blur(3px);
+      transform: scale(1.04);
+      opacity: .54;
+    }
+
+    .event-card__media--fallback::after {
+      content: attr(data-event-title);
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: flex-end;
+      padding: 22px;
+      background: rgba(18, 25, 50, .4);
+      color: #fff;
+      font-size: 24px;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+
+    .event-card__body { padding: 22px; }
+
+    .event-card__type {
+      display: inline-flex;
+      margin-bottom: 12px;
+      padding: 5px 8px;
+      border-radius: 4px;
+      background: var(--blue-soft);
+      color: var(--blue-dark);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: capitalize;
+    }
+
+    .event-card time {
+      display: block;
+      color: var(--blue-dark);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .event-card h3 {
+      margin: 9px 0 8px;
+      font-size: 22px;
+      line-height: 1.2;
+    }
+
+    .event-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .event-card__location { margin-top: 12px !important; font-weight: 700; }
+
+    .events-state {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 5px 1fr;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fff;
+    }
+
+    .events-state::before { content: ""; background: var(--gold); }
+    .events-state__copy { padding: 28px; }
+    .events-state strong { display: block; margin-bottom: 6px; font-size: 18px; }
+    .events-state p { margin: 0; color: var(--muted); line-height: 1.55; }
+
+    .location {
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .location__inner {
+      width: min(1160px, calc(100% - 48px));
+      margin: 0 auto;
+      padding: 58px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 28px;
+    }
+
+    .location .eyebrow { margin-bottom: 7px; }
+    .location h2 { margin: 0 0 8px; font-size: 29px; }
+    .location p { margin: 0; color: var(--muted); }
+
+    .location a {
+      display: inline-flex;
+      min-height: 44px;
+      align-items: center;
+      justify-content: center;
+      padding: 0 18px;
+      border: 1px solid var(--blue);
+      border-radius: 6px;
+      color: var(--blue-dark);
+      font-size: 14px;
+      font-weight: 780;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 930px) {
+      .service-grid,
+      .special-events__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 680px) {
+      .events-hero { min-height: 570px; background-position: 58% center; }
+      .events-hero__inner,
+      .schedule,
+      .special-events__inner,
+      .location__inner { width: min(100% - 40px, 1160px); }
+      .events-hero__inner { padding: 90px 0 54px; }
+      .events-hero__copy { font-size: 16px; }
+      .schedule { padding: 58px 0 66px; }
+      .section-heading { grid-template-columns: 1fr; gap: 12px; }
+      .service-grid,
+      .special-events__grid { grid-template-columns: 1fr; }
+      .service-card__detail { min-height: 0; }
+      .special-events { padding: 58px 0 66px; }
+      .location__inner { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="events-hero">
+      <div class="events-hero__inner">
+        <p class="eyebrow">Services &amp; Events</p>
+        <h1>A place to worship, grow, and belong.</h1>
+        <p class="events-hero__copy">Join Christ Jesus Centered Church throughout the week for worship, prayer, Bible study, and discipleship in Springfield or online.</p>
+        <div class="hero-actions">
+          <a class="button" href="#weekly-schedule">View Weekly Schedule</a>
+          <a class="button button--outline" href="https://maps.google.com/?q=7403+Boston+Blvd,+Springfield,+VA+22153" target="_blank" rel="noreferrer">Get Directions</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="schedule" aria-labelledby="weekly-schedule">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Every week</p>
+          <h2 id="weekly-schedule">Our weekly rhythm</h2>
+        </div>
+        <p>Six opportunities to gather each week. In-person services meet at CJC Church unless noted otherwise, and all times are Eastern.</p>
+      </div>
+
+      <div class="service-grid">
+        <article class="service-card">
+          <div class="service-card__image"><img src="/assets/services/tuesday.jpg" loading="lazy" alt="Tuesday online prayer and Bible study at CJC Church"></div>
+          <div class="service-card__body">
+            <div class="service-card__meta"><span>Tuesday</span><span class="language">Amharic · English translation</span></div>
+            <h3>Prayer &amp; Bible Study</h3>
+            <strong class="service-card__time">8:00 PM</strong>
+            <p class="service-card__detail">Online via Zoom · <a href="https://us02web.zoom.us/j/4997378220" target="_blank" rel="noreferrer">Join service</a></p>
+          </div>
+        </article>
+
+        <article class="service-card">
+          <div class="service-card__image"><img src="/assets/services/thursday.jpg" loading="lazy" alt="Thursday worship service at CJC Church"></div>
+          <div class="service-card__body">
+            <div class="service-card__meta"><span>Thursday</span><span class="language">Amharic · English translation</span></div>
+            <h3>Thursday Service</h3>
+            <strong class="service-card__time">7:00 PM</strong>
+            <p class="service-card__detail">In-person worship, prayer, and the Word.</p>
+          </div>
+        </article>
+
+        <article class="service-card service-card--english">
+          <div class="service-card__image"><img src="/assets/services/friday.jpg" loading="lazy" alt="Friday English worship service at CJC Church"></div>
+          <div class="service-card__body">
+            <div class="service-card__meta"><span>Friday</span><span class="language">English</span></div>
+            <h3>Friday Service</h3>
+            <strong class="service-card__time">7:00 PM</strong>
+            <p class="service-card__detail">In-person worship, prayer, and teaching.</p>
+          </div>
+        </article>
+
+        <article class="service-card service-card--english">
+          <div class="service-card__image"><img src="/assets/services/discipleship.jpg" loading="lazy" alt="Friday night English discipleship at CJC Church"></div>
+          <div class="service-card__body">
+            <div class="service-card__meta"><span>Friday night</span><span class="language">English</span></div>
+            <h3>Discipleship</h3>
+            <strong class="service-card__time">11:00 PM</strong>
+            <p class="service-card__detail">Focused spiritual growth · ends 1:00 AM Saturday.</p>
+          </div>
+        </article>
+
+        <article class="service-card">
+          <div class="service-card__image"><img src="/assets/services/saturday.jpg" loading="lazy" alt="Saturday worship service at CJC Church"></div>
+          <div class="service-card__body">
+            <div class="service-card__meta"><span>Saturday</span><span class="language">Amharic · English translation</span></div>
+            <h3>Saturday Service</h3>
+            <strong class="service-card__time">7:00 PM</strong>
+            <p class="service-card__detail">In-person evening worship and fellowship.</p>
+          </div>
+        </article>
+
+        <article class="service-card">
+          <div class="service-card__image"><img src="/assets/services/sunday.jpg" loading="lazy" alt="Sunday worship service at CJC Church"></div>
+          <div class="service-card__body">
+            <div class="service-card__meta"><span>Sunday</span><span class="language">Amharic · English translation</span></div>
+            <h3>Sunday Service</h3>
+            <strong class="service-card__time">11:00 AM</strong>
+            <p class="service-card__detail">Our main in-person weekly worship gathering.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="special-events" aria-labelledby="special-events-title">
+      <div class="special-events__inner">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Coming up</p>
+            <h2 id="special-events-title">Special events</h2>
+          </div>
+          <p>Discover special gatherings and church-wide moments beyond our weekly service schedule.</p>
+        </div>
+        <div class="special-events__grid" data-public-events aria-live="polite">
+          <div class="events-state">
+            <div class="events-state__copy"><strong>Upcoming events</strong><p>Preparing the latest CJC schedule.</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="location">
+      <div class="location__inner">
+        <div>
+          <p class="eyebrow">Join us in Springfield</p>
+          <h2>Christ Jesus Centered Church</h2>
+          <p>7403 Boston Blvd, Springfield, VA 22153</p>
+        </div>
+        <a href="https://maps.google.com/?q=7403+Boston+Blvd,+Springfield,+VA+22153" target="_blank" rel="noreferrer">Open Directions</a>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const grid = document.querySelector("[data-public-events]");
+      const fallbackImages = [
+        "/assets/community-worship.jpg",
+        "/assets/community-serve.jpg",
+        "/assets/community-children.jpg"
+      ];
+
+      const renderState = (title, message) => {
+        grid.innerHTML = `<div class="events-state"><div class="events-state__copy"><strong>${title}</strong><p>${message}</p></div></div>`;
+      };
+
+      const formatDate = (value) => new Intl.DateTimeFormat("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit"
+      }).format(new Date(value));
+
+      fetch("/api/public/events", { headers: { Accept: "application/json" } })
+        .then(async (response) => {
+          const data = await response.json();
+          if (!response.ok) throw data;
+          return data;
+        })
+        .then((data) => {
+          const events = Array.isArray(data.events) ? data.events : [];
+          if (!events.length) {
+            renderState("Weekly gatherings continue", "No special events are currently published. You are still welcome at any of the six weekly services above.");
+            return;
+          }
+
+          grid.replaceChildren(...events.map((event, index) => {
+            const card = document.createElement("article");
+            card.className = "event-card";
+
+            const media = document.createElement("div");
+            media.className = "event-card__media";
+            const image = document.createElement("img");
+            image.loading = "lazy";
+            image.alt = event.posterUrl ? `${event.title} event poster` : "";
+            image.src = event.posterUrl || fallbackImages[index % fallbackImages.length];
+            if (!event.posterUrl) {
+              media.classList.add("event-card__media--fallback");
+              media.dataset.eventTitle = event.title;
+            }
+            media.append(image);
+
+            const body = document.createElement("div");
+            body.className = "event-card__body";
+
+            if (event.eventType) {
+              const type = document.createElement("span");
+              type.className = "event-card__type";
+              type.textContent = String(event.eventType).replaceAll("_", " ");
+              body.append(type);
+            }
+
+            const date = document.createElement("time");
+            date.dateTime = event.startDatetime;
+            date.textContent = formatDate(event.startDatetime);
+
+            const title = document.createElement("h3");
+            title.textContent = event.title;
+
+            const detail = document.createElement("p");
+            detail.textContent = event.description || "Join us for this upcoming CJC gathering.";
+            body.append(date, title, detail);
+
+            const place = event.location || (event.eventMode === "online" ? "Online" : "");
+            if (place) {
+              const location = document.createElement("p");
+              location.className = "event-card__location";
+              location.textContent = place;
+              body.append(location);
+            }
+
+            card.append(media, body);
+            return card;
+          }));
+        })
+        .catch(() => {
+          renderState("Special events are temporarily unavailable", "The weekly service schedule above is current. Please check back soon for additional events.");
+        });
+    })();
+  </script>
+</body>
+</html>

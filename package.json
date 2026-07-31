@@ -5,7 +5,11 @@
   "scripts": {
     "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent:$npm_execpath\" in pnpm/*:*|*pnpm*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
     "build": "pnpm run typecheck && pnpm -r --filter '!@workspace/mockup-sandbox' --filter '!@workspace/church-mobile' --if-present run build",
-    "typecheck:libs": "tsc --build",
+    "build:replit": "pnpm run typecheck && pnpm --filter @workspace/church-os run build && pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/public-site run check",
+    "dev:replit": "pnpm run build:replit && NODE_ENV=development node scripts/start-unified.mjs",
+    "start": "node scripts/start-unified.mjs",
+    "start:replit": "node scripts/start-unified.mjs",
+    "typecheck:libs": "tsc --build --force",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --filter '!@workspace/mockup-sandbox' --filter '!@workspace/church-mobile' --if-present run typecheck",
     "seed:dev": "node server/src/db/seed.dev.js"
   },

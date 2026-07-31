@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Give securely to Christ Jesus Centered Church and support ministry, outreach, worship, and care.">
+  <title>Give | CJC Church</title>
+  <link rel="icon" type="image/png" href="/assets/cdn.prod.website-files.com/6a04d98e3c973b192832db7f/6a165091c7e001a8f1334049_Untitled%20design%20(25).png">
+  <style>
+    * { box-sizing: border-box; }
+    body { color: var(--cjc-ink); background: #fff; }
+    .eyebrow { margin: 0 0 12px; color: var(--cjc-gold); font-size: 13px; font-weight: 800; text-transform: uppercase; }
+    .give-hero {
+      position: relative;
+      min-height: 620px;
+      display: flex;
+      align-items: flex-end;
+      overflow: hidden;
+      background: var(--cjc-navy) url("/assets/community-worship.jpg") center 42% / cover no-repeat;
+      color: #fff;
+    }
+    .give-hero::before { content: ""; position: absolute; inset: 0; background: rgba(9, 15, 35, .68); }
+    .give-hero__inner { position: relative; width: min(1160px, calc(100% - 48px)); margin: 0 auto; padding: 150px 0 90px; }
+    .give-hero .eyebrow { color: #e1c578; }
+    h1 { max-width: 760px; margin: 0; font-size: clamp(48px, 7vw, 80px); line-height: 1; }
+    .give-hero__copy { max-width: 650px; margin: 22px 0 0; color: #e2e6f0; font-size: 18px; line-height: 1.65; }
+    .give-main { position: relative; width: min(1160px, calc(100% - 48px)); margin: -38px auto 0; padding: 0 0 72px; }
+    .give-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(340px, 410px);
+      gap: 40px;
+      align-items: center;
+      padding: 40px;
+      border: 1px solid var(--cjc-line);
+      border-radius: 7px;
+      background: #fff;
+      box-shadow: var(--cjc-shadow);
+    }
+    .give-copy { padding: 6px 0; }
+    .give-copy h2, .section-heading h2 { margin: 0 0 16px; font-size: clamp(32px, 4vw, 46px); line-height: 1.1; }
+    .give-copy > p, .section-heading > p { margin: 0; color: var(--cjc-muted); font-size: 16px; line-height: 1.75; }
+    .give-assurance {
+      max-width: 630px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      margin: 26px 0 0;
+      padding: 16px 18px;
+      border-left: 3px solid var(--cjc-gold);
+      background: var(--cjc-surface);
+      color: var(--cjc-muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .give-assurance strong { color: var(--cjc-ink); }
+    .give-panel { padding: 24px; border: 1px solid var(--cjc-line); border-top: 3px solid var(--cjc-gold); border-radius: 7px; background: var(--cjc-surface); }
+    .give-panel__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
+    .give-panel__heading img { width: 72px; height: auto; flex: 0 0 auto; }
+    .give-panel__heading h2 { margin: 0; font-size: 24px; }
+    .give-panel__heading p { margin: 7px 0 0; color: var(--cjc-muted); font-size: 14px; line-height: 1.5; }
+    stripe-buy-button { display: block; width: 100%; }
+    .giving-fallback { min-height: 138px; display: grid; place-items: center; padding: 20px; border-radius: 6px; background: #fff; text-align: center; }
+    .giving-fallback p { margin: 0; color: var(--cjc-muted); }
+    .giving-fallback a { display: inline-flex; min-height: 44px; align-items: center; margin-top: 17px; padding: 0 18px; border-radius: 6px; background: var(--cjc-blue); color: #fff; font-weight: 750; text-decoration: none; }
+    .give-note { margin: 13px 0 0; color: var(--cjc-muted); font-size: 12px; line-height: 1.5; text-align: center; }
+    .impact { padding: 68px 0 72px; background: var(--cjc-surface); }
+    .impact__inner, .methods__inner { width: min(1160px, calc(100% - 48px)); margin: 0 auto; }
+    .section-heading { max-width: 680px; margin-bottom: 28px; }
+    .section-heading h2 { font-size: clamp(30px, 4vw, 42px); }
+    .section-heading > p { line-height: 1.65; }
+    .impact-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+    .impact-card { overflow: hidden; border: 1px solid var(--cjc-line); border-radius: 7px; background: #fff; }
+    .impact-card img { width: 100%; aspect-ratio: 16 / 10; display: block; object-fit: cover; transition: transform .28s ease; }
+    .impact-card:hover img { transform: scale(1.025); }
+    .impact-card__copy { padding: 20px; }
+    .impact-card h3 { margin: 0 0 7px; font-size: 20px; }
+    .impact-card p { margin: 0; color: var(--cjc-muted); font-size: 14px; line-height: 1.55; }
+    .methods { padding: 58px 0 64px; }
+    .methods-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 24px; }
+    .method {
+      min-height: 78px;
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr) 16px;
+      align-items: center;
+      gap: 12px;
+      padding: 13px;
+      border: 1px solid var(--cjc-line);
+      border-radius: 7px;
+      background: #fff;
+      color: inherit;
+      text-decoration: none;
+      transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+    }
+    a.method:hover { transform: translateY(-2px); border-color: #aebaff; box-shadow: 0 12px 28px rgba(17, 28, 58, .08); }
+    .method__logo { width: 42px; height: 42px; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--cjc-line); border-radius: 7px; background: #fff; }
+    .method__logo img { width: 29px; height: 29px; display: block; object-fit: contain; }
+    .method__body { min-width: 0; }
+    .method strong { display: block; font-size: 16px; }
+    .method__body > span { display: block; margin-top: 4px; color: var(--cjc-blue-deep); font-size: 12px; font-weight: 750; }
+    .method__arrow { color: var(--cjc-muted); font-size: 18px; }
+    .method--zelle { grid-template-columns: 42px minmax(0, 1fr); }
+    .method--zelle .method__body > span { color: var(--cjc-muted); font-weight: 650; }
+    .giving-trust {
+      position: relative;
+      padding: 58px 24px 64px;
+      border-top: 1px solid #d9e1f2;
+      background: #eef3ff;
+      color: var(--cjc-ink);
+      text-align: center;
+    }
+    .giving-trust::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 50%;
+      width: 72px;
+      height: 4px;
+      transform: translateX(-50%);
+      background: var(--cjc-gold);
+    }
+    .giving-trust__inner { width: min(760px, 100%); margin: 0 auto; }
+    .giving-trust h2 { margin: 0 0 14px; font-size: clamp(28px, 4vw, 42px); }
+    .giving-trust p { margin: 0; color: var(--cjc-muted); line-height: 1.7; }
+    @media (max-width: 900px) {
+      .give-layout { grid-template-columns: 1fr; }
+      .give-panel { width: min(520px, 100%); }
+      .impact-grid { grid-template-columns: 1fr; }
+      .impact-card { display: grid; grid-template-columns: minmax(220px, .8fr) 1.2fr; }
+      .impact-card img { height: 100%; aspect-ratio: auto; }
+      .methods-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 620px) {
+      .give-hero { min-height: 580px; background-position: 58% center; }
+      .give-hero__inner { padding: 150px 0 58px; }
+      .give-main { width: min(100% - 32px, 1160px); margin-top: -24px; padding-bottom: 64px; }
+      .give-layout { gap: 30px; padding: 26px 20px; }
+      .give-panel { padding: 22px; }
+      .impact, .methods { padding: 54px 0 58px; }
+      .impact__inner, .methods__inner { width: min(100% - 40px, 1160px); }
+      .impact-card { display: block; }
+      .impact-card img { height: auto; aspect-ratio: 16 / 10; }
+      .methods-grid { grid-template-columns: 1fr; }
+      .give-panel__heading { display: block; }
+      .give-panel__heading img { width: 68px; margin: 0 0 14px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="give-hero">
+      <div class="give-hero__inner">
+        <p class="eyebrow">Give to CJC Church</p>
+        <h1>Generosity that carries the Gospel forward.</h1>
+        <p class="give-hero__copy">Your giving supports worship, ministry, outreach, and practical care within our church and throughout our community.</p>
+      </div>
+    </section>
+
+    <section class="give-main">
+      <div class="give-layout">
+        <div class="give-copy">
+          <p class="eyebrow">Why we give</p>
+          <h2>Giving is an act of worship.</h2>
+          <p>Generosity helps CJC Church care for people, strengthen ministry, and share the Gospel in our church, our community, and online.</p>
+          <p class="give-assurance"><span><strong>Secure and flexible.</strong> Give through Stripe with a one-time or recurring gift. CJC Church does not store your payment information.</span></p>
+        </div>
+
+        <aside class="give-panel" aria-labelledby="giving-form-title">
+          <div class="give-panel__heading">
+            <div>
+              <h2 id="giving-form-title">Give online</h2>
+              <p>One-time or recurring giving</p>
+            </div>
+            <img src="/assets/stripe-mark.svg" alt="Stripe">
+          </div>
+          <!-- STRIPE_GIVING_EMBED -->
+          <p class="give-note">Secure payment processing by Stripe</p>
+        </aside>
+      </div>
+    </section>
+
+    <section class="methods" aria-labelledby="methods-title">
+      <div class="methods__inner">
+        <div class="section-heading">
+          <h2 id="methods-title">Other ways to give</h2>
+          <p>Choose the giving method that works best for you.</p>
+        </div>
+        <div class="methods-grid">
+          <a class="method" href="https://www.paypal.com/paypalme/CJCPROPHETYOSEF?country.x=US&amp;locale.x=en_US" target="_blank" rel="noreferrer">
+            <span class="method__logo"><img src="/assets/paypal-logo.png" alt=""></span>
+            <span class="method__body"><strong>PayPal</strong><span>Give with PayPal</span></span>
+            <span class="method__arrow" aria-hidden="true">&nearr;</span>
+          </a>
+          <a class="method" href="https://cash.app/$Give2CJC" target="_blank" rel="noreferrer">
+            <span class="method__logo"><img src="/assets/cashapp-logo.png" alt=""></span>
+            <span class="method__body"><strong>Cash App</strong><span>$Give2CJC</span></span>
+            <span class="method__arrow" aria-hidden="true">&nearr;</span>
+          </a>
+          <a class="method" href="https://account.venmo.com/u/give2cjc" target="_blank" rel="noreferrer">
+            <span class="method__logo"><img src="/assets/venmo-mark.svg" alt=""></span>
+            <span class="method__body"><strong>Venmo</strong><span>@give2cjc</span></span>
+            <span class="method__arrow" aria-hidden="true">&nearr;</span>
+          </a>
+          <div class="method method--zelle">
+            <span class="method__logo"><img src="/assets/zelle-logo.png" alt=""></span>
+            <span class="method__body"><strong>Zelle</strong><span>Send to 703-488-0789</span></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="impact" aria-labelledby="impact-title">
+      <div class="impact__inner">
+        <div class="section-heading">
+          <h2 id="impact-title">Your generosity makes ministry possible</h2>
+          <p>Every gift helps CJC Church serve families, welcome people, and share the Gospel in our community and online.</p>
+        </div>
+        <div class="impact-grid">
+          <article class="impact-card">
+            <img src="/assets/community-children.jpg" alt="Children gathering at CJC Church" loading="lazy">
+            <div class="impact-card__copy"><h3>Children &amp; families</h3><p>Help create a caring place where children can learn, worship, and grow.</p></div>
+          </article>
+          <article class="impact-card">
+            <img src="/assets/about-hero.jpg" alt="People connecting in the CJC Church community" loading="lazy">
+            <div class="impact-card__copy"><h3>Community &amp; outreach</h3><p>Help welcome every person and extend practical care throughout our community.</p></div>
+          </article>
+          <article class="impact-card">
+            <img src="/assets/watch-placeholder.jpg" alt="Teaching and worship shared through CJC Church media" loading="lazy">
+            <div class="impact-card__copy"><h3>Worship &amp; online ministry</h3><p>Help share worship, teaching, and the Gospel with people near and far.</p></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="giving-trust" aria-labelledby="giving-trust-title">
+      <div class="giving-trust__inner">
+        <h2 id="giving-trust-title">Thank you for your generosity.</h2>
+        <p>Your faithful giving helps CJC Church continue its ministry in our church, our community, and online.</p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

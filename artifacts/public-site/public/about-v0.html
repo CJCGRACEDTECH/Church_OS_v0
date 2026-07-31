@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Learn about Christ Jesus Centered Church, our leadership, beliefs, and church community in Springfield, Virginia.">
+  <title>About | CJC Church</title>
+  <link rel="icon" type="image/png" href="/assets/cdn.prod.website-files.com/6a04d98e3c973b192832db7f/6a165091c7e001a8f1334049_Untitled%20design%20(25).png">
+  <style>
+    * { box-sizing: border-box; }
+    body { color: var(--cjc-ink); background: #fff; }
+    .eyebrow { margin: 0 0 12px; color: var(--cjc-gold); font-size: 13px; font-weight: 800; text-transform: uppercase; }
+    .about-hero {
+      position: relative;
+      min-height: 650px;
+      display: flex;
+      align-items: flex-end;
+      overflow: hidden;
+      background: var(--cjc-navy) url("/assets/about-hero.jpg") center 42% / cover no-repeat;
+      color: #fff;
+    }
+    .about-hero::before { content: ""; position: absolute; inset: 0; background: rgba(10, 16, 36, .68); }
+    .about-hero__inner, .section__inner { position: relative; width: min(1160px, calc(100% - 48px)); margin: 0 auto; }
+    .about-hero__inner { padding: 150px 0 76px; }
+    .about-hero .eyebrow { color: #e1c578; }
+    h1 { max-width: 820px; margin: 0; font-size: clamp(48px, 7vw, 80px); line-height: 1; }
+    .about-hero__copy { max-width: 680px; margin: 22px 0 0; color: #e2e6f0; font-size: 18px; line-height: 1.65; }
+    .section { padding: 88px 0; }
+    .section--soft { background: var(--cjc-surface); }
+    .story { display: grid; grid-template-columns: minmax(0, 1fr) minmax(440px, .95fr); gap: 66px; align-items: center; }
+    .story h2, .heading h2 { margin: 8px 0 18px; font-size: clamp(36px, 5vw, 56px); line-height: 1.05; }
+    .story p, .heading > p { color: var(--cjc-muted); font-size: 17px; line-height: 1.72; }
+    .story__visual { position: relative; padding: 0 0 42px 42px; }
+    .story__visual img { width: 100%; min-height: 500px; display: block; border-radius: 7px; object-fit: cover; object-position: 48% 30%; }
+    .story__note {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: min(330px, 78%);
+      padding: 24px;
+      border-left: 4px solid var(--cjc-gold);
+      border-radius: 6px;
+      background: var(--cjc-navy);
+      color: #fff;
+      box-shadow: var(--cjc-shadow);
+    }
+    .story__note strong { display: block; font-size: 22px; }
+    .story__note span { display: block; margin-top: 6px; color: #b8c1d5; line-height: 1.5; }
+    .expect-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 36px; }
+    .expect-card { padding: 28px; border: 1px solid var(--cjc-line); border-top: 3px solid var(--cjc-blue); border-radius: 7px; background: #fff; }
+    .expect-card:nth-child(2) { border-top-color: var(--cjc-gold); }
+    .expect-card h3 { margin: 0 0 10px; font-size: 20px; }
+    .expect-card p { margin: 0; color: var(--cjc-muted); line-height: 1.65; }
+    .leadership { overflow: hidden; }
+    .leaders { display: grid; gap: 34px; margin-top: 42px; }
+    .leader {
+      display: grid;
+      grid-template-columns: minmax(280px, .72fr) minmax(0, 1.28fr);
+      min-height: 460px;
+      overflow: hidden;
+      border: 1px solid var(--cjc-line);
+      border-radius: 7px;
+      background: #fff;
+      box-shadow: 0 14px 42px rgba(17, 28, 58, .08);
+    }
+    .leader:nth-child(even) { grid-template-columns: minmax(0, 1.28fr) minmax(280px, .72fr); }
+    .leader:nth-child(even) img { order: 2; }
+    .leader img { width: 100%; height: 100%; min-height: 460px; object-fit: cover; object-position: top; }
+    .leader__copy { display: flex; flex-direction: column; justify-content: center; padding: 46px; }
+    .leader h3 { margin: 0; font-size: 31px; }
+    .leader span { display: block; margin-top: 7px; color: var(--cjc-blue-deep); font-weight: 780; }
+    .leader p { margin: 21px 0 0; color: var(--cjc-muted); font-size: 16px; line-height: 1.75; }
+    .beliefs { background: var(--cjc-navy); color: #fff; }
+    .beliefs .section__inner { width: min(1320px, calc(100% - 64px)); }
+    .beliefs .heading { max-width: 900px; }
+    .beliefs .heading h2 { font-size: clamp(44px, 5vw, 64px); }
+    .beliefs .heading > p { max-width: 760px; color: #c4cbda; font-size: 19px; line-height: 1.65; }
+    .belief-list { margin-top: 48px; border-top: 1px solid #343b50; }
+    .belief {
+      display: grid;
+      grid-template-columns: 54px minmax(190px, .42fr) minmax(0, 1.58fr);
+      gap: 30px;
+      align-items: start;
+      padding: 32px 0;
+      border-bottom: 1px solid #343b50;
+    }
+    .belief > span { padding-top: 4px; color: #d8bd72; font-size: 14px; font-weight: 800; }
+    .belief h3 { margin: 0; font-size: clamp(22px, 2vw, 26px); line-height: 1.3; }
+    .belief p { max-width: 900px; margin: 0; color: #c4cbda; font-size: 18px; line-height: 1.7; }
+    .cta { text-align: center; }
+    .cta h2 { max-width: 760px; margin: 8px auto 22px; font-size: clamp(36px, 5vw, 56px); }
+    .cta p { max-width: 620px; margin: 0 auto 28px; color: var(--cjc-muted); line-height: 1.65; }
+    @media (max-width: 900px) {
+      .story { grid-template-columns: 1fr; }
+      .expect-grid { grid-template-columns: 1fr; }
+      .leader, .leader:nth-child(even) { grid-template-columns: minmax(250px, .75fr) 1.25fr; }
+      .leader:nth-child(even) img { order: 0; }
+    }
+    @media (max-width: 650px) {
+      .about-hero { min-height: 590px; background-position: 56% center; }
+      .about-hero__inner { padding: 150px 0 54px; }
+      .section { padding: 62px 0; }
+      .section__inner { width: min(100% - 40px, 1160px); }
+      .story { gap: 40px; }
+      .story__visual { padding: 0 0 34px 24px; }
+      .story__visual img { min-height: 390px; }
+      .leader, .leader:nth-child(even) { grid-template-columns: 1fr; }
+      .leader img { min-height: 390px; height: 390px; }
+      .leader__copy { padding: 30px 24px 34px; }
+      .beliefs .section__inner { width: min(100% - 40px, 1320px); }
+      .beliefs .heading h2 { font-size: clamp(38px, 12vw, 50px); }
+      .beliefs .heading > p { font-size: 17px; }
+      .belief-list { margin-top: 36px; }
+      .belief { grid-template-columns: 34px 1fr; gap: 9px 12px; padding: 25px 0; }
+      .belief p { grid-column: 2; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="about-hero">
+      <div class="about-hero__inner">
+        <p class="eyebrow">About CJC Church</p>
+        <h1>Centered on Jesus. Open to every nation.</h1>
+        <p class="about-hero__copy">Christ Jesus Centered Church is a place to encounter God, grow through His Word, and build a life of faith in community.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section__inner story">
+        <div>
+          <p class="eyebrow">Who we are</p>
+          <h2>One Kingdom. All Nations.</h2>
+          <p>CJC Church serves a multicultural community in Springfield, Virginia. We gather around worship, prayer, biblical teaching, discipleship, and the mission of sharing Jesus Christ.</p>
+          <p>Whether you are exploring faith, returning to church, or looking for a church home, you are welcome to come as you are and grow with us.</p>
+        </div>
+        <div class="story__visual">
+          <img src="/assets/hero-photo-optimized.jpg" alt="CJC Church leadership" loading="lazy">
+          <div class="story__note"><strong>A church family</strong><span>Growing in faith, serving one another, and carrying the Gospel beyond our walls.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--soft">
+      <div class="section__inner">
+        <div class="heading">
+          <p class="eyebrow">Your first visit</p>
+          <h2>What you can expect</h2>
+          <p>A sincere, welcoming environment where people of different backgrounds can worship and pursue God together.</p>
+        </div>
+        <div class="expect-grid">
+          <article class="expect-card"><h3>Warm hospitality</h3><p>Our team is ready to welcome you, help you find your way, and answer questions.</p></article>
+          <article class="expect-card"><h3>Worship &amp; the Word</h3><p>Services include prayer, heartfelt worship, and teaching grounded in Scripture.</p></article>
+          <article class="expect-card"><h3>Families welcome</h3><p>Children and young people are welcomed into a caring church community.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section leadership">
+      <div class="section__inner">
+        <div class="heading">
+          <p class="eyebrow">Our leadership</p>
+          <h2>Serving CJC Church</h2>
+          <p>Our leaders are committed to Christ-centered teaching, prayer, discipleship, and caring for the people God has entrusted to this church.</p>
+        </div>
+        <div class="leaders">
+          <article class="leader">
+            <img src="/assets/prophet-yosef-photo.jpg" alt="Prophet Yosef Yifru" loading="lazy">
+            <div class="leader__copy">
+              <h3>Prophet Yosef Yifru</h3>
+              <span>Senior Pastor of Christ Jesus Centered Church</span>
+              <p>Prophet Yosef is a Scripture-rooted leader whose ministry reflects the character of Jesus Christ. His ministry is grounded in God’s covenant promise in Exodus 34:10 and a trust that the Lord still works marvelously among His people. Through passages such as Romans 12:2, he calls believers toward transformed minds, steadfast faith, and diligent spiritual growth. His teaching connects biblical truth to the real challenges and joys of everyday life.</p>
+            </div>
+          </article>
+          <article class="leader">
+            <img src="/assets/pastor-emanuel-photo.jpg" alt="Pastor Emanuel King" loading="lazy">
+            <div class="leader__copy">
+              <h3>Pastor Emanuel King</h3>
+              <span>Pastor of Christ Jesus Centered Church</span>
+              <p>Pastor Emanuel is a dedicated minister whose life reflects a transforming faith in Jesus Christ. Guided by John 13:34–35, he teaches believers to love one another as a living testimony of discipleship. He emphasizes seeking God’s instruction, allowing His counsel to shape our choices, and walking in righteousness. As the leader of CJC’s English services, he shares the Gospel through biblical wisdom, revelation, and Christ-centered teaching for every area of life.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section beliefs" id="what-we-believe">
+      <div class="section__inner">
+        <div class="heading">
+          <p class="eyebrow">Our foundation</p>
+          <h2>What we believe</h2>
+          <p>These core beliefs shape how we worship, live, and serve together.</p>
+        </div>
+        <div class="belief-list">
+          <article class="belief"><span>01</span><h3>Jesus Christ</h3><p>Jesus is the Son of God, our Savior and Lord, and the center of our faith. We seek to know Him, follow His teaching, and reflect His love in every part of daily life.</p></article>
+          <article class="belief"><span>02</span><h3>The Bible</h3><p>The Bible is the inspired Word of God and our trustworthy foundation for faith and life. Scripture shapes what we believe, how we worship, and the way we live together.</p></article>
+          <article class="belief"><span>03</span><h3>Salvation</h3><p>Salvation is God’s gift of grace, received through faith in Jesus Christ. Through Him we receive forgiveness, new life, and a restored relationship with God.</p></article>
+          <article class="belief"><span>04</span><h3>The Holy Spirit</h3><p>The Holy Spirit guides, transforms, and empowers believers to follow Christ with wisdom, courage, and a life that increasingly reflects His character.</p></article>
+          <article class="belief"><span>05</span><h3>Prayer &amp; Worship</h3><p>We seek God through prayer and honor Him through gathered worship and lives of obedience. Worship is both our shared expression and our everyday response to God.</p></article>
+          <article class="belief"><span>06</span><h3>Our Mission</h3><p>We are called to share the Gospel, make disciples, love our neighbors, and serve every nation. Our mission extends beyond our gatherings into our community and the world.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--soft cta">
+      <div class="section__inner">
+        <p class="eyebrow">Visit CJC Church</p>
+        <h2>There is a place for you here.</h2>
+        <p>Join us for a service in Springfield or connect with our church online.</p>
+        <a class="cjc-button" href="/events">View Service Times</a>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
