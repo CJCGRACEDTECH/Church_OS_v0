@@ -8,18 +8,30 @@
   <style>
     * { box-sizing: border-box; }
     body { color: var(--cjc-ink); background: var(--cjc-surface); }
-    main { min-height: 65vh; display: grid; place-items: center; padding: 60px 20px; text-align: center; }
-    h1 { margin: 0; font-size: clamp(42px, 7vw, 70px); }
-    p { margin: 18px auto 28px; color: var(--cjc-muted); font-size: 17px; }
+    main { min-height: 68vh; display: grid; place-items: center; padding: 64px 20px; text-align: center; }
+    h1 { margin: 0; font-size: clamp(44px, 7.2vw, 76px); line-height: 1.04; letter-spacing: -.01em; }
+    p { margin: 17px auto 26px; color: var(--cjc-muted); font-size: 17px; line-height: 1.6; }
   </style>
 </head>
 <body>
-  <main>
+  <main class="animate-on-scroll">
     <div>
       <h1>That page is not here.</h1>
-      <p>Let’s get you back to CJC Church.</p>
+      <p>Let's get you back to CJC Church.</p>
       <a class="cjc-button" href="/">Return Home</a>
     </div>
   </main>
+  <script>
+    if ('IntersectionObserver' in window) document.documentElement.classList.add('js-anim');
+    const observer = ('IntersectionObserver' in window) ? new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -80px 0px' }) : null;
+
+    document.querySelectorAll('.animate-on-scroll').forEach(el => observer && observer.observe(el));
+  </script>
 </body>
 </html>

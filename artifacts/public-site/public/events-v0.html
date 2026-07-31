@@ -24,7 +24,7 @@
 
     body {
       margin: 0;
-      background: #fff;
+      background: var(--cjc-page-bg);
       color: var(--ink);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       letter-spacing: 0;
@@ -32,7 +32,7 @@
 
     .events-hero {
       position: relative;
-      min-height: min(650px, 72vh);
+      min-height: min(720px, 78vh);
       display: flex;
       align-items: flex-end;
       overflow: hidden;
@@ -43,54 +43,65 @@
       content: "";
       position: absolute;
       inset: 0;
-      background: rgba(9, 15, 35, .66);
+      background: rgba(9, 15, 35, .68);
+    }
+
+    .events-hero::after {
+      content: "";
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      height: 190px;
+      background: linear-gradient(to bottom, transparent 0%, rgba(248, 249, 252, .24) 32%, rgba(248, 249, 252, .70) 68%, var(--cjc-page-bg) 100%);
+      pointer-events: none;
+      z-index: 1;
     }
 
     .events-hero__inner {
       position: relative;
-      width: min(1160px, calc(100% - 48px));
+      z-index: 2;
+      width: min(1280px, calc(100% - 64px));
       margin: 0 auto;
-      padding: 104px 0 76px;
+      padding: 120px 0 92px;
       color: #fff;
     }
 
     .eyebrow {
-      margin: 0 0 12px;
+      margin: 0 0 11px;
       color: #a98a35;
-      font-size: 13px;
+      font-size: 12.5px;
       font-weight: 800;
-      letter-spacing: .08em;
+      letter-spacing: .07em;
       text-transform: uppercase;
     }
 
     .events-hero .eyebrow { color: #dfc373; }
 
     h1 {
-      max-width: 780px;
+      max-width: 820px;
       margin: 0;
-      font-size: clamp(45px, 6vw, 76px);
-      line-height: 1;
-      letter-spacing: 0;
+      font-size: clamp(48px, 6.4vw, 82px);
+      line-height: .98;
+      letter-spacing: -.01em;
     }
 
     .events-hero__copy {
-      max-width: 650px;
-      margin: 20px 0 0;
+      max-width: 680px;
+      margin: 19px 0 0;
       color: #e3e6ef;
       font-size: 18px;
-      line-height: 1.6;
+      line-height: 1.60;
     }
 
     .hero-actions {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
-      margin-top: 30px;
+      margin-top: 28px;
     }
 
     .button {
       display: inline-flex;
-      min-height: 46px;
+      min-height: 44px;
       align-items: center;
       justify-content: center;
       padding: 0 19px;
@@ -101,46 +112,60 @@
       font-size: 14px;
       font-weight: 780;
       text-decoration: none;
-      transition: transform .18s ease, background .18s ease;
+      transition: transform .20s ease, background .20s ease;
     }
 
-    .button:hover { transform: translateY(-1px); }
+    .button:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(255,255,255,.24); }
     .button--outline { background: transparent; color: #fff; }
-    .button--outline:hover { background: rgba(255, 255, 255, .1); }
+    .button--outline:hover { background: rgba(255, 255, 255, .12); }
 
     .schedule,
     .special-events__inner {
-      width: min(1160px, calc(100% - 48px));
+      width: min(1280px, calc(100% - 64px));
       margin: 0 auto;
     }
 
-    .schedule { padding: 80px 0 92px; }
+    .schedule { padding: 64px 0 76px; position: relative; }
+    .schedule::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 110px;
+      background: linear-gradient(to bottom, var(--cjc-page-bg) 0%, transparent 100%);
+      pointer-events: none;
+      z-index: 1;
+    }
 
     .section-heading {
+      position: relative;
+      z-index: 2;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(300px, 500px);
-      gap: 44px;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 540px);
+      gap: 48px;
       align-items: end;
-      margin-bottom: 32px;
+      margin-bottom: 30px;
     }
 
     .section-heading h2 {
       margin: 0;
-      font-size: clamp(32px, 4vw, 48px);
-      line-height: 1.08;
+      font-size: clamp(34px, 4.4vw, 52px);
+      line-height: 1.06;
+      letter-spacing: -.01em;
     }
 
     .section-heading > p {
       margin: 0 0 3px;
       color: var(--muted);
       font-size: 16px;
-      line-height: 1.65;
+      line-height: 1.64;
     }
 
     .service-grid {
+      position: relative;
+      z-index: 2;
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 18px;
+      gap: 17px;
     }
 
     .service-card {
@@ -148,15 +173,15 @@
       min-width: 0;
       overflow: hidden;
       border: 1px solid var(--line);
-      border-radius: 7px;
+      border-radius: 8px;
       background: #fff;
-      box-shadow: 0 10px 28px rgba(21, 30, 56, .07);
-      transition: transform .2s ease, box-shadow .2s ease;
+      box-shadow: var(--cjc-shadow-soft);
+      transition: transform .22s ease, box-shadow .22s ease;
     }
 
     .service-card:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 16px 34px rgba(21, 30, 56, .11);
+      transform: translateY(-4px);
+      box-shadow: var(--cjc-shadow-float);
     }
 
     .service-card__image {
@@ -170,7 +195,7 @@
       content: "";
       position: absolute;
       inset: 0;
-      background: rgba(15, 21, 41, .12);
+      background: rgba(15, 21, 41, .13);
     }
 
     .service-card__image img {
@@ -178,23 +203,24 @@
       height: 100%;
       display: block;
       object-fit: cover;
-      transition: transform .35s ease;
+      transition: transform .36s ease;
     }
 
-    .service-card:hover img { transform: scale(1.025); }
+    .service-card:hover img { transform: scale(1.03); }
 
-    .service-card__body { padding: 22px; }
+    .service-card__body { padding: 21px; }
 
     .service-card__meta {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      margin-bottom: 14px;
+      margin-bottom: 13px;
       color: var(--blue-dark);
-      font-size: 12px;
+      font-size: 11.5px;
       font-weight: 800;
       text-transform: uppercase;
+      letter-spacing: .06em;
     }
 
     .language {
@@ -206,6 +232,7 @@
       line-height: 1.3;
       text-align: right;
       text-transform: none;
+      letter-spacing: 0;
     }
 
     .service-card--english .language {
@@ -216,22 +243,22 @@
     .service-card h3 {
       margin: 0;
       font-size: 22px;
-      line-height: 1.2;
+      line-height: 1.22;
     }
 
     .service-card__time {
       display: block;
-      margin-top: 12px;
+      margin-top: 11px;
       font-size: 18px;
       line-height: 1.2;
     }
 
     .service-card__detail {
-      min-height: 42px;
-      margin: 8px 0 0;
+      min-height: 40px;
+      margin: 7px 0 0;
       color: var(--muted);
       font-size: 14px;
-      line-height: 1.5;
+      line-height: 1.48;
     }
 
     .service-card__detail a {
@@ -241,23 +268,36 @@
     }
 
     .location {
-      border-top: 1px solid var(--line);
-      border-bottom: 1px solid var(--line);
-      background: #fff;
+      border-top: 1px solid #e2e6ed;
+      border-bottom: 1px solid #e2e6ed;
+      background: var(--surface);
+      position: relative;
+    }
+
+    .location::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 100px;
+      background: linear-gradient(to bottom, var(--cjc-page-bg) 0%, transparent 100%);
+      pointer-events: none;
+      z-index: 1;
     }
 
     .location__inner {
-      width: min(1160px, calc(100% - 48px));
+      position: relative;
+      z-index: 2;
+      width: min(1280px, calc(100% - 64px));
       margin: 0 auto;
-      padding: 58px 0;
+      padding: 52px 0;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 28px;
+      gap: 30px;
     }
 
-    .location .eyebrow { margin-bottom: 7px; }
-    .location h2 { margin: 0 0 8px; font-size: 29px; }
+    .location .eyebrow { margin-bottom: 6px; }
+    .location h2 { margin: 0 0 7px; font-size: 30px; }
     .location p { margin: 0; color: var(--muted); }
 
     .location a {
@@ -265,7 +305,7 @@
       min-height: 44px;
       align-items: center;
       justify-content: center;
-      padding: 0 18px;
+      padding: 0 19px;
       border: 1px solid var(--blue);
       border-radius: 6px;
       color: var(--blue-dark);
@@ -273,23 +313,28 @@
       font-weight: 780;
       text-decoration: none;
       white-space: nowrap;
+      transition: transform .20s ease, background .20s ease;
     }
+    .location a:hover { transform: translateY(-2px); background: var(--blue-soft); }
 
     @media (max-width: 930px) {
       .service-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
 
     @media (max-width: 680px) {
-      .events-hero { min-height: 570px; background-position: 58% center; }
+      .events-hero { min-height: 620px; background-position: 58% center; }
+      .events-hero::after { height: 160px; }
       .events-hero__inner,
       .schedule,
-      .location__inner { width: min(100% - 40px, 1160px); }
-      .events-hero__inner { padding: 90px 0 54px; }
+      .location__inner { width: min(100% - 40px, 1280px); }
+      .events-hero__inner { padding: 100px 0 64px; }
       .events-hero__copy { font-size: 16px; }
-      .schedule { padding: 58px 0 66px; }
-      .section-heading { grid-template-columns: 1fr; gap: 12px; }
+      .schedule { padding: 54px 0 62px; }
+      .schedule::before { height: 90px; }
+      .section-heading { grid-template-columns: 1fr; gap: 11px; }
       .service-grid { grid-template-columns: 1fr; }
       .service-card__detail { min-height: 0; }
+      .location::before { height: 80px; }
       .location__inner { align-items: flex-start; flex-direction: column; }
     }
   </style>
@@ -298,10 +343,10 @@
   <main>
     <section class="events-hero">
       <div class="events-hero__inner">
-        <p class="eyebrow">Services &amp; Events</p>
-        <h1>A place to worship, grow, and belong.</h1>
-        <p class="events-hero__copy">Join Christ Jesus Centered Church throughout the week for worship, prayer, Bible study, and discipleship in Springfield or online.</p>
-        <div class="hero-actions">
+        <p class="eyebrow animate-on-scroll">Services &amp; Events</p>
+        <h1 class="animate-on-scroll">A place to worship, grow, and belong.</h1>
+        <p class="events-hero__copy animate-on-scroll">Join Christ Jesus Centered Church throughout the week for worship, prayer, Bible study, and discipleship in Springfield or online.</p>
+        <div class="hero-actions animate-on-scroll">
           <a class="button" href="#weekly-schedule">View Weekly Schedule</a>
           <a class="button button--outline" href="https://maps.google.com/?q=7403+Boston+Blvd,+Springfield,+VA+22153" target="_blank" rel="noreferrer">Get Directions</a>
         </div>
@@ -310,14 +355,14 @@
 
     <section class="schedule" aria-labelledby="weekly-schedule">
       <div class="section-heading">
-        <div>
+        <div class="animate-on-scroll">
           <p class="eyebrow">Every week</p>
           <h2 id="weekly-schedule">Our weekly rhythm</h2>
         </div>
       </div>
 
       <div class="service-grid">
-        <article class="service-card">
+        <article class="service-card animate-on-scroll">
           <div class="service-card__image"><img src="/assets/services/tuesday.jpg" loading="lazy" alt="Tuesday online prayer and Bible study at CJC Church"></div>
           <div class="service-card__body">
             <div class="service-card__meta"><span>Tuesday</span><span class="language">Amharic · English translation</span></div>
@@ -327,7 +372,7 @@
           </div>
         </article>
 
-        <article class="service-card">
+        <article class="service-card animate-on-scroll">
           <div class="service-card__image"><img src="/assets/services/thursday.jpg" loading="lazy" alt="Thursday worship service at CJC Church"></div>
           <div class="service-card__body">
             <div class="service-card__meta"><span>Thursday</span><span class="language">Amharic · English translation</span></div>
@@ -337,7 +382,7 @@
           </div>
         </article>
 
-        <article class="service-card service-card--english">
+        <article class="service-card service-card--english animate-on-scroll">
           <div class="service-card__image"><img src="/assets/friday-service.jpg" loading="lazy" alt="Friday English worship service at CJC Church"></div>
           <div class="service-card__body">
             <div class="service-card__meta"><span>Friday</span><span class="language">English</span></div>
@@ -347,7 +392,7 @@
           </div>
         </article>
 
-        <article class="service-card service-card--english">
+        <article class="service-card service-card--english animate-on-scroll">
           <div class="service-card__image"><img src="/assets/services/discipleship.jpg" loading="lazy" alt="Friday night English discipleship at CJC Church"></div>
           <div class="service-card__body">
             <div class="service-card__meta"><span>Friday night</span><span class="language">English</span></div>
@@ -357,7 +402,7 @@
           </div>
         </article>
 
-        <article class="service-card">
+        <article class="service-card animate-on-scroll">
           <div class="service-card__image"><img src="/assets/services/saturday.jpg" loading="lazy" alt="Saturday worship service at CJC Church"></div>
           <div class="service-card__body">
             <div class="service-card__meta"><span>Saturday</span><span class="language">Amharic · English translation</span></div>
@@ -367,7 +412,7 @@
           </div>
         </article>
 
-        <article class="service-card">
+        <article class="service-card animate-on-scroll">
           <div class="service-card__image"><img src="/assets/services/sunday.jpg" loading="lazy" alt="Sunday worship service at CJC Church"></div>
           <div class="service-card__body">
             <div class="service-card__meta"><span>Sunday</span><span class="language">Amharic · English translation</span></div>
@@ -379,48 +424,48 @@
       </div>
     </section>
 
-    <section id="baptism-event" style="background:#f3f5f9;border-top:1px solid #dfe4ed;border-bottom:1px solid #dfe4ed;padding:64px 24px 72px">
+    <section id="baptism-event" style="background:var(--surface);border-top:1px solid #e2e6ed;border-bottom:1px solid #e2e6ed;padding:58px 32px 68px;position:relative">
       <style>
-        /* Scoped to baptism section on events page — mirrors home page bap-* classes */
-        #baptism-event .bap-ev-hero{position:relative;z-index:1;min-height:420px;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;background:#0d1222}
+        #baptism-event::before{content:"";position:absolute;top:0;left:0;right:0;height:100px;background:linear-gradient(to bottom,var(--cjc-page-bg) 0%,transparent 100%);pointer-events:none;z-index:1}
+        #baptism-event .bap-ev-hero{position:relative;z-index:1;min-height:440px;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;background:#0d1222}
         #baptism-event .bap-ev-hero>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 32%}
-        #baptism-event .bap-ev-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,36,.15) 0%,rgba(10,16,36,.92) 100%)}
-        #baptism-event .bap-ev-bar{position:relative;display:flex;flex-wrap:wrap;gap:8px;background:rgba(8,13,30,.62);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);padding:22px 36px 30px}
-        #baptism-event .bap-ev-bar a{display:inline-flex;align-items:center;height:36px;padding:0 18px;border-radius:6px;background:#c29b34;border:1px solid rgba(255,255,255,.12);color:#171c2c;font-size:13px;font-weight:760;text-decoration:none;font-family:system-ui,sans-serif;transition:background .15s,transform .12s,box-shadow .15s;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.25)}
-        #baptism-event .bap-ev-bar a:hover{background:#d4aa3c;transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,.3)}
-        #baptism-event .bap-ev-bar a:active{background:#a8852b;transform:translateY(0);box-shadow:0 1px 3px rgba(0,0,0,.2)}
+        #baptism-event .bap-ev-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,36,.16) 0%,rgba(10,16,36,.92) 100%)}
+        #baptism-event .bap-ev-bar{position:relative;display:flex;flex-wrap:wrap;gap:8px;background:rgba(8,13,30,.64);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding:21px 36px 28px}
+        #baptism-event .bap-ev-bar a{display:inline-flex;align-items:center;height:36px;padding:0 18px;border-radius:6px;background:#c29b34;border:1px solid rgba(255,255,255,.12);color:#171c2c;font-size:12.5px;font-weight:760;text-decoration:none;font-family:system-ui,sans-serif;transition:background .16s,transform .14s,box-shadow .16s;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.26)}
+        #baptism-event .bap-ev-bar a:hover{background:#d4aa3c;transform:translateY(-1px);box-shadow:0 3px 9px rgba(0,0,0,.32)}
+        #baptism-event .bap-ev-bar a:active{background:#a8852b;transform:translateY(0);box-shadow:0 1px 3px rgba(0,0,0,.22)}
         #baptism-event .bap-ev-bar a:focus-visible{outline:2px solid #fff;outline-offset:2px}
-        #baptism-event .bap-ev-photos-wrap{position:relative;z-index:0;margin-top:-52px;background:#0d1222}
+        #baptism-event .bap-ev-photos-wrap{position:relative;z-index:0;margin-top:-50px;background:#0d1222}
         #baptism-event .bap-ev-photos{display:grid;grid-template-columns:repeat(3,1fr)}
         #baptism-event .bap-ev-photos img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
-        #baptism-event .bap-ev-scrim{position:absolute;top:0;left:0;right:0;height:96px;background:linear-gradient(180deg,#0d1222 0%,transparent 100%);pointer-events:none;z-index:1}
+        #baptism-event .bap-ev-scrim{position:absolute;top:0;left:0;right:0;height:94px;background:linear-gradient(180deg,#0d1222 0%,transparent 100%);pointer-events:none;z-index:1}
         @media(max-width:640px){
-          #baptism-event .bap-ev-hero{min-height:300px}
+          #baptism-event .bap-ev-hero{min-height:320px}
           #baptism-event .bap-ev-body,#baptism-event .bap-ev-bar{padding-left:20px;padding-right:20px}
-          #baptism-event .bap-ev-bar{gap:7px;padding-bottom:24px}
+          #baptism-event .bap-ev-bar{gap:7px;padding-bottom:22px}
           #baptism-event .bap-ev-bar a{font-size:12px;padding:0 12px;height:32px}
-          #baptism-event .bap-ev-photos-wrap{margin-top:-38px}
-          #baptism-event .bap-ev-scrim{height:70px}
+          #baptism-event .bap-ev-photos-wrap{margin-top:-36px}
+          #baptism-event .bap-ev-scrim{height:68px}
         }
         @media(max-width:480px){#baptism-event .bap-ev-photos{grid-template-columns:1fr 1fr}}
       </style>
-      <div style="max-width:1160px;margin:0 auto">
-        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:24px;flex-wrap:wrap">
+      <div style="max-width:1280px;margin:0 auto;position:relative;z-index:2" class="animate-on-scroll">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap">
           <div>
-            <p style="margin:0 0 5px;color:#4760ff;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;font-family:system-ui,sans-serif">Upcoming event</p>
-            <h2 style="margin:0;font-size:clamp(28px,3.5vw,38px);color:#171c2c;font-family:system-ui,sans-serif;line-height:1.1">Baptism</h2>
+            <p style="margin:0 0 5px;color:#4760ff;font-size:11.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;font-family:system-ui,sans-serif">Upcoming event</p>
+            <h2 style="margin:0;font-size:clamp(30px,3.8vw,42px);color:#171c2c;font-family:system-ui,sans-serif;line-height:1.08">Baptism</h2>
           </div>
-          <span style="padding:5px 14px;border-radius:20px;background:#fff;border:1px solid #dfe4ed;font-size:13px;font-weight:700;color:#687083;font-family:system-ui,sans-serif;white-space:nowrap;align-self:flex-start;flex-shrink:0">Sunday, August 16, 2026</span>
+          <span style="padding:5px 14px;border-radius:20px;background:#fff;border:1px solid #dfe4ed;font-size:12.5px;font-weight:700;color:#687083;font-family:system-ui,sans-serif;white-space:nowrap;align-self:flex-start;flex-shrink:0">Sunday, August 16, 2026</span>
         </div>
-        <div style="border-radius:10px;overflow:hidden;box-shadow:0 8px 40px rgba(9,15,35,.14);border:1px solid #dfe4ed">
+        <div style="border-radius:10px;overflow:hidden;box-shadow:var(--cjc-shadow-float);border:1px solid #dfe4ed">
           <div class="bap-ev-hero">
             <img src="https://project-tau-rouge-65.vercel.app/assets/joy-pool.jpg" alt="A new believer rejoicing in the baptism waters" loading="lazy">
             <div class="bap-ev-overlay"></div>
             <div class="bap-ev-body" style="position:relative;padding:36px 36px 0">
-              <span style="display:inline-block;margin-bottom:14px;padding:3px 10px;background:rgba(255,255,255,.1);border-radius:4px;color:#dfc373;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;font-family:system-ui,sans-serif;border:1px solid rgba(255,255,255,.15)">Christ Jesus Centered Church</span>
-              <h3 style="margin:0 0 12px;font-size:clamp(30px,5vw,60px);color:#fff;font-family:system-ui,sans-serif;font-weight:900;line-height:1;text-transform:uppercase;letter-spacing:-.01em">Dead to Sin,<br>Alive in Christ</h3>
-              <p style="margin:0 0 6px;color:#c8d0e0;font-size:15px;font-family:system-ui,sans-serif;font-style:italic">"We were buried therefore with him into death… so we too might walk in newness of life." – Romans 6:4</p>
-              <p style="margin:0;color:#a8b4c8;font-size:14px;font-family:system-ui,sans-serif">Sunday, August 16, 2026 &nbsp;·&nbsp; 7403 Boston Blvd, Springfield VA</p>
+              <span style="display:inline-block;margin-bottom:13px;padding:3px 10px;background:rgba(255,255,255,.1);border-radius:4px;color:#dfc373;font-size:10.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;font-family:system-ui,sans-serif;border:1px solid rgba(255,255,255,.15)">Christ Jesus Centered Church</span>
+              <h3 style="margin:0 0 11px;font-size:clamp(32px,5.2vw,64px);color:#fff;font-family:system-ui,sans-serif;font-weight:900;line-height:1;text-transform:uppercase;letter-spacing:-.01em">Dead to Sin,<br>Alive in Christ</h3>
+              <p style="margin:0 0 6px;color:#c8d0e0;font-size:14.5px;font-family:system-ui,sans-serif;font-style:italic">"We were buried therefore with him into death… so we too might walk in newness of life." – Romans 6:4</p>
+              <p style="margin:0;color:#a8b4c8;font-size:13.5px;font-family:system-ui,sans-serif">Sunday, August 16, 2026 &nbsp;·&nbsp; 7403 Boston Blvd, Springfield VA</p>
             </div>
             <nav class="bap-ev-bar" aria-label="Baptism event">
               <a href="https://project-tau-rouge-65.vercel.app/#shirt" target="_blank" rel="noreferrer">Order Shirts</a>
@@ -450,15 +495,26 @@
 
     <section class="location">
       <div class="location__inner">
-        <div>
+        <div class="animate-on-scroll">
           <p class="eyebrow">Join us in Springfield</p>
           <h2>Christ Jesus Centered Church</h2>
           <p>7403 Boston Blvd, Springfield, VA 22153</p>
         </div>
-        <a href="https://maps.google.com/?q=7403+Boston+Blvd,+Springfield,+VA+22153" target="_blank" rel="noreferrer">Open Directions</a>
+        <a class="animate-on-scroll" href="https://maps.google.com/?q=7403+Boston+Blvd,+Springfield,+VA+22153" target="_blank" rel="noreferrer">Open Directions</a>
       </div>
     </section>
   </main>
+  <script>
+    if ('IntersectionObserver' in window) document.documentElement.classList.add('js-anim');
+    const observer = ('IntersectionObserver' in window) ? new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -80px 0px' }) : null;
 
+    document.querySelectorAll('.animate-on-scroll').forEach(el => observer && observer.observe(el));
+  </script>
 </body>
 </html>

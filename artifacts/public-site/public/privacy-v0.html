@@ -8,15 +8,15 @@
   <style>
     * { box-sizing: border-box; }
     body { color: var(--cjc-ink); background: var(--cjc-surface); }
-    main { width: min(780px, calc(100% - 40px)); margin: 0 auto; padding: 78px 0 96px; }
-    h1 { margin: 0 0 22px; font-size: clamp(40px, 6vw, 62px); }
-    h2 { margin: 34px 0 10px; font-size: 22px; }
-    p { color: var(--cjc-muted); line-height: 1.75; }
-    a { color: var(--cjc-blue); }
+    main { width: min(820px, calc(100% - 40px)); margin: 0 auto; padding: 72px 0 92px; }
+    h1 { margin: 0 0 20px; font-size: clamp(42px, 6.2vw, 66px); line-height: 1.04; letter-spacing: -.01em; }
+    h2 { margin: 32px 0 9px; font-size: 23px; line-height: 1.3; }
+    p { color: var(--cjc-muted); line-height: 1.74; }
+    a { color: var(--cjc-blue); font-weight: 650; }
   </style>
 </head>
 <body>
-  <main>
+  <main class="animate-on-scroll">
     <h1>Privacy</h1>
     <p>This public website provides information about Christ Jesus Centered Church and links to Church OS, YouTube, Instagram, Stripe, and Google Maps.</p>
     <h2>Information you submit</h2>
@@ -28,5 +28,17 @@
     <h2>Questions</h2>
     <p>Use the <a href="/contact">Contact page</a> to connect with CJC Church about this website.</p>
   </main>
+  <script>
+    if ('IntersectionObserver' in window) document.documentElement.classList.add('js-anim');
+    const observer = ('IntersectionObserver' in window) ? new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -80px 0px' }) : null;
+
+    document.querySelectorAll('.animate-on-scroll').forEach(el => observer && observer.observe(el));
+  </script>
 </body>
 </html>

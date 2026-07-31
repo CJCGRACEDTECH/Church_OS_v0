@@ -9,10 +9,10 @@
   <link rel="preload" as="image" href="/assets/hero-photo-optimized.jpg">
   <style>
     * { box-sizing: border-box; }
-    body { color: var(--cjc-ink); background: #fff; }
+    body { color: var(--cjc-ink); background: var(--cjc-page-bg); }
     .hero {
       position: relative;
-      min-height: min(900px, calc(100vh - 68px));
+      min-height: min(1080px, calc(100vh + 80px));
       display: flex;
       align-items: flex-end;
       overflow: hidden;
@@ -23,132 +23,148 @@
       content: "";
       position: absolute;
       inset: 0;
-      background: linear-gradient(90deg, rgba(9, 14, 31, .9) 0%, rgba(9, 14, 31, .58) 48%, rgba(9, 14, 31, .14) 77%);
+      background: linear-gradient(90deg, rgba(9, 14, 31, .91) 0%, rgba(9, 14, 31, .62) 46%, rgba(9, 14, 31, .16) 74%);
     }
     .hero::after {
       content: "";
       position: absolute;
       left: 0; right: 0; bottom: 0;
-      height: 300px;
-      background: linear-gradient(to bottom, transparent 0%, rgba(245, 247, 251, .72) 60%, #f5f7fb 100%);
+      height: 420px;
+      background: linear-gradient(to bottom, transparent 0%, rgba(248, 249, 252, .18) 28%, rgba(248, 249, 252, .68) 58%, var(--cjc-page-bg) 100%);
       pointer-events: none;
       z-index: 1;
     }
     .hero__inner {
       position: relative;
       z-index: 2;
-      width: min(1160px, calc(100% - 48px));
+      width: min(1280px, calc(100% - 64px));
       margin: 0 auto;
-      padding: 110px 0 84px;
+      padding: 120px 0 110px;
     }
-    .eyebrow { margin: 0 0 14px; color: #e0c474; font-size: 13px; font-weight: 800; text-transform: uppercase; }
-    h1 { max-width: 840px; margin: 0; font-size: clamp(54px, 7.4vw, 92px); line-height: .96; }
-    .hero__copy { max-width: 580px; margin: 22px 0 0; color: #e2e6f1; font-size: 18px; line-height: 1.65; }
-    .hero__actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
-    .hero__schedule { margin-top: 52px; display: flex; flex-wrap: wrap; gap: 8px 26px; color: #d5dbea; font-size: 14px; }
+    .eyebrow { margin: 0 0 13px; color: #e0c474; font-size: 12.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+    h1 { max-width: 880px; margin: 0; font-size: clamp(56px, 7.8vw, 98px); line-height: .94; letter-spacing: -.01em; }
+    .hero__copy { max-width: 600px; margin: 20px 0 0; color: #e2e6f1; font-size: 18px; line-height: 1.62; }
+    .hero__actions { display: flex; flex-wrap: wrap; gap: 11px; margin-top: 30px; }
+    .hero__schedule { margin-top: 48px; display: flex; flex-wrap: wrap; gap: 7px 24px; color: #d5dbea; font-size: 13.5px; }
     .hero__schedule strong { color: #fff; }
-    .section { padding: 82px 24px; }
-    .section--soft { background: var(--cjc-surface); }
+    .section { padding: 68px 32px; }
+    .section--soft { background: var(--cjc-surface); position: relative; }
     .section--dark { background: var(--cjc-navy); color: #fff; }
-    .section__inner { width: min(1160px, 100%); margin: 0 auto; }
-    .section-heading { display: grid; grid-template-columns: .75fr 1.25fr; gap: 56px; align-items: end; margin-bottom: 36px; }
-    .section-heading h2 { margin: 6px 0 0; font-size: clamp(34px, 5vw, 54px); line-height: 1.05; }
-    .section-heading > p { margin: 0; color: var(--cjc-muted); font-size: 17px; line-height: 1.65; }
-    .section-heading--stacked { display: block; max-width: 720px; }
-    .section-heading--stacked > p { max-width: 650px; margin-top: 16px; }
+    .section__inner { width: min(1280px, 100%); margin: 0 auto; }
+    .section-heading { display: grid; grid-template-columns: .72fr 1.28fr; gap: 52px; align-items: end; margin-bottom: 32px; }
+    .section-heading h2 { margin: 5px 0 0; font-size: clamp(36px, 5.2vw, 58px); line-height: 1.03; letter-spacing: -.01em; }
+    .section-heading > p { margin: 0; color: var(--cjc-muted); font-size: 17px; line-height: 1.64; }
+    .section-heading--stacked { display: block; max-width: 760px; }
+    .section-heading--stacked > p { max-width: 680px; margin-top: 15px; }
     .home-weekly {
       position: relative;
       z-index: 3;
-      margin-top: -90px;
-      padding-top: 116px;
-      border-top: none;
-      border-radius: 24px 24px 0 0;
-      box-shadow: 0 -32px 80px rgba(9, 14, 31, .08);
+      margin-top: -140px;
+      padding-top: 152px;
+      border-radius: 20px 20px 0 0;
+      box-shadow: var(--cjc-shadow-float);
     }
     .section--soft.home-weekly {
-      background: linear-gradient(to bottom, rgba(245,247,251,0) 0px, rgba(245,247,251,.75) 54px, #f5f7fb 110px);
+      background: linear-gradient(to bottom, rgba(245,247,251,0) 0px, rgba(245,247,251,.42) 32px, rgba(245,247,251,.82) 72px, #f5f7fb 120px);
     }
-    .services-toolbar { display: flex; justify-content: flex-end; gap: 8px; margin: -18px 0 18px; }
-    .services-toolbar button { width: 40px; height: 40px; border: 1px solid var(--cjc-line); border-radius: 6px; background: #fff; color: var(--cjc-ink); cursor: pointer; }
-    .services-track { display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+    .section--soft.home-weekly::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, transparent 0%, rgba(255,255,255,.28) 58%, rgba(255,255,255,.62) 100%);
+      border-radius: 20px 20px 0 0;
+      pointer-events: none;
+    }
+    .services-toolbar { display: flex; justify-content: flex-end; gap: 8px; margin: -14px 0 16px; }
+    .services-toolbar button { width: 38px; height: 38px; border: 1px solid var(--cjc-line); border-radius: 6px; background: #fff; color: var(--cjc-ink); cursor: pointer; transition: border-color .18s, background .18s; }
+    .services-toolbar button:hover { border-color: var(--cjc-blue); background: var(--cjc-blue-soft); }
+    .services-track { display: flex; gap: 13px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
     .services-track::-webkit-scrollbar { display: none; }
-    .service-card { flex: 0 0 min(350px, 86vw); min-height: 390px; overflow: hidden; border: 1px solid var(--cjc-line); border-radius: 6px; background: #fff; scroll-snap-align: start; }
-    .service-card__image { position: relative; height: 175px; overflow: hidden; background: var(--cjc-navy); }
-    .service-card__image::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, rgba(12, 18, 37, .5)); }
-    .service-card__image img { width: 100%; height: 100%; object-fit: cover; transition: transform .25s ease; }
-    .service-card:hover .service-card__image img { transform: scale(1.025); }
-    .service-card__body { padding: 21px 22px 22px; }
+    .service-card { flex: 0 0 min(360px, 87vw); min-height: 400px; overflow: hidden; border: 1px solid var(--cjc-line); border-radius: 7px; background: #fff; scroll-snap-align: start; box-shadow: var(--cjc-shadow-soft); transition: transform .24s ease, box-shadow .24s ease; }
+    .service-card:hover { transform: translateY(-4px); box-shadow: var(--cjc-shadow-float); }
+    .service-card__image { position: relative; height: 180px; overflow: hidden; background: var(--cjc-navy); }
+    .service-card__image::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 42%, rgba(12, 18, 37, .54)); }
+    .service-card__image img { width: 100%; height: 100%; object-fit: cover; transition: transform .28s ease; }
+    .service-card:hover .service-card__image img { transform: scale(1.03); }
+    .service-card__body { padding: 20px 21px 21px; }
     .service-card__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
-    .service-card__meta span { color: var(--cjc-blue); font-size: 12px; font-weight: 800; text-transform: uppercase; }
-    .service-card__language { display: inline-flex; padding: 4px 7px; border-radius: 4px; background: var(--cjc-blue-soft); color: #3247ba !important; font-size: 10px !important; text-transform: none !important; }
+    .service-card__meta span { color: var(--cjc-blue); font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+    .service-card__language { display: inline-flex; padding: 4px 7px; border-radius: 4px; background: var(--cjc-blue-soft); color: #3247ba !important; font-size: 10px !important; text-transform: none !important; letter-spacing: 0 !important; }
     .service-card--english .service-card__language { background: #f7f0dc; color: #80651c !important; }
-    .service-card h3 { min-height: 52px; margin: 16px 0 10px; font-size: 21px; }
+    .service-card h3 { min-height: 50px; margin: 15px 0 9px; font-size: 21px; line-height: 1.22; }
     .service-card strong { display: block; font-size: 24px; }
-    .service-card small { display: block; margin-top: 5px; color: var(--cjc-muted); }
-    .watch { display: grid; grid-template-columns: 1.25fr .75fr; align-items: stretch; }
-    .watch__media { position: relative; min-height: 470px; display: block; overflow: hidden; background: #0e1426; }
-    .watch__media img { width: 100%; height: 100%; object-fit: cover; }
-    .watch__play { position: absolute; left: 30px; bottom: 28px; width: 54px; height: 54px; display: grid; place-items: center; border-radius: 50%; background: var(--cjc-blue); color: #fff; }
-    .watch__copy { display: flex; flex-direction: column; justify-content: center; padding: 54px; }
-    .watch__copy h2 { margin: 10px 0; font-size: clamp(32px, 4vw, 50px); line-height: 1.08; }
-    .watch__copy time { min-height: 22px; color: #aeb7cc; }
-    .watch__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
-    .community-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-    .community-card { position: relative; min-height: 340px; display: flex; align-items: flex-end; padding: 24px; overflow: hidden; border-radius: 6px; background: #26314d var(--image) center / cover no-repeat; color: #fff !important; text-decoration: none; }
-    .community-card::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 32%, rgba(8, 15, 32, .88)); }
+    .service-card small { display: block; margin-top: 5px; color: var(--cjc-muted); font-size: 13.5px; }
+    .watch { display: grid; grid-template-columns: 1.32fr .68fr; align-items: stretch; }
+    .watch__media { position: relative; min-height: 500px; display: block; overflow: hidden; background: #0e1426; border-radius: 10px; box-shadow: var(--cjc-shadow); }
+    .watch__media img { width: 100%; height: 100%; object-fit: cover; transition: transform .32s ease; }
+    .watch__media:hover img { transform: scale(1.015); }
+    .watch__play { position: absolute; left: 28px; bottom: 26px; width: 56px; height: 56px; display: grid; place-items: center; border-radius: 50%; background: var(--cjc-blue); color: #fff; box-shadow: 0 6px 20px rgba(71, 96, 255, .38); transition: transform .24s ease, box-shadow .24s ease; }
+    .watch__media:hover .watch__play { transform: scale(1.08); box-shadow: 0 8px 26px rgba(71, 96, 255, .48); }
+    .watch__copy { display: flex; flex-direction: column; justify-content: center; padding: 50px; }
+    .watch__copy h2 { margin: 9px 0; font-size: clamp(34px, 4.2vw, 54px); line-height: 1.06; }
+    .watch__copy time { min-height: 21px; color: #aeb7cc; font-size: 13.5px; }
+    .watch__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+    .community-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 13px; }
+    .community-card { position: relative; min-height: 360px; display: flex; align-items: flex-end; padding: 26px; overflow: hidden; border-radius: 7px; background: #26314d var(--image) center / cover no-repeat; color: #fff !important; text-decoration: none; box-shadow: var(--cjc-shadow-soft); transition: transform .24s ease, box-shadow .24s ease; }
+    .community-card::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 28%, rgba(8, 15, 32, .89)); transition: background .28s ease; }
+    .community-card:hover { transform: translateY(-3px); box-shadow: var(--cjc-shadow-float); }
+    .community-card:hover::before { background: linear-gradient(180deg, transparent 22%, rgba(8, 15, 32, .92)); }
     .community-card > div { position: relative; }
-    .community-card h3 { margin: 0 0 7px; font-size: 24px; }
-    .community-card p { margin: 0; color: #dce2ef; line-height: 1.5; }
-    .social-story { padding: 84px 24px; background: var(--cjc-navy); color: #fff; position: relative; }
+    .community-card h3 { margin: 0 0 6px; font-size: 24px; line-height: 1.2; }
+    .community-card p { margin: 0; color: #dce2ef; line-height: 1.48; font-size: 15px; }
+    .social-story { padding: 76px 32px 80px; background: var(--cjc-navy); color: #fff; position: relative; }
     .social-story::before {
       content: "";
       position: absolute;
       top: 0; left: 0; right: 0;
-      height: 120px;
-      background: linear-gradient(to bottom, #fff 0%, transparent 100%);
+      height: 140px;
+      background: linear-gradient(to bottom, var(--cjc-page-bg) 0%, transparent 100%);
       pointer-events: none;
       z-index: 1;
     }
-    .social-story__inner { position: relative; z-index: 2; width: min(1160px, 100%); margin: 0 auto; display: grid; grid-template-columns: 1.18fr .82fr; gap: 54px; align-items: center; }
-    .social-story__gallery { display: grid; grid-template-columns: 1.1fr .9fr; grid-template-rows: 190px 190px; gap: 12px; }
-    .social-story__gallery img { width: 100%; height: 100%; display: block; border-radius: 6px; object-fit: cover; }
+    .social-story__inner { position: relative; z-index: 2; width: min(1280px, 100%); margin: 0 auto; display: grid; grid-template-columns: 1.22fr .78fr; gap: 58px; align-items: center; }
+    .social-story__gallery { display: grid; grid-template-columns: 1.12fr .88fr; grid-template-rows: 200px 200px; gap: 12px; }
+    .social-story__gallery img { width: 100%; height: 100%; display: block; border-radius: 7px; object-fit: cover; box-shadow: var(--cjc-shadow-soft); transition: transform .28s ease; }
+    .social-story__gallery img:hover { transform: scale(1.02); }
     .social-story__gallery img:first-child { grid-row: 1 / 3; }
     .social-story__copy .eyebrow { color: #e1c578; }
-    .social-story__copy h2 { margin: 8px 0 17px; font-size: clamp(34px, 4vw, 52px); line-height: 1.06; }
-    .social-story__copy > p { color: #b7c0d3; line-height: 1.7; }
-    .social-story__links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 27px; }
-    .social-story__links a { display: inline-flex; min-height: 44px; align-items: center; gap: 9px; padding: 0 16px; border: 1px solid #465069; border-radius: 6px; color: #fff; font-weight: 750; text-decoration: none; }
-    .social-story__links a:hover { border-color: #7c88a7; background: rgba(255,255,255,.04); }
+    .social-story__copy h2 { margin: 7px 0 16px; font-size: clamp(36px, 4.2vw, 56px); line-height: 1.04; }
+    .social-story__copy > p { color: #b7c0d3; line-height: 1.68; }
+    .social-story__links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+    .social-story__links a { display: inline-flex; min-height: 44px; align-items: center; gap: 9px; padding: 0 17px; border: 1px solid #465069; border-radius: 6px; color: #fff; font-weight: 750; text-decoration: none; transition: border-color .18s, background .18s, transform .18s; }
+    .social-story__links a:hover { border-color: #7c88a7; background: rgba(255,255,255,.05); transform: translateY(-2px); }
     .social-story__links img { width: 21px; height: 21px; }
-    .visit { display: grid; grid-template-columns: 1fr 1fr; }
-    .visit__image { min-height: 480px; background: url("/assets/pastor-service-01.jpg") center / cover no-repeat; }
-    .visit__copy { display: flex; flex-direction: column; justify-content: center; padding: 64px max(28px, calc((100vw - 1160px) / 2)); background: var(--cjc-blue-soft); }
-    .visit__copy h2 { margin: 8px 0 18px; font-size: clamp(34px, 4vw, 52px); line-height: 1.05; }
-    .visit__copy p { max-width: 500px; color: var(--cjc-muted); line-height: 1.65; }
-    .visit__copy address { margin: 12px 0 26px; color: var(--cjc-ink); font-style: normal; font-weight: 700; line-height: 1.6; }
+    .visit { display: grid; grid-template-columns: 1fr 1fr; box-shadow: var(--cjc-shadow); border-radius: 10px; overflow: hidden; }
+    .visit__image { min-height: 520px; background: url("/assets/pastor-service-01.jpg") center / cover no-repeat; }
+    .visit__copy { display: flex; flex-direction: column; justify-content: center; padding: 58px max(32px, calc((100vw - 1280px) / 2)); background: var(--cjc-blue-soft); }
+    .visit__copy h2 { margin: 7px 0 17px; font-size: clamp(36px, 4.2vw, 56px); line-height: 1.03; }
+    .visit__copy p { max-width: 520px; color: var(--cjc-muted); line-height: 1.64; }
+    .visit__copy address { margin: 11px 0 24px; color: var(--cjc-ink); font-style: normal; font-weight: 700; line-height: 1.58; }
     @media (max-width: 900px) {
       .section-heading, .watch, .visit, .social-story__inner { grid-template-columns: 1fr; }
       .community-grid { grid-template-columns: repeat(2, 1fr); }
-      .watch__media { min-height: 390px; }
-      .visit__image { min-height: 380px; }
+      .watch__media { min-height: 410px; }
+      .visit__image { min-height: 400px; }
     }
     @media (max-width: 600px) {
-      .hero { min-height: 750px; background-position: 63% 28%; }
-      .hero::before { background: linear-gradient(180deg, rgba(9,14,31,.25), rgba(9,14,31,.92) 72%); }
-      .hero__inner { width: min(100% - 40px, 1160px); padding: 170px 0 48px; }
-      .home-weekly { margin-top: -52px; padding-top: 80px; border-radius: 14px 14px 0 0; }
-      h1 { font-size: 48px; }
-      .section { padding: 58px 20px; }
-      .section-heading { gap: 16px; margin-bottom: 28px; }
+      .hero { min-height: 820px; background-position: 63% 28%; }
+      .hero::before { background: linear-gradient(180deg, rgba(9,14,31,.28), rgba(9,14,31,.93) 70%); }
+      .hero::after { height: 320px; background: linear-gradient(to bottom, transparent 0%, rgba(248, 249, 252, .64) 52%, var(--cjc-page-bg) 100%); }
+      .hero__inner { width: min(100% - 40px, 1280px); padding: 180px 0 52px; }
+      .home-weekly { margin-top: -80px; padding-top: 92px; border-radius: 16px 16px 0 0; }
+      h1 { font-size: 50px; }
+      .section { padding: 54px 20px; }
+      .section-heading { gap: 14px; margin-bottom: 26px; }
       .services-toolbar { display: none; }
-      .watch__media { min-height: 280px; }
-      .watch__copy { padding: 38px 20px 50px; }
+      .watch__media { min-height: 300px; }
+      .watch__copy { padding: 36px 20px 48px; }
       .community-grid { grid-template-columns: 1fr; }
-      .community-card { min-height: 280px; }
-      .visit__image { min-height: 300px; }
-      .visit__copy { padding: 46px 20px 56px; }
-      .social-story { padding: 60px 20px 66px; }
-      .social-story__gallery { grid-template-rows: 150px 150px; }
+      .community-card { min-height: 300px; }
+      .visit__image { min-height: 320px; }
+      .visit__copy { padding: 42px 20px 52px; }
+      .social-story { padding: 58px 20px 64px; }
+      .social-story::before { height: 110px; }
+      .social-story__gallery { grid-template-rows: 160px 160px; }
     }
   </style>
 </head>
@@ -156,13 +172,13 @@
   <main>
     <section class="hero">
       <div class="hero__inner">
-        <h1>Christ Jesus Centered Church</h1>
-        <p class="hero__copy"><strong>One Kingdom. All Nations.</strong> Come worship, grow in faith, and find community with us in Springfield, Virginia.</p>
-        <div class="hero__actions">
+        <h1 class="animate-on-scroll">Christ Jesus Centered Church</h1>
+        <p class="hero__copy animate-on-scroll"><strong>One Kingdom. All Nations.</strong> Come worship, grow in faith, and find community with us in Springfield, Virginia.</p>
+        <div class="hero__actions animate-on-scroll">
           <a class="cjc-button cjc-button--light" href="/events">Service Times</a>
           <a class="cjc-button cjc-button--outline" href="/sermons.html">Watch Online</a>
         </div>
-        <div class="hero__schedule">
+        <div class="hero__schedule animate-on-scroll">
           <span><strong>Four Weekly Services</strong></span>
           <span><strong>Amharic &amp; English</strong></span>
           <span><strong>Springfield, Virginia</strong></span>
@@ -172,7 +188,7 @@
 
     <section class="section section--soft home-weekly" aria-labelledby="weekly-title">
       <div class="section__inner">
-        <div class="section-heading section-heading--stacked">
+        <div class="section-heading section-heading--stacked animate-on-scroll">
           <div><p class="eyebrow">Gather with us</p><h2 id="weekly-title">This week at CJC</h2></div>
           <p>Join us for worship, prayer, Bible study, and discipleship throughout the week.</p>
         </div>
@@ -181,27 +197,27 @@
           <button type="button" data-scroll="1" aria-label="Next services">→</button>
         </div>
         <div class="services-track" data-services-track tabindex="0">
-          <article class="service-card">
+          <article class="service-card animate-on-scroll">
             <div class="service-card__image"><img src="/assets/services/tuesday.jpg" loading="lazy" alt="Tuesday online prayer and Bible study at CJC Church"></div>
             <div class="service-card__body"><div class="service-card__meta"><span>Tuesday</span><span class="service-card__language">Amharic · English translation</span></div><h3>Prayer &amp; Bible Study</h3><strong>8:00 PM</strong><small>Online via Zoom</small></div>
           </article>
-          <article class="service-card">
+          <article class="service-card animate-on-scroll">
             <div class="service-card__image"><img src="/assets/services/thursday.jpg" loading="lazy" alt="Thursday worship service at CJC Church"></div>
             <div class="service-card__body"><div class="service-card__meta"><span>Thursday</span><span class="service-card__language">Amharic · English translation</span></div><h3>Thursday Service</h3><strong>7:00 PM</strong><small>In person</small></div>
           </article>
-          <article class="service-card service-card--english">
+          <article class="service-card service-card--english animate-on-scroll">
             <div class="service-card__image"><img src="/assets/friday-service.jpg" loading="lazy" alt="Friday worship service at CJC Church"></div>
             <div class="service-card__body"><div class="service-card__meta"><span>Friday</span><span class="service-card__language">English</span></div><h3>Friday Service</h3><strong>7:00 PM</strong><small>In person</small></div>
           </article>
-          <article class="service-card service-card--english">
+          <article class="service-card service-card--english animate-on-scroll">
             <div class="service-card__image"><img src="/assets/services/discipleship.jpg" loading="lazy" alt="Friday night discipleship at CJC Church"></div>
             <div class="service-card__body"><div class="service-card__meta"><span>Friday night</span><span class="service-card__language">English</span></div><h3>Discipleship</h3><strong>11:00 PM</strong></div>
           </article>
-          <article class="service-card">
+          <article class="service-card animate-on-scroll">
             <div class="service-card__image"><img src="/assets/services/saturday.jpg" loading="lazy" alt="Saturday service ministry at CJC Church"></div>
             <div class="service-card__body"><div class="service-card__meta"><span>Saturday</span><span class="service-card__language">Amharic · English translation</span></div><h3>Saturday Service</h3><strong>7:00 PM</strong><small>In person</small></div>
           </article>
-          <article class="service-card">
+          <article class="service-card animate-on-scroll">
             <div class="service-card__image"><img src="/assets/services/sunday.jpg" loading="lazy" alt="Sunday worship at CJC Church"></div>
             <div class="service-card__body"><div class="service-card__meta"><span>Sunday</span><span class="service-card__language">Amharic · English translation</span></div><h3>Sunday Service</h3><strong>11:00 AM</strong><small>In person</small></div>
           </article>
@@ -209,47 +225,42 @@
       </div>
     </section>
 
-    <section id="baptism-event" style="margin:0;padding:52px 24px 68px;background:#f3f5f9;border-top:1px solid #dfe4ed;border-bottom:1px solid #dfe4ed">
+    <section id="baptism-event" style="margin:0;padding:48px 32px 60px;background:var(--cjc-surface);border-top:1px solid #e2e6ed;border-bottom:1px solid #e2e6ed">
       <style>
-        .bap-wrap{max-width:1160px;margin:0 auto}
-        .bap-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:24px;flex-wrap:wrap}
-        .bap-head p{margin:0 0 5px;color:#4760ff;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;font-family:system-ui,sans-serif}
-        .bap-head h2{margin:0;font-size:clamp(28px,3.5vw,38px);color:#171c2c;font-family:system-ui,sans-serif;line-height:1.1}
-        .bap-datepill{padding:5px 14px;border-radius:20px;background:#fff;border:1px solid #dfe4ed;font-size:13px;font-weight:700;color:#687083;font-family:system-ui,sans-serif;white-space:nowrap;align-self:flex-start;flex-shrink:0}
-        .bap-card{border-radius:10px;overflow:hidden;box-shadow:0 8px 40px rgba(9,15,35,.14);border:1px solid #dfe4ed}
-        /* Hero sits above photo strip in stacking order */
-        .bap-hero{position:relative;z-index:1;min-height:420px;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;background:#0d1222}
+        .bap-wrap{max-width:1280px;margin:0 auto}
+        .bap-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap}
+        .bap-head p{margin:0 0 5px;color:#4760ff;font-size:11.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;font-family:system-ui,sans-serif}
+        .bap-head h2{margin:0;font-size:clamp(30px,3.8vw,42px);color:#171c2c;font-family:system-ui,sans-serif;line-height:1.08}
+        .bap-datepill{padding:5px 14px;border-radius:20px;background:#fff;border:1px solid #dfe4ed;font-size:12.5px;font-weight:700;color:#687083;font-family:system-ui,sans-serif;white-space:nowrap;align-self:flex-start;flex-shrink:0}
+        .bap-card{border-radius:10px;overflow:hidden;box-shadow:var(--cjc-shadow-float);border:1px solid #dfe4ed}
+        .bap-hero{position:relative;z-index:1;min-height:440px;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;background:#0d1222}
         .bap-hero>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 32%}
-        .bap-hero-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,36,.15) 0%,rgba(10,16,36,.92) 100%)}
+        .bap-hero-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,36,.16) 0%,rgba(10,16,36,.92) 100%)}
         .bap-hero-body{position:relative;padding:36px 36px 0}
-        .bap-hero-tag{display:inline-block;margin-bottom:14px;padding:3px 10px;background:rgba(255,255,255,.1);border-radius:4px;color:#dfc373;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;font-family:system-ui,sans-serif;border:1px solid rgba(255,255,255,.15)}
-        .bap-hero-title{margin:0 0 12px;font-size:clamp(30px,5vw,60px);color:#fff;font-family:system-ui,sans-serif;font-weight:900;line-height:1;text-transform:uppercase;letter-spacing:-.01em}
-        .bap-hero-verse{margin:0 0 6px;color:#c8d0e0;font-size:15px;font-family:system-ui,sans-serif;font-style:italic}
-        .bap-hero-info{margin:0;color:#a8b4c8;font-size:14px;font-family:system-ui,sans-serif}
-        /* Action bar — no hard border, blurs into the gradient above */
-        .bap-actions-bar{position:relative;display:flex;flex-wrap:wrap;gap:8px;background:rgba(8,13,30,.62);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);padding:22px 36px 30px}
-        /* Gold buttons — use site's --cjc-gold #c29b34, dark text for contrast */
-        .bap-actions-bar a{display:inline-flex;align-items:center;height:36px;padding:0 18px;border-radius:6px;background:#c29b34;border:1px solid rgba(255,255,255,.12);color:#171c2c;font-size:13px;font-weight:760;text-decoration:none;font-family:system-ui,sans-serif;transition:background .15s,transform .12s,box-shadow .15s;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.25)}
-        .bap-actions-bar a:hover{background:#d4aa3c;transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,.3)}
-        .bap-actions-bar a:active{background:#a8852b;transform:translateY(0);box-shadow:0 1px 3px rgba(0,0,0,.2)}
+        .bap-hero-tag{display:inline-block;margin-bottom:13px;padding:3px 10px;background:rgba(255,255,255,.1);border-radius:4px;color:#dfc373;font-size:10.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;font-family:system-ui,sans-serif;border:1px solid rgba(255,255,255,.15)}
+        .bap-hero-title{margin:0 0 11px;font-size:clamp(32px,5.2vw,64px);color:#fff;font-family:system-ui,sans-serif;font-weight:900;line-height:1;text-transform:uppercase;letter-spacing:-.01em}
+        .bap-hero-verse{margin:0 0 6px;color:#c8d0e0;font-size:14.5px;font-family:system-ui,sans-serif;font-style:italic}
+        .bap-hero-info{margin:0;color:#a8b4c8;font-size:13.5px;font-family:system-ui,sans-serif}
+        .bap-actions-bar{position:relative;display:flex;flex-wrap:wrap;gap:8px;background:rgba(8,13,30,.64);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding:21px 36px 28px}
+        .bap-actions-bar a{display:inline-flex;align-items:center;height:36px;padding:0 18px;border-radius:6px;background:#c29b34;border:1px solid rgba(255,255,255,.12);color:#171c2c;font-size:12.5px;font-weight:760;text-decoration:none;font-family:system-ui,sans-serif;transition:background .16s,transform .14s,box-shadow .16s;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.26)}
+        .bap-actions-bar a:hover{background:#d4aa3c;transform:translateY(-1px);box-shadow:0 3px 9px rgba(0,0,0,.32)}
+        .bap-actions-bar a:active{background:#a8852b;transform:translateY(0);box-shadow:0 1px 3px rgba(0,0,0,.22)}
         .bap-actions-bar a:focus-visible{outline:2px solid #fff;outline-offset:2px}
-        /* Photo strip pulled up behind the hero so images bleed into button bar */
-        .bap-photos-wrap{position:relative;z-index:0;margin-top:-52px;background:#0d1222}
+        .bap-photos-wrap{position:relative;z-index:0;margin-top:-50px;background:#0d1222}
         .bap-photos{display:grid;grid-template-columns:repeat(3,1fr)}
         .bap-photos img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
-        /* Scrim fades the dark action-bar colour into the photos — no hard line */
-        .bap-photos-scrim{position:absolute;top:0;left:0;right:0;height:96px;background:linear-gradient(180deg,#0d1222 0%,transparent 100%);pointer-events:none;z-index:1}
+        .bap-photos-scrim{position:absolute;top:0;left:0;right:0;height:94px;background:linear-gradient(180deg,#0d1222 0%,transparent 100%);pointer-events:none;z-index:1}
         @media(max-width:640px){
-          .bap-hero{min-height:300px}
+          .bap-hero{min-height:320px}
           .bap-hero-body,.bap-actions-bar{padding-left:20px;padding-right:20px}
-          .bap-actions-bar{gap:7px;padding-bottom:24px}
+          .bap-actions-bar{gap:7px;padding-bottom:22px}
           .bap-actions-bar a{font-size:12px;padding:0 12px;height:32px}
-          .bap-photos-wrap{margin-top:-38px}
-          .bap-photos-scrim{height:70px}
+          .bap-photos-wrap{margin-top:-36px}
+          .bap-photos-scrim{height:68px}
         }
         @media(max-width:480px){.bap-photos{grid-template-columns:1fr 1fr}}
       </style>
-      <div class="bap-wrap">
+      <div class="bap-wrap animate-on-scroll">
         <div class="bap-head">
           <div>
             <p>Upcoming event</p>
@@ -294,11 +305,11 @@
     </section>
 
     <section class="watch section--dark">
-      <a class="watch__media" data-video-link href="https://www.youtube.com/@cjcinternationalprophetyos9053" target="_blank" rel="noreferrer">
+      <a class="watch__media animate-on-scroll" data-video-link href="https://www.youtube.com/@cjcinternationalprophetyos9053" target="_blank" rel="noreferrer">
         <img data-video-image src="/assets/watch-placeholder.jpg" loading="lazy" alt="Watch a CJC Church message">
         <span class="watch__play" aria-hidden="true">▶</span>
       </a>
-      <div class="watch__copy">
+      <div class="watch__copy animate-on-scroll">
         <p class="eyebrow">Latest sermon</p>
         <h2 data-video-title>Watch CJC Church</h2>
         <time data-video-date></time>
@@ -311,26 +322,26 @@
 
     <section class="section" aria-labelledby="belong-title">
       <div class="section__inner">
-        <div class="section-heading section-heading--stacked">
+        <div class="section-heading section-heading--stacked animate-on-scroll">
           <div><p class="eyebrow">Life at CJC</p><h2 id="belong-title">A place to belong</h2></div>
           <p>Grow in faith, build relationships, and serve alongside people of every generation.</p>
         </div>
         <div class="community-grid">
-          <a class="community-card" href="/connect?ministryInterest=Children%20Ministry" style="--image:url('/assets/community-children.jpg')"><div><h3>Children &amp; Youth</h3><p>A welcoming place for the next generation.</p></div></a>
-          <a class="community-card" href="/connect?ministryInterest=Worship%20and%20Media" style="--image:url('/assets/community-worship.jpg')"><div><h3>Worship &amp; Media</h3><p>Use your gifts to help people encounter God.</p></div></a>
-          <a class="community-card" href="/connect?ministryInterest=Serving" style="--image:url('/assets/community-serve.jpg')"><div><h3>Serve &amp; Connect</h3><p>Find community and make a difference.</p></div></a>
+          <a class="community-card animate-on-scroll" href="/connect?ministryInterest=Children%20Ministry" style="--image:url('/assets/community-children.jpg')"><div><h3>Children &amp; Youth</h3><p>A welcoming place for the next generation.</p></div></a>
+          <a class="community-card animate-on-scroll" href="/connect?ministryInterest=Worship%20and%20Media" style="--image:url('/assets/community-worship.jpg')"><div><h3>Worship &amp; Media</h3><p>Use your gifts to help people encounter God.</p></div></a>
+          <a class="community-card animate-on-scroll" href="/connect?ministryInterest=Serving" style="--image:url('/assets/community-serve.jpg')"><div><h3>Serve &amp; Connect</h3><p>Find community and make a difference.</p></div></a>
         </div>
       </div>
     </section>
 
     <section class="social-story" aria-labelledby="social-title">
       <div class="social-story__inner">
-        <div class="social-story__gallery" aria-label="Life at CJC Church">
+        <div class="social-story__gallery animate-on-scroll" aria-label="Life at CJC Church">
           <img src="/assets/worship-prayer-01.jpg" alt="A member in heartfelt prayer at CJC Church" loading="lazy">
           <img src="/assets/worship-leader-01.jpg" alt="Worship leader at CJC Church" loading="lazy">
           <img src="/assets/worship-prayer-02.jpg" alt="A member kneeling in worship at CJC Church" loading="lazy">
         </div>
-        <div class="social-story__copy">
+        <div class="social-story__copy animate-on-scroll">
           <p class="eyebrow">Life at CJC</p>
           <h2 id="social-title">Stay close to what is happening.</h2>
           <p>Follow worship, teaching, community moments, and church updates throughout the week.</p>
@@ -343,16 +354,20 @@
       </div>
     </section>
 
-    <section class="visit">
-      <div class="visit__image" role="img" aria-label="CJC Church worship team"></div>
-      <div class="visit__copy">
-        <p class="eyebrow">You are welcome here</p>
-        <h2>Come as you are.</h2>
-        <p>Expect heartfelt worship, biblical teaching, prayer, and a warm welcome. Families are invited, and children are cared for in a safe, supportive environment.</p>
-        <address>7403 Boston Blvd<br>Springfield, VA 22153</address>
-        <div class="hero__actions">
-          <a class="cjc-button" href="/contact">Contact CJC Church</a>
-          <a class="cjc-button cjc-button--light" href="https://share.google/6z0A4LpbKmShWkZbT" target="_blank" rel="noreferrer">View on Google</a>
+    <section class="section">
+      <div class="section__inner">
+        <div class="visit animate-on-scroll">
+          <div class="visit__image" role="img" aria-label="CJC Church worship team"></div>
+          <div class="visit__copy">
+            <p class="eyebrow">You are welcome here</p>
+            <h2>Come as you are.</h2>
+            <p>Expect heartfelt worship, biblical teaching, prayer, and a warm welcome. Families are invited, and children are cared for in a safe, supportive environment.</p>
+            <address>7403 Boston Blvd<br>Springfield, VA 22153</address>
+            <div class="hero__actions">
+              <a class="cjc-button" href="/contact">Contact CJC Church</a>
+              <a class="cjc-button cjc-button--light" href="https://share.google/6z0A4LpbKmShWkZbT" target="_blank" rel="noreferrer">View on Google</a>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -361,7 +376,7 @@
     (() => {
       const track = document.querySelector("[data-services-track]");
       document.querySelectorAll("[data-scroll]").forEach((button) => {
-        button.addEventListener("click", () => track.scrollBy({ left: Number(button.dataset.scroll) * Math.min(track.clientWidth * .8, 700), behavior: "smooth" }));
+        button.addEventListener("click", () => track.scrollBy({ left: Number(button.dataset.scroll) * Math.min(track.clientWidth * .82, 720), behavior: "smooth" }));
       });
 
       function cleanTitle(raw) {
@@ -388,6 +403,18 @@
             date.textContent = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" }).format(new Date(video.publishedAt));
           }
         }).catch(() => {});
+
+      // Scroll animations
+      if ('IntersectionObserver' in window) document.documentElement.classList.add('js-anim');
+    const observer = ('IntersectionObserver' in window) ? new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+          }
+        });
+      }, { threshold: 0.1, rootMargin: '0px 0px -80px 0px' }) : null;
+
+      document.querySelectorAll('.animate-on-scroll').forEach(el => observer && observer.observe(el));
     })();
   </script>
   <script type="application/ld+json">
