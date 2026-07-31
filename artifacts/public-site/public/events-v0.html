@@ -66,13 +66,15 @@
     }
 
     .eyebrow {
-      margin: 0 0 11px;
+      display: flex; align-items: center; gap: 10px;
+      margin: 0 0 16px;
       color: #a98a35;
-      font-size: 12.5px;
+      font-size: 14px;
       font-weight: 800;
-      letter-spacing: .07em;
+      letter-spacing: .13em;
       text-transform: uppercase;
     }
+    .eyebrow::before { content: ""; display: block; width: 28px; height: 2px; background: currentColor; flex-shrink: 0; }
 
     .events-hero .eyebrow { color: #dfc373; }
 
@@ -356,7 +358,7 @@
     <section class="schedule" aria-labelledby="weekly-schedule">
       <div class="section-heading">
         <div class="animate-on-scroll">
-          <p class="eyebrow">Every week</p>
+          <p class="eyebrow animate-on-scroll">Every week</p>
           <h2 id="weekly-schedule">Our weekly rhythm</h2>
         </div>
       </div>
@@ -496,7 +498,7 @@
     <section class="location">
       <div class="location__inner">
         <div class="animate-on-scroll">
-          <p class="eyebrow">Join us in Springfield</p>
+          <p class="eyebrow animate-on-scroll">Join us in Springfield</p>
           <h2>Christ Jesus Centered Church</h2>
           <p>7403 Boston Blvd, Springfield, VA 22153</p>
         </div>

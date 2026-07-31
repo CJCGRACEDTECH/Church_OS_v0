@@ -9,7 +9,8 @@
   <style>
     * { box-sizing: border-box; }
     body { color: var(--cjc-ink); background: var(--cjc-page-bg); }
-    .eyebrow { margin: 0 0 11px; color: var(--cjc-gold); font-size: 12.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+    .eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 16px; color: var(--cjc-gold); font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: .13em; }
+    .eyebrow::before { content: ""; display: block; width: 28px; height: 2px; background: currentColor; flex-shrink: 0; }
     .about-hero {
       position: relative;
       min-height: min(760px, 82vh);
@@ -163,7 +164,7 @@
     <section class="section">
       <div class="section__inner story">
         <div class="animate-on-scroll">
-          <p class="eyebrow">Who we are</p>
+          <p class="eyebrow animate-on-scroll">Who we are</p>
           <h2>One Kingdom. All Nations.</h2>
           <p>CJC Church serves a multicultural community in Springfield, Virginia. We gather around worship, prayer, biblical teaching, discipleship, and the mission of sharing Jesus Christ.</p>
           <p>Whether you are exploring faith, returning to church, or looking for a church home, you are welcome to come as you are and grow with us.</p>
@@ -178,7 +179,7 @@
     <section class="section section--soft">
       <div class="section__inner">
         <div class="heading animate-on-scroll">
-          <p class="eyebrow">Your first visit</p>
+          <p class="eyebrow animate-on-scroll">Your first visit</p>
           <h2>What you can expect</h2>
           <p>A sincere, welcoming environment where people of different backgrounds can worship and pursue God together.</p>
         </div>
@@ -193,7 +194,7 @@
     <section class="section leadership">
       <div class="section__inner">
         <div class="heading animate-on-scroll">
-          <p class="eyebrow">Our leadership</p>
+          <p class="eyebrow animate-on-scroll">Our leadership</p>
           <h2>Serving CJC Church</h2>
           <p>Our leaders are committed to Christ-centered teaching, prayer, discipleship, and caring for the people God has entrusted to this church.</p>
         </div>
@@ -221,7 +222,7 @@
     <section class="section beliefs" id="what-we-believe">
       <div class="section__inner">
         <div class="heading animate-on-scroll">
-          <p class="eyebrow">Our foundation</p>
+          <p class="eyebrow animate-on-scroll">Our foundation</p>
           <h2>What we believe</h2>
           <p>These core beliefs shape how we worship, live, and serve together.</p>
         </div>

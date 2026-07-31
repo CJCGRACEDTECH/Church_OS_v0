@@ -9,7 +9,8 @@
   <style>
     * { box-sizing: border-box; }
     body { color: var(--cjc-ink); background: var(--cjc-page-bg); }
-    .eyebrow { margin: 0 0 11px; color: var(--cjc-gold); font-size: 12.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+    .eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 16px; color: var(--cjc-gold); font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: .13em; }
+    .eyebrow::before { content: ""; display: block; width: 28px; height: 2px; background: currentColor; flex-shrink: 0; }
     .give-hero {
       position: relative;
       min-height: min(700px, 76vh);
@@ -225,7 +226,7 @@
     <section class="give-main">
       <div class="give-layout">
         <div class="give-copy animate-on-scroll">
-          <p class="eyebrow">Why we give</p>
+          <p class="eyebrow animate-on-scroll">Why we give</p>
           <h2>Giving is an act of worship.</h2>
           <p>Generosity helps CJC Church care for people, strengthen ministry, and share the Gospel in our church, our community, and online.</p>
           <p class="give-assurance"><span><strong>Secure and flexible.</strong> Give through Stripe with a one-time or recurring gift. CJC Church does not store your payment information.</span></p>

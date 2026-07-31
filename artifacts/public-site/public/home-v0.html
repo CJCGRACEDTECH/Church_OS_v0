@@ -41,7 +41,8 @@
       margin: 0 auto;
       padding: 120px 0 320px;
     }
-    .eyebrow { margin: 0 0 13px; color: #e0c474; font-size: 12.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+    .eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 16px; color: #e0c474; font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: .13em; }
+    .eyebrow::before { content: ""; display: block; width: 28px; height: 2px; background: currentColor; flex-shrink: 0; }
     h1 { max-width: 880px; margin: 0; font-size: clamp(56px, 7.8vw, 98px); line-height: .94; letter-spacing: -.01em; }
     .hero__copy { max-width: 600px; margin: 20px 0 0; color: #e2e6f1; font-size: 18px; line-height: 1.62; }
     .hero__actions { display: flex; flex-wrap: wrap; gap: 11px; margin-top: 30px; }
@@ -186,7 +187,7 @@
     <section class="section section--soft home-weekly" aria-labelledby="weekly-title">
       <div class="section__inner">
         <div class="section-heading section-heading--stacked animate-on-scroll">
-          <div><p class="eyebrow">Gather with us</p><h2 id="weekly-title">This week at CJC</h2></div>
+          <div><p class="eyebrow animate-on-scroll">Gather with us</p><h2 id="weekly-title">This week at CJC</h2></div>
           <p>Join us for worship, prayer, Bible study, and discipleship throughout the week.</p>
         </div>
         <div class="services-toolbar">
@@ -307,7 +308,7 @@
         <span class="watch__play" aria-hidden="true">▶</span>
       </a>
       <div class="watch__copy animate-on-scroll">
-        <p class="eyebrow">Latest sermon</p>
+        <p class="eyebrow animate-on-scroll">Latest sermon</p>
         <h2 data-video-title>Watch CJC Church</h2>
         <time data-video-date></time>
         <div class="watch__actions">
@@ -320,7 +321,7 @@
     <section class="section" aria-labelledby="belong-title">
       <div class="section__inner">
         <div class="section-heading section-heading--stacked animate-on-scroll">
-          <div><p class="eyebrow">Life at CJC</p><h2 id="belong-title">A place to belong</h2></div>
+          <div><p class="eyebrow animate-on-scroll">Life at CJC</p><h2 id="belong-title">A place to belong</h2></div>
           <p>Grow in faith, build relationships, and serve alongside people of every generation.</p>
         </div>
         <div class="community-grid">
@@ -339,7 +340,7 @@
           <img src="/assets/worship-prayer-02.jpg" alt="A member kneeling in worship at CJC Church" loading="lazy">
         </div>
         <div class="social-story__copy animate-on-scroll">
-          <p class="eyebrow">Life at CJC</p>
+          <p class="eyebrow animate-on-scroll">Life at CJC</p>
           <h2 id="social-title">Stay close to what is happening.</h2>
           <p>Follow worship, teaching, community moments, and church updates throughout the week.</p>
           <div class="social-story__links">
@@ -356,7 +357,7 @@
         <div class="visit animate-on-scroll">
           <div class="visit__image" role="img" aria-label="CJC Church worship team"></div>
           <div class="visit__copy">
-            <p class="eyebrow">You are welcome here</p>
+            <p class="eyebrow animate-on-scroll">You are welcome here</p>
             <h2>Come as you are.</h2>
             <p>Expect heartfelt worship, biblical teaching, prayer, and a warm welcome. Families are invited, and children are cared for in a safe, supportive environment.</p>
             <address>7403 Boston Blvd<br>Springfield, VA 22153</address>

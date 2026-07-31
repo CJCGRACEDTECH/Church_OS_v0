@@ -64,13 +64,15 @@
     }
 
     .eyebrow {
-      margin: 0 0 11px;
+      display: flex; align-items: center; gap: 10px;
+      margin: 0 0 16px;
       color: #d8bd72;
-      font-size: 12.5px;
+      font-size: 14px;
       font-weight: 800;
-      letter-spacing: .07em;
+      letter-spacing: .13em;
       text-transform: uppercase;
     }
+    .eyebrow::before { content: ""; display: block; width: 28px; height: 2px; background: currentColor; flex-shrink: 0; }
 
     h1 {
       margin: 0;

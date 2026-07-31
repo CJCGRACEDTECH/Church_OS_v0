@@ -9,7 +9,8 @@
   <style>
     * { box-sizing: border-box; }
     body { color: var(--cjc-ink); background: var(--cjc-page-bg); }
-    .eyebrow { margin: 0 0 11px; color: var(--cjc-gold); font-size: 12.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+    .eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 16px; color: var(--cjc-gold); font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: .13em; }
+    .eyebrow::before { content: ""; display: block; width: 28px; height: 2px; background: currentColor; flex-shrink: 0; }
     .contact-hero {
       position: relative;
       min-height: min(680px, 74vh);
@@ -106,7 +107,7 @@
     <section class="contact-main">
       <div class="contact-grid">
         <article class="visit-panel animate-on-scroll">
-          <p class="eyebrow">Visit us</p>
+          <p class="eyebrow animate-on-scroll">Visit us</p>
           <h2>Christ Jesus Centered Church</h2>
           <p>Join us for worship, prayer, biblical teaching, and community throughout the week.</p>
           <address>7403 Boston Blvd<br>Springfield, VA 22153</address>
@@ -117,7 +118,7 @@
           </div>
         </article>
         <article class="service-panel animate-on-scroll">
-          <p class="eyebrow">Weekly rhythm</p>
+          <p class="eyebrow animate-on-scroll">Weekly rhythm</p>
           <h2>Service times</h2>
           <ul class="service-list">
             <li><span>Tuesday Prayer &amp; Bible Study</span><strong>8:00 PM</strong></li>
@@ -137,7 +138,7 @@
         <iframe title="Map to Christ Jesus Centered Church" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=7403%20Boston%20Blvd%2C%20Springfield%2C%20VA%2022153&amp;output=embed"></iframe>
       </div>
       <div class="social-copy animate-on-scroll">
-        <p class="eyebrow">Stay connected</p>
+        <p class="eyebrow animate-on-scroll">Stay connected</p>
         <h2>See life at CJC</h2>
         <p>Follow services, messages, and moments from our church community.</p>
         <div class="social-links">
