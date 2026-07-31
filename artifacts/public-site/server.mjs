@@ -436,7 +436,7 @@ function sharedHeader(urlPath = "/") {
 
 function sharedFooter() {
   return `
-    <footer class="cjc-site-footer">
+    <footer id="site-footer" class="cjc-site-footer">
       <div class="cjc-site-footer__main">
         <div class="cjc-site-footer__brand">
           <a class="cjc-v0-brand" href="/" aria-label="CJC Church home">
@@ -857,7 +857,7 @@ function transformHtml(source, urlPath = "/") {
       urlPath === "/privacy-v0.html" ? "/privacy" :
       urlPath;
     const sharedHead = `
-      <link rel="stylesheet" href="/site-v0.css?v=20260730-2">
+      <link rel="stylesheet" href="/site-v0.css?v=20260731-1">
       <link rel="canonical" href="${PUBLIC_SITE_URL}${canonicalPath}">
       <meta property="og:site_name" content="CJC Church">
       <meta property="og:type" content="website">
