@@ -20,6 +20,14 @@ function textOrNull(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+const ALLOWED_URL_SCHEMES = /^https?:\/\//i;
+
+function safeUrlOrNull(value: unknown): string | null {
+  const text = textOrNull(value);
+  if (!text) return null;
+  return ALLOWED_URL_SCHEMES.test(text) ? text : null;
+}
+
 function requiredText(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -242,7 +250,7 @@ router.post("/admin/checkin/children", requireCheckInAccess, async (req, res): P
       lastName,
       dateOfBirth: textOrNull(req.body?.dateOfBirth),
       gender: textOrNull(req.body?.gender),
-      profilePhotoUrl: textOrNull(req.body?.profilePhotoUrl),
+      profilePhotoUrl: safeUrlOrNull(req.body?.profilePhotoUrl),
       allergyInformation: textOrNull(req.body?.allergyInformation),
       medicalNotes: textOrNull(req.body?.medicalNotes),
       specialInstructions: textOrNull(req.body?.specialInstructions),
@@ -294,7 +302,7 @@ router.patch("/admin/checkin/children/:childId", requireCheckInAccess, async (re
       lastName,
       dateOfBirth: textOrNull(req.body?.dateOfBirth),
       gender: textOrNull(req.body?.gender),
-      profilePhotoUrl: textOrNull(req.body?.profilePhotoUrl),
+      profilePhotoUrl: safeUrlOrNull(req.body?.profilePhotoUrl),
       allergyInformation: textOrNull(req.body?.allergyInformation),
       medicalNotes: textOrNull(req.body?.medicalNotes),
       specialInstructions: textOrNull(req.body?.specialInstructions),

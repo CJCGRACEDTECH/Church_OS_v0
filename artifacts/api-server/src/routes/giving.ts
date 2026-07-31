@@ -27,6 +27,14 @@ function textOrNull(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+const ALLOWED_URL_SCHEMES = /^https?:\/\//i;
+
+function safeUrlOrNull(value: unknown): string | null {
+  const text = textOrNull(value);
+  if (!text) return null;
+  return ALLOWED_URL_SCHEMES.test(text) ? text : null;
+}
+
 function enumValue<T extends string>(value: unknown, allowed: Set<string>, fallback: T): T {
   return typeof value === "string" && allowed.has(value) ? (value as T) : fallback;
 }
@@ -397,7 +405,7 @@ router.post("/admin/giving/campaigns", requireCampaignManagement, async (req, re
     startDate: req.body?.startDate ? new Date(req.body.startDate) : null,
     endDate: req.body?.endDate ? new Date(req.body.endDate) : null,
     status: enumValue(req.body?.status, CAMPAIGN_STATUSES, "draft"),
-    campaignImageUrl: textOrNull(req.body?.campaignImageUrl),
+    campaignImageUrl: safeUrlOrNull(req.body?.campaignImageUrl),
     campaignCategory: textOrNull(req.body?.campaignCategory),
     createdByUserId: req.localUserId,
   }).returning();
@@ -426,7 +434,7 @@ router.patch("/admin/giving/campaigns/:id", requireCampaignManagement, async (re
     startDate: "startDate" in req.body ? (req.body.startDate ? new Date(req.body.startDate) : null) : undefined,
     endDate: "endDate" in req.body ? (req.body.endDate ? new Date(req.body.endDate) : null) : undefined,
     status: enumValue(req.body?.status, CAMPAIGN_STATUSES, "draft"),
-    campaignImageUrl: textOrNull(req.body?.campaignImageUrl),
+    campaignImageUrl: safeUrlOrNull(req.body?.campaignImageUrl),
     campaignCategory: textOrNull(req.body?.campaignCategory),
   }).where(and(eq(givingCampaignsTable.id, id), eq(givingCampaignsTable.churchId, req.localChurchId))).returning();
   if (!campaign) { res.status(404).json({ error: "Campaign not found." }); return; }
