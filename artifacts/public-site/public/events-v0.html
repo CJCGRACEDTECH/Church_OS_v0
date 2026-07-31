@@ -89,9 +89,10 @@
     .events-hero__copy {
       max-width: 680px;
       margin: 19px 0 0;
-      color: #e3e6ef;
+      color: var(--cjc-gold);
       font-size: 20px;
       line-height: 1.60;
+      text-shadow: 0 1px 10px rgba(9,15,35,.28);
     }
 
     .hero-actions {
@@ -267,13 +268,13 @@
       text-decoration: none;
     }
 
-    .location {
+    .location { 
       border-top: 1px solid #e2e6ed;
       border-bottom: 1px solid #e2e6ed;
       background: var(--surface);
       position: relative;
-      margin-top: -60px;
-      padding-top: 60px;
+      margin-top: 0;
+      padding-top: 0;
     }
 
     .location::before {
@@ -285,6 +286,7 @@
       pointer-events: none;
       z-index: 1;
     }
+    .location::before { display: none; }
 
     .location__inner {
       position: relative;
@@ -333,12 +335,10 @@
       .events-hero__copy { font-size: 18px; }
       .schedule { margin-top: -40px; padding-top: 94px; padding-bottom: 62px; }
       .schedule::before { height: 100px; }
-      .location { margin-top: -40px; padding-top: 40px; }
-      .location::before { height: 90px; }
+      .location { margin-top: 0; padding-top: 0; }
       .section-heading { grid-template-columns: 1fr; gap: 11px; }
       .service-grid { grid-template-columns: 1fr; }
       .service-card__detail { min-height: 0; }
-      .location::before { height: 80px; }
       .location__inner { align-items: flex-start; flex-direction: column; }
     }
   </style>

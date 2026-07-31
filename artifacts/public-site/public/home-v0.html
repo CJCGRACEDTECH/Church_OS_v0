@@ -45,9 +45,20 @@
     .eyebrow::before { content: ""; display: block; width: 28px; height: 2px; background: currentColor; flex-shrink: 0; }
     h1 { max-width: 880px; margin: 0; font-size: clamp(56px, 7.8vw, 98px); line-height: .96; letter-spacing: -.01em; }
     .hero__copy { max-width: 600px; margin: 20px 0 0; color: #e2e6f1; font-size: 20px; line-height: 1.62; }
+    .hero__copy strong { color: var(--cjc-gold); }
     .hero__actions { display: flex; flex-wrap: wrap; gap: 11px; margin-top: 30px; }
     .hero__schedule { margin-top: 48px; display: flex; flex-wrap: wrap; gap: 7px 24px; color: #d5dbea; font-size: 15px; }
-    .hero__schedule strong { color: #fff; }
+    .hero__schedule strong { color: var(--cjc-gold); }
+    .hero__actions .cjc-button--light {
+      background: var(--cjc-gold);
+      color: var(--cjc-ink) !important;
+      border-color: var(--cjc-gold);
+    }
+    .hero__actions .cjc-button--light:hover {
+      background: #d8b64e;
+      border-color: #d8b64e;
+      box-shadow: 0 9px 22px rgba(194,155,52,.28);
+    }
     .section { padding: 68px 32px; }
     .section--soft { background: var(--cjc-surface); position: relative; }
     .section--dark { background: var(--cjc-navy); color: #fff; }

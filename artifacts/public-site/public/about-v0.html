@@ -34,7 +34,7 @@
     .about-hero__inner { z-index: 2; padding: 160px 0 100px; }
     .about-hero .eyebrow { color: #e1c578; }
     h1 { max-width: 880px; margin: 0; font-size: clamp(52px, 7.4vw, 86px); line-height: .98; letter-spacing: -.01em; }
-    .about-hero__copy { max-width: 700px; margin: 20px 0 0; color: #e2e6f0; font-size: 20px; line-height: 1.63; }
+    .about-hero__copy { max-width: 700px; margin: 20px 0 0; color: var(--cjc-gold); font-size: 20px; line-height: 1.63; text-shadow: 0 1px 10px rgba(10,16,36,.28); }
     .section { padding: 68px 0; }
     .section--soft { background: var(--cjc-surface); position: relative; margin-top: -220px; padding-top: 240px; }
     .section--soft::before {
@@ -46,6 +46,7 @@
       pointer-events: none;
       z-index: 1;
     }
+    .section--soft.cta::before { display: none; }
     .section__inner { position: relative; z-index: 2; }
     .story { display: grid; grid-template-columns: minmax(0, 1fr) minmax(460px, .88fr); gap: 62px; align-items: center; }
     .story h2, .heading h2 { margin: 7px 0 17px; font-size: clamp(38px, 5.2vw, 60px); line-height: 1.03; letter-spacing: -.01em; }

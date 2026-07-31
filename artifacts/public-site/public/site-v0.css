@@ -318,8 +318,8 @@ html.js-anim .animate-on-scroll {
 @media (max-width: 560px) {
   .cjc-v0-brand span { font-size: 18px; }
   .cjc-site-footer {
-    margin-top: -40px;
-    padding-top: 40px;
+    margin-top: 0;
+    padding-top: 0;
   }
   .cjc-site-footer__main {
     width: min(100% - 40px, 1160px);

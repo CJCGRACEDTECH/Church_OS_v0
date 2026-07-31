@@ -33,7 +33,7 @@
     .give-hero__inner { position: relative; z-index: 2; width: min(1280px, calc(100% - 64px)); margin: 0 auto; padding: 160px 0 100px; }
     .give-hero .eyebrow { color: #e1c578; }
     h1 { max-width: 800px; margin: 0; font-size: clamp(50px, 7.2vw, 86px); line-height: .98; letter-spacing: -.01em; }
-    .give-hero__copy { max-width: 680px; margin: 20px 0 0; color: #e2e6f0; font-size: 20px; line-height: 1.62; }
+    .give-hero__copy { max-width: 680px; margin: 20px 0 0; color: var(--cjc-gold); font-size: 20px; line-height: 1.62; text-shadow: 0 1px 10px rgba(9,15,35,.28); }
     .give-main { position: relative; width: min(1280px, calc(100% - 64px)); margin: -54px auto 0; padding: 0 0 68px; }
     .give-layout {
       display: grid;
@@ -191,6 +191,7 @@
       pointer-events: none;
       z-index: 1;
     }
+    .giving-trust::after { display: none; }
     .giving-trust__inner { position: relative; z-index: 2; width: min(800px, 100%); margin: 0 auto; }
     .giving-trust h2 { margin: 0 0 13px; font-size: clamp(30px, 4.2vw, 46px); line-height: 1.1; }
     .giving-trust p { margin: 0; color: var(--cjc-muted); line-height: 1.68; }
