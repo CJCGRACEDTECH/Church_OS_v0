@@ -20,7 +20,7 @@
       background: var(--cjc-navy) url("/assets/about-hero.jpg") center 42% / cover no-repeat;
       color: #fff;
     }
-    .about-hero::before { content: ""; position: absolute; inset: 0; background: rgba(10, 16, 36, .70); }
+    .about-hero::before { content: ""; position: absolute; inset: 0; background: rgba(10, 16, 36, .78); }
     .about-hero::after {
       content: "";
       position: absolute;
@@ -34,7 +34,17 @@
     .about-hero__inner { z-index: 2; padding: 160px 0 100px; }
     .about-hero .eyebrow { color: #e0c474; }
     h1 { max-width: 880px; margin: 0; font-size: clamp(52px, 7.4vw, 86px); line-height: .98; letter-spacing: -.01em; }
-    .about-hero__copy { max-width: 700px; margin: 20px 0 0; color: #e0c474; font-size: 20px; line-height: 1.63; text-shadow: 0 1px 10px rgba(10,16,36,.28); }
+    .about-hero__copy { position: relative; max-width: 700px; margin: 20px 0 0; color: #e0c474; font-size: 20px; line-height: 1.63; text-shadow: 0 1px 3px rgba(10,16,36,.62), 0 2px 16px rgba(10,16,36,.50); }
+    .about-hero__copy::before {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      inset: -26px -44px -30px -40px;
+      border-radius: 32px;
+      background: rgba(10,16,36, .74);
+      filter: blur(24px);
+      pointer-events: none;
+    }
     .section { padding: 68px 0; }
     .section--soft { background: var(--cjc-surface); position: relative; margin-top: -220px; padding-top: 240px; }
     .section--soft::before {

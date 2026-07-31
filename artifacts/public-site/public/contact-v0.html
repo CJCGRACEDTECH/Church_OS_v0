@@ -20,7 +20,7 @@
       background: var(--cjc-navy) url("/assets/contact-hero.jpg") center 42% / cover no-repeat;
       color: #fff;
     }
-    .contact-hero::before { content: ""; position: absolute; inset: 0; background: rgba(9, 15, 35, .69); }
+    .contact-hero::before { content: ""; position: absolute; inset: 0; background: rgba(9, 15, 35, .78); }
     .contact-hero::after {
       content: "";
       position: absolute;
@@ -33,7 +33,17 @@
     .contact-hero__inner { position: relative; z-index: 2; width: min(1280px, calc(100% - 64px)); margin: 0 auto; padding: 160px 0 96px; }
     .contact-hero .eyebrow { color: #e0c474; }
     h1 { max-width: 860px; margin: 0; font-size: clamp(50px, 7.2vw, 86px); line-height: .98; letter-spacing: -.01em; }
-    .contact-hero__copy { max-width: 680px; margin: 20px 0 0; color: #e0c474; font-size: 20px; line-height: 1.62; text-shadow: 0 1px 10px rgba(9,15,35,.28); }
+    .contact-hero__copy { position: relative; max-width: 680px; margin: 20px 0 0; color: #e0c474; font-size: 20px; line-height: 1.62; text-shadow: 0 1px 3px rgba(9,15,35,.62), 0 2px 16px rgba(9,15,35,.50); }
+    .contact-hero__copy::before {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      inset: -26px -44px -30px -40px;
+      border-radius: 32px;
+      background: rgba(9,15,35, .74);
+      filter: blur(24px);
+      pointer-events: none;
+    }
     .contact-main { width: min(1280px, calc(100% - 64px)); margin: -50px auto 0; padding: 0 0 76px; position: relative; z-index: 3; }
     .contact-grid { display: grid; grid-template-columns: 1.12fr .88fr; overflow: hidden; border: 1px solid var(--cjc-line); border-radius: 9px; background: #fff; box-shadow: var(--cjc-shadow-float); }
     .visit-panel, .service-panel { padding: 40px; }

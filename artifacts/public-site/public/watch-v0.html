@@ -40,7 +40,7 @@
       content: "";
       position: absolute;
       inset: 0;
-      background: rgba(9, 15, 35, .72);
+      background: rgba(9, 15, 35, .78);
     }
     .watch-hero::after {
       content: "";
@@ -82,12 +82,23 @@
     }
 
     .watch-hero p:last-child {
+      position: relative;
       max-width: 640px;
       margin: 17px 0 0;
       color: #e0c474;
       font-size: 19px;
       line-height: 1.60;
-      text-shadow: 0 1px 10px rgba(9,15,35,.28);
+      text-shadow: 0 1px 3px rgba(9,15,35,.62), 0 2px 16px rgba(9,15,35,.50);
+    }
+    .watch-hero p:last-child::before {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      inset: -26px -44px -30px -40px;
+      border-radius: 32px;
+      background: rgba(9,15,35, .74);
+      filter: blur(24px);
+      pointer-events: none;
     }
 
     .watch-content {
