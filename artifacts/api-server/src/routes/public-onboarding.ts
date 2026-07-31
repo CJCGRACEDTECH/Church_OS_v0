@@ -1,5 +1,6 @@
 import { and, eq, gte } from "drizzle-orm";
 import { Router, type IRouter } from "express";
+import rateLimit from "express-rate-limit";
 import {
   churchesTable,
   db,
@@ -11,6 +12,16 @@ import {
 import { calculateProfileCompletionPercent } from "../lib/onboarding";
 
 const router: IRouter = Router();
+
+// Rate-limit public form submissions to 5 requests per IP per 15 minutes.
+// This prevents automated flooding of the member database and admin inbox.
+const publicFormLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests. Please try again later." },
+});
 
 function textOrNull(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -44,7 +55,7 @@ async function getDefaultChurch() {
   return church ?? null;
 }
 
-router.post("/public/connect", async (req, res): Promise<void> => {
+router.post("/public/connect", publicFormLimiter, async (req, res): Promise<void> => {
   const church = await getDefaultChurch();
   if (!church) {
     res.status(503).json({ error: "Church profile is not configured yet." });
@@ -179,7 +190,7 @@ router.post("/public/connect", async (req, res): Promise<void> => {
   });
 });
 
-router.post("/public/account-request", async (req, res): Promise<void> => {
+router.post("/public/account-request", publicFormLimiter, async (req, res): Promise<void> => {
   const church = await getDefaultChurch();
   if (!church) {
     res.status(503).json({ error: "Church profile is not configured yet." });

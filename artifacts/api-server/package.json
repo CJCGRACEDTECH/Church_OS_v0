@@ -20,6 +20,7 @@
     "cors": "^2",
     "drizzle-orm": "catalog:",
     "express": "^5",
+    "express-rate-limit": "^8.6.1",
     "express-session": "^1.19.0",
     "http-proxy-middleware": "^4.2.0",
     "jose": "^6.2.3",
