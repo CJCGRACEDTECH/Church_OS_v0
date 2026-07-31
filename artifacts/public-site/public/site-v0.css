@@ -321,9 +321,6 @@ html.js-anim .animate-on-scroll {
     margin-top: -40px;
     padding-top: 40px;
   }
-  .cjc-site-footer::before {
-    height: 100px;
-  }
   .cjc-site-footer__main {
     width: min(100% - 40px, 1160px);
     grid-template-columns: 1fr;
