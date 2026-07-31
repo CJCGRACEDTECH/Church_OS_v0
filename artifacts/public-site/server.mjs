@@ -655,7 +655,39 @@ function transformHtml(source, urlPath = "/") {
           });
         })();
       </script>
-    </section>`,
+    </section>
+
+    ${new Date() <= new Date('2026-08-17T00:00:00') ? `<section id="baptism-event" style="margin:0;padding:48px 24px 64px;background:#f7f9fc;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0">
+      <style>
+        .baptism-inner{max-width:1160px;margin:0 auto}
+        .baptism-header{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:28px;flex-wrap:wrap}
+        .baptism-header p{margin:0 0 6px;color:#4760ff;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;font-family:system-ui,sans-serif}
+        .baptism-header h2{margin:0;font-size:32px;font-family:system-ui,sans-serif;color:#171c2c;line-height:1.1}
+        .baptism-header time{padding:6px 14px;border-radius:20px;background:#fff;border:1px solid #dfe4ed;font-size:13px;font-weight:700;color:#687083;font-family:system-ui,sans-serif;white-space:nowrap;align-self:flex-start}
+        .baptism-frame{border-radius:10px;overflow:hidden;box-shadow:0 8px 40px rgba(9,15,35,.12);border:1px solid #dfe4ed}
+        .baptism-frame iframe{width:100%;height:700px;border:0;display:block}
+        @media(max-width:768px){.baptism-frame iframe{height:520px}}
+      </style>
+      <div class="baptism-inner">
+        <div class="baptism-header">
+          <div>
+            <p>Upcoming event</p>
+            <h2>Baptism Service</h2>
+          </div>
+          <time datetime="2026-08-16">August 16, 2026</time>
+        </div>
+        <div class="baptism-frame">
+          <iframe src="https://project-tau-rouge-65.vercel.app" title="Baptism Service — August 16, 2026" loading="lazy"></iframe>
+        </div>
+      </div>
+      <script>
+        (function(){
+          var el=document.getElementById('baptism-event');
+          if(!el)return;
+          if(new Date()>new Date('2026-08-17T00:00:00'))el.remove();
+        })();
+      </script>
+    </section>` : ''}`,
   );
 
   html = replaceHomepageSection(
@@ -668,18 +700,26 @@ function transformHtml(source, urlPath = "/") {
         <span aria-hidden="true">▶</span>
       </a>
       <div class="cjc-v0-watch-home__copy">
-        <p>Latest message</p>
+        <p>Latest sermon</p>
         <h2 id="watch-home-title" data-home-video-title>Watch CJC Church</h2>
         <time data-home-video-date></time>
         <div>
           <a class="cjc-v0-watch-home__primary" data-home-video-link href="${YOUTUBE_CHANNEL_URL}" target="_blank" rel="noreferrer">Watch on YouTube</a>
-          <a class="cjc-v0-watch-home__secondary" href="/sermons.html">More Messages</a>
+          <a class="cjc-v0-watch-home__secondary" href="/sermons.html">More Sermons</a>
         </div>
       </div>
       <script>
         (() => {
           const title = document.querySelector("[data-home-video-title]");
           if (!title) return;
+          function cleanTitle(raw) {
+            let t = raw.replace(/#\\S+/g, '').trim();
+            t = t.replace(/\\|\\|\\s*CJC\\s+Church\\s*/gi, '').trim();
+            t = t.replace(/\\|\\|\\s*Apostle\\s+Yosef\\s+Yifru\\s*/gi, '').trim();
+            t = t.replace(/[\\|\\s\u2013\u2014]+$/, '').trim();
+            if (t.length > 72) t = t.slice(0, 69) + '\u2026';
+            return t;
+          }
           fetch("/api/youtube/videos", { headers: { Accept: "application/json" } })
             .then(async (response) => {
               const payload = await response.json();
@@ -689,7 +729,7 @@ function transformHtml(source, urlPath = "/") {
             .then((payload) => {
               const latest = payload.videos?.[0];
               if (!latest) return;
-              title.textContent = latest.title;
+              title.textContent = cleanTitle(latest.title);
               document.querySelector("[data-home-video-image]").src = latest.thumbnail;
               document.querySelectorAll("[data-home-video-link]").forEach((link) => {
                 link.href = latest.url;
