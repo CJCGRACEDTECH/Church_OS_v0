@@ -127,6 +127,9 @@
    .watch__toggle:hover { color: #fff; }
    .watch__toggle svg { flex-shrink: 0; transition: transform .15s; }
    .watch__toggle:hover svg { transform: translateX(3px); }
+   .watch__media--embed { display: block; overflow: hidden; background: #0e1426; border-radius: 10px; }
+   .watch__media--embed iframe { width: 100%; height: 100%; min-height: 500px; display: block; border: 0; }
+   @media (max-width: 900px) { .watch__media--embed iframe { min-height: 300px; } }
     .community-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 13px; }
     .community-card { position: relative; min-height: 360px; display: flex; align-items: flex-end; padding: 26px; overflow: hidden; border-radius: 8px; background: #26314d var(--image) center / cover no-repeat; color: #fff !important; text-decoration: none; box-shadow: var(--cjc-shadow-soft); transition: transform .24s ease, box-shadow .24s ease; }
     .community-card::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 28%, rgba(8, 15, 32, .89)); transition: background .28s ease; }
@@ -430,15 +433,27 @@
           .then(async (r) => { const d = await r.json(); if (!r.ok) throw d; return d; });
       }
 
-      function applyVideo(video, kindLabel) {
-        const kind = document.querySelector("[data-video-kind]");
+      // Build a YouTube embed (same approach as Watch page)
+      function makeEmbed(videoId, title) {
+        const div = document.createElement("div");
+        div.className = "watch__media watch__media--embed";
+        const iframe = document.createElement("iframe");
+        iframe.src = "https://www.youtube-nocookie.com/embed/" + encodeURIComponent(videoId);
+        iframe.title = title ?? "";
+        iframe.loading = "lazy";
+        iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+        iframe.allowFullscreen = true;
+        div.appendChild(iframe);
+        return div;
+      }
+
+      // Update the text/date copy without touching the media element
+      function applyMeta(video, kindLabel) {
+        const kind  = document.querySelector("[data-video-kind]");
         const title = document.querySelector("[data-video-title]");
-        const image = document.querySelector("[data-video-image]");
-        const date = document.querySelector("[data-video-date]");
-        if (kind) kind.textContent = kindLabel;
-        if (title) title.textContent = cleanTitle(video.title);
-        if (image) image.src = video.thumbnail;
-        document.querySelectorAll("[data-video-link]").forEach((link) => link.href = video.url || video.watchUrl);
+        const date  = document.querySelector("[data-video-date]");
+        if (kind)  kind.textContent  = kindLabel;
+        if (title) title.textContent = cleanTitle(video.title || "Watch CJC Church");
         if (date) {
           if (video.date) {
             date.textContent = video.date;
@@ -454,17 +469,17 @@
         fetchJson("/api/youtube/videos").catch(() => ({ videos: [] })),
         fetchJson("/api/youtube/latest").catch(() => ({ video: null }))
       ]).then(([videosPayload, latestPayload]) => {
-        const sermon = videosPayload.videos?.[0];
+        const sermon   = videosPayload.videos?.[0];
         const recorded = latestPayload.video;
-        const isLive = recorded?.isLive;
+        const isLive   = recorded?.isLive;
 
-        // If actively live: show embedded player, no toggle
+        // Actively live: muted autoplay embed + LIVE badge, no toggle
         if (isLive && recorded) {
-          const media = document.querySelector("[data-video-link].watch__media");
+          const media = document.querySelector(".watch__media");
           if (media) {
-            const liveUrl = recorded.url || recorded.watchUrl;
+            const liveUrl   = recorded.url || recorded.watchUrl;
             const liveTitle = cleanTitle(recorded.title || "CJC Church is live now");
-            const wrap = document.createElement("div");
+            const wrap   = document.createElement("div");
             wrap.className = "watch__media watch__media--live";
             const iframe = document.createElement("iframe");
             iframe.src = "https://www.youtube.com/embed/" + encodeURIComponent(recorded.videoId) + "?autoplay=1&mute=1&playsinline=1&rel=0";
@@ -478,43 +493,74 @@
             badge.textContent = "LIVE NOW";
             wrap.append(iframe, badge);
             media.replaceWith(wrap);
-            document.querySelectorAll("[data-video-link]").forEach((l) => l.href = liveUrl);
+            document.querySelectorAll("[data-video-link]").forEach(l => l.href = liveUrl);
           }
-          const kind = document.querySelector("[data-video-kind]");
-          const title = document.querySelector("[data-video-title]");
+          applyMeta(recorded, "Live now");
           const date = document.querySelector("[data-video-date]");
-          if (kind) kind.textContent = "Live now";
-          if (title) title.textContent = cleanTitle(recorded.title || "CJC Church is live now");
           if (date) date.textContent = "Join the live service";
           return;
         }
 
-        // Not live: build items — sermon first, recorded stream second (if different)
+        // Not live: sermon first, recorded stream second (embedded player)
         const items = [
-          sermon && { video: sermon, label: "Latest sermon" },
-          recorded && sermon?.videoId !== recorded.videoId && { video: recorded, label: "Most recent stream" }
+          sermon   && { video: sermon,   label: "Latest sermon",     embed: false },
+          recorded && sermon?.videoId !== recorded.videoId && { video: recorded, label: "Most recent stream", embed: true }
         ].filter(Boolean);
         if (!items.length) return;
 
+        // Track whichever element is currently in the media slot
+        let currentMedia = document.querySelector(".watch__media");
+
+        function showItem(item) {
+          const video   = item.video;
+          const videoUrl = video.url || video.watchUrl;
+          applyMeta(video, item.label);
+
+          if (item.embed) {
+            // Replace thumbnail link with embedded player
+            const embed = makeEmbed(video.videoId, cleanTitle(video.title));
+            currentMedia.replaceWith(embed);
+            currentMedia = embed;
+            document.querySelectorAll("[data-video-link]").forEach(l => l.href = videoUrl);
+          } else {
+            // Restore or update thumbnail link
+            if (currentMedia.classList.contains("watch__media--embed")) {
+              const a = document.createElement("a");
+              a.className = "watch__media animate-on-scroll";
+              a.setAttribute("data-video-link", "");
+              a.href = videoUrl; a.target = "_blank"; a.rel = "noreferrer";
+              const img = document.createElement("img");
+              img.setAttribute("data-video-image", "");
+              img.src = video.thumbnail || "/assets/watch-placeholder.jpg";
+              img.loading = "lazy"; img.alt = "Watch a CJC Church message";
+              const play = document.createElement("span");
+              play.className = "watch__play"; play.setAttribute("aria-hidden", "true");
+              play.textContent = "▶";
+              a.append(img, play);
+              currentMedia.replaceWith(a);
+              currentMedia = a;
+            } else {
+              const img = currentMedia.querySelector("[data-video-image]");
+              if (img) img.src = video.thumbnail || "/assets/watch-placeholder.jpg";
+              currentMedia.href = videoUrl;
+            }
+            document.querySelectorAll("[data-video-link]").forEach(l => l.href = videoUrl);
+          }
+        }
+
         let idx = 0;
-        applyVideo(items[0].video, items[0].label);
+        showItem(items[0]);
 
         if (items.length > 1) {
-          const toggle = document.querySelector("[data-video-toggle]");
+          const toggle      = document.querySelector("[data-video-toggle]");
           const toggleLabel = toggle && toggle.querySelector("[data-toggle-label]");
           if (toggle && toggleLabel) {
             toggle.style.display = "inline-flex";
             toggleLabel.textContent = items[1].label;
-            const section = document.querySelector(".watch.section--dark");
             toggle.addEventListener("click", () => {
               idx = (idx + 1) % items.length;
-              if (section) section.style.opacity = "0.4";
-              window.setTimeout(() => {
-                applyVideo(items[idx].video, items[idx].label);
-                const next = items[(idx + 1) % items.length];
-                toggleLabel.textContent = next.label;
-                if (section) section.style.opacity = "";
-              }, 160);
+              showItem(items[idx]);
+              toggleLabel.textContent = items[(idx + 1) % items.length].label;
             });
           }
         }
