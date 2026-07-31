@@ -147,11 +147,11 @@
     .social-story__links img { width: 21px; height: 21px; }
     .section--visit { padding-left: 0; padding-right: 0; }
     .section__inner--full { width: 100%; }
-    .visit { display: grid; grid-template-columns: 1fr 1fr; box-shadow: var(--cjc-shadow); border-radius: 0; overflow: hidden; }
+    .visit { display: grid; grid-template-columns: .92fr 1.08fr; box-shadow: var(--cjc-shadow); border-radius: 0; overflow: hidden; }
     .visit__image { min-height: 520px; background: url("/assets/pastor-service-01.jpg") center / cover no-repeat; }
     .visit__copy { display: flex; flex-direction: column; justify-content: center; padding: 58px max(32px, calc((100vw - 1280px) / 2)); background: var(--cjc-blue-soft); }
-    .visit__copy h2 { margin: 7px 0 17px; font-size: clamp(36px, 4.2vw, 56px); line-height: 1.03; }
-    .visit__copy p { max-width: 520px; color: var(--cjc-muted); line-height: 1.64; }
+    .visit__copy h2 { margin: 7px 0 17px; font-size: clamp(36px, 4.2vw, 56px); line-height: 1.03; white-space: nowrap; }
+    .visit__copy p { max-width: none; color: var(--cjc-muted); line-height: 1.64; }
     .visit__copy address { margin: 11px 0 24px; color: var(--cjc-ink); font-style: normal; font-weight: 700; line-height: 1.58; }
     @media (max-width: 900px) {
       .section-heading, .watch, .visit, .social-story__inner { grid-template-columns: 1fr; }
@@ -178,6 +178,7 @@
       .community-card { min-height: 300px; }
       .visit__image { min-height: 320px; }
       .visit__copy { padding: 42px 20px 52px; }
+      .visit__copy h2 { white-space: normal; }
       .social-story { padding: 58px 20px 64px; }
       .social-story::before { height: 110px; }
       .social-story__gallery { grid-template-rows: 160px 160px; }
