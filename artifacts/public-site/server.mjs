@@ -48,11 +48,11 @@ const YOUTUBE_MAX_RESULTS = Math.min(
 );
 const LOGO_URL =
   "/assets/cdn.prod.website-files.com/6a04d9903c973b192832dc71/6a165063776b2bebe246b54b_Untitled%20design%20(25).png";
-const YOUTUBE_CACHE_TTL_MS = 10 * 60 * 1000;
+const YOUTUBE_CACHE_TTL_MS = 5 * 60 * 1000;
 const EVENTS_CACHE_TTL_MS = 5 * 60 * 1000;
-let youtubeVideoCache = null;
+let scrapeVideosCache = null;  // { videos, channelUrl, cachedAt }
+let scrapeLatestCache = null;  // { video, channelUrl, cachedAt }
 let publicEventsCache = null;
-let resolvedUploadsPlaylistId = YOUTUBE_UPLOADS_PLAYLIST_ID;
 
 const RETIRED_CONNECT_ROUTES = new Set([
   "/connect-groups.html",
@@ -255,83 +255,140 @@ function proxyToApi(req, res) {
   req.pipe(proxy);
 }
 
-async function fetchYouTubeJson(resource, params) {
-  const url = new URL(`https://www.googleapis.com/youtube/v3/${resource}`);
-  for (const [key, value] of Object.entries(params)) {
-    url.searchParams.set(key, String(value));
-  }
-  url.searchParams.set("key", YOUTUBE_API_KEY);
+/**
+ * Scrape ytInitialData from a YouTube channel tab (no API key required).
+ * Walks the JSON looking for lockupViewModel entries with LOCKUP_CONTENT_TYPE_VIDEO.
+ */
+async function scrapeYouTubeTab(tab, limit) {
+  const handle = YOUTUBE_CHANNEL_HANDLE.startsWith("@")
+    ? YOUTUBE_CHANNEL_HANDLE
+    : `@${YOUTUBE_CHANNEL_HANDLE}`;
+  const pageUrl = `https://www.youtube.com/${handle}/${tab}`;
 
-  const response = await fetch(url, {
-    headers: { Accept: "application/json" },
-    signal: AbortSignal.timeout(8000),
+  const response = await fetch(pageUrl, {
+    headers: {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "Accept-Language": "en-US,en;q=0.9",
+      Accept:
+        "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    },
+    signal: AbortSignal.timeout(12000),
   });
-  const payload = await response.json().catch(() => ({}));
+
   if (!response.ok) {
-    const reason = payload?.error?.message ?? `YouTube API returned ${response.status}`;
-    throw new Error(reason);
+    throw new Error(`YouTube returned HTTP ${response.status} for /${tab}`);
   }
-  return payload;
+
+  const html = await response.text();
+
+  const marker = "var ytInitialData = ";
+  const markerIdx = html.indexOf(marker);
+  if (markerIdx === -1) throw new Error("ytInitialData not found in YouTube page HTML");
+
+  const jsonStart = markerIdx + marker.length;
+  const jsonEnd = html.indexOf(";</script>", jsonStart);
+  if (jsonEnd === -1) throw new Error("Could not find end of ytInitialData JSON");
+
+  const data = JSON.parse(html.slice(jsonStart, jsonEnd));
+  const videos = [];
+
+  function walk(node) {
+    if (!node || typeof node !== "object" || videos.length >= limit) return;
+
+    if (node.lockupViewModel?.contentType === "LOCKUP_CONTENT_TYPE_VIDEO") {
+      const lvm = node.lockupViewModel;
+      const videoId = lvm.contentId;
+      const lockupMeta = lvm.metadata?.lockupMetadataViewModel;
+      const title = lockupMeta?.title?.content;
+
+      // Extract human-readable date from metadataRows
+      let date = "";
+      const rows =
+        lockupMeta?.metadata?.contentMetadataViewModel?.metadataRows ?? [];
+      outer: for (const row of rows) {
+        for (const part of row.metadataParts ?? []) {
+          const text = part.text?.content ?? "";
+          if (
+            /\bago\b|streamed|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i.test(
+              text
+            )
+          ) {
+            date = text;
+            break outer;
+          }
+        }
+      }
+
+      // Detect live status from the stringified lockupViewModel
+      const raw = JSON.stringify(lvm);
+      const isLive =
+        /"isLive"\s*:\s*true|LIVE_BADGE_ID|BADGE_STYLE_TYPE_LIVE_NOW/.test(raw);
+
+      if (videoId && title) {
+        const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+        videos.push({
+          videoId,
+          title,
+          thumbnail: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+          watchUrl,
+          url: watchUrl, // backward-compat alias
+          isLive,
+          date,
+          publishedAt: null, // not available from scraping
+        });
+      }
+      return; // don't recurse into a video entry
+    }
+
+    if (Array.isArray(node)) {
+      for (const item of node) walk(item);
+    } else {
+      for (const val of Object.values(node)) walk(val);
+    }
+  }
+
+  walk(data);
+  return videos;
 }
 
-async function getUploadsPlaylistId() {
-  if (resolvedUploadsPlaylistId) return resolvedUploadsPlaylistId;
-
-  const channel = await fetchYouTubeJson("channels", {
-    part: "contentDetails",
-    forHandle: YOUTUBE_CHANNEL_HANDLE,
-    maxResults: 1,
-  });
-  const playlistId = channel.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
-  if (!playlistId) {
-    throw new Error("The configured YouTube channel could not be found.");
+async function getScrapedVideos(limit) {
+  const now = Date.now();
+  if (scrapeVideosCache && now - scrapeVideosCache.cachedAt < YOUTUBE_CACHE_TTL_MS) {
+    return scrapeVideosCache;
   }
-  resolvedUploadsPlaylistId = playlistId;
-  return playlistId;
+  try {
+    const videos = await scrapeYouTubeTab("videos", Math.min(limit, 20));
+    scrapeVideosCache = { videos, channelUrl: YOUTUBE_CHANNEL_URL, cachedAt: now };
+    return scrapeVideosCache;
+  } catch (err) {
+    if (scrapeVideosCache) {
+      console.error("YouTube /videos scrape failed, serving stale cache:", err.message);
+      return scrapeVideosCache;
+    }
+    throw err;
+  }
 }
 
-async function getRecentYouTubeVideos() {
-  if (
-    youtubeVideoCache &&
-    Date.now() - youtubeVideoCache.cachedAt < YOUTUBE_CACHE_TTL_MS
-  ) {
-    return youtubeVideoCache;
+async function getScrapedLatest() {
+  const now = Date.now();
+  if (scrapeLatestCache && now - scrapeLatestCache.cachedAt < YOUTUBE_CACHE_TTL_MS) {
+    return scrapeLatestCache;
   }
-
-  const playlistId = await getUploadsPlaylistId();
-  const feed = await fetchYouTubeJson("playlistItems", {
-    part: "snippet,contentDetails",
-    playlistId,
-    maxResults: YOUTUBE_MAX_RESULTS,
-  });
-  const videos = (feed.items ?? [])
-    .map((item) => {
-      const videoId = item.contentDetails?.videoId ?? item.snippet?.resourceId?.videoId;
-      if (!videoId) return null;
-      const thumbnails = item.snippet?.thumbnails ?? {};
-      return {
-        videoId,
-        title: item.snippet?.title ?? "CJC Church service",
-        description: item.snippet?.description ?? "",
-        publishedAt: item.contentDetails?.videoPublishedAt ?? item.snippet?.publishedAt ?? null,
-        thumbnail:
-          thumbnails.maxres?.url ??
-          thumbnails.standard?.url ??
-          thumbnails.high?.url ??
-          thumbnails.medium?.url ??
-          thumbnails.default?.url ??
-          `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-        url: `https://www.youtube.com/watch?v=${videoId}`,
-      };
-    })
-    .filter(Boolean);
-
-  youtubeVideoCache = {
-    channelUrl: YOUTUBE_CHANNEL_URL,
-    videos,
-    cachedAt: Date.now(),
-  };
-  return youtubeVideoCache;
+  try {
+    const videos = await scrapeYouTubeTab("streams", 10);
+    // Prefer a currently-live stream; fall back to most recent
+    const live = videos.find((v) => v.isLive);
+    const video = live ?? videos[0] ?? null;
+    scrapeLatestCache = { video, channelUrl: YOUTUBE_CHANNEL_URL, cachedAt: now };
+    return scrapeLatestCache;
+  } catch (err) {
+    if (scrapeLatestCache) {
+      console.error("YouTube /streams scrape failed, serving stale cache:", err.message);
+      return scrapeLatestCache;
+    }
+    throw err;
+  }
 }
 
 function replaceAnchorHref(attributes, href) {
@@ -638,12 +695,12 @@ function transformHtml(source, urlPath = "/") {
                 link.href = latest.url;
               });
               const date = document.querySelector("[data-home-video-date]");
-              if (latest.publishedAt) {
+              if (latest.date) {
+                date.textContent = latest.date;
+              } else if (latest.publishedAt) {
                 date.dateTime = latest.publishedAt;
                 date.textContent = new Intl.DateTimeFormat("en-US", {
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric"
+                  month: "long", day: "numeric", year: "numeric"
                 }).format(new Date(latest.publishedAt));
               }
             })
@@ -795,23 +852,33 @@ function safeResolve(urlSegment) {
 const server = http.createServer((req, res) => {
   let urlPath = (req.url ?? "/").split("?")[0];
 
-  if (urlPath === "/api/youtube/videos") {
-    if (!YOUTUBE_API_KEY) {
-      sendJson(res, 503, {
-        error: "YouTube videos are not configured.",
-        code: "YOUTUBE_NOT_CONFIGURED",
-        channelUrl: YOUTUBE_CHANNEL_URL,
-      });
-      return;
-    }
-    getRecentYouTubeVideos()
+  if (urlPath === "/api/youtube/latest") {
+    getScrapedLatest()
       .then((payload) => sendJson(res, 200, payload, "public, max-age=300"))
-      .catch((error) => {
-        console.error("Unable to load YouTube videos:", error.message);
+      .catch((err) => {
+        console.error("YouTube /latest scrape failed:", err.message);
+        sendJson(res, 502, {
+          error: "Latest stream is temporarily unavailable.",
+          code: "YOUTUBE_UPSTREAM_ERROR",
+          channelUrl: YOUTUBE_CHANNEL_URL,
+          video: null,
+        });
+      });
+    return;
+  }
+
+  if (urlPath === "/api/youtube/videos") {
+    const rawLimit = new URL(req.url ?? "/", "http://localhost").searchParams.get("limit");
+    const limit = Math.min(Math.max(Number.parseInt(rawLimit ?? "12", 10) || 12, 1), 20);
+    getScrapedVideos(limit)
+      .then((payload) => sendJson(res, 200, payload, "public, max-age=300"))
+      .catch((err) => {
+        console.error("YouTube /videos scrape failed:", err.message);
         sendJson(res, 502, {
           error: "Recent videos are temporarily unavailable.",
           code: "YOUTUBE_UPSTREAM_ERROR",
           channelUrl: YOUTUBE_CHANNEL_URL,
+          videos: [],
         });
       });
     return;

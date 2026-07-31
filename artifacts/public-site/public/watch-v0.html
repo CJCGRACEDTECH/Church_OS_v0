@@ -273,6 +273,34 @@
       font-weight: 750;
     }
 
+    .live-badge {
+      position: absolute;
+      z-index: 2;
+      top: 16px;
+      left: 16px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      background: #e02020;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .video-card__live {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 3px 8px;
+      border-radius: 3px;
+      background: #e02020;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .06em;
+    }
+
     @media (max-width: 820px) {
       .featured {
         grid-template-columns: 1fr;
@@ -360,62 +388,55 @@
   <script>
     (() => {
       const loading = document.querySelector("[data-watch-loading]");
-      const error = document.querySelector("[data-watch-error]");
-      const feed = document.querySelector("[data-watch-feed]");
-      const formatDate = (value) => {
-        if (!value) return "";
-        return new Intl.DateTimeFormat("en-US", {
-          month: "long",
-          day: "numeric",
-          year: "numeric"
-        }).format(new Date(value));
-      };
+      const error   = document.querySelector("[data-watch-error]");
+      const feed    = document.querySelector("[data-watch-feed]");
 
-      const showError = (message, channelUrl) => {
+      function showError(message, channelUrl) {
         loading.hidden = true;
-        feed.hidden = true;
-        error.hidden = false;
+        feed.hidden    = true;
+        error.hidden   = false;
         if (message) document.querySelector("[data-watch-error-message]").textContent = message;
-        if (channelUrl) {
-          document.querySelectorAll("[data-channel-link]").forEach((link) => {
-            link.href = channelUrl;
-          });
-        }
-      };
+        if (channelUrl) document.querySelectorAll("[data-channel-link]").forEach(l => l.href = channelUrl);
+      }
 
-      fetch("/api/youtube/videos", { headers: { Accept: "application/json" } })
-        .then(async (response) => {
-          const payload = await response.json();
-          if (!response.ok) throw payload;
-          return payload;
-        })
-        .then((payload) => {
-          const videos = Array.isArray(payload.videos) ? payload.videos : [];
-          if (videos.length === 0) {
-            showError("No public videos are available yet. Visit the CJC Church YouTube channel to watch.", payload.channelUrl);
-            return;
+      let gridRendered = false;
+
+      function renderFeed(latest, videos, channelUrl) {
+        if (channelUrl) document.querySelectorAll("[data-channel-link]").forEach(l => l.href = channelUrl);
+
+        // Featured hero: prefer /latest stream; fall back to first video
+        const hero = latest?.video ?? videos[0] ?? null;
+        if (hero) {
+          const mediaEl = document.querySelector("[data-featured-media]");
+          if (!gridRendered) {
+            mediaEl.innerHTML = "";
+            if (hero.isLive) {
+              const badge = document.createElement("span");
+              badge.className = "live-badge";
+              badge.textContent = "LIVE";
+              mediaEl.appendChild(badge);
+            }
+            const iframe = document.createElement("iframe");
+            iframe.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(hero.videoId)}`;
+            iframe.title = hero.title;
+            iframe.loading = "lazy";
+            iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+            iframe.allowFullscreen = true;
+            mediaEl.appendChild(iframe);
           }
+          document.querySelector("[data-featured-title]").textContent = hero.title;
+          document.querySelector("[data-featured-date]").textContent = hero.date ?? "";
+        }
 
-          document.querySelectorAll("[data-channel-link]").forEach((link) => {
-            link.href = payload.channelUrl;
-          });
-
-          const latest = videos[0];
-          const iframe = document.createElement("iframe");
-          iframe.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(latest.videoId)}`;
-          iframe.title = latest.title;
-          iframe.loading = "lazy";
-          iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
-          iframe.allowFullscreen = true;
-          document.querySelector("[data-featured-media]").appendChild(iframe);
-          document.querySelector("[data-featured-title]").textContent = latest.title;
-          document.querySelector("[data-featured-date]").textContent = formatDate(latest.publishedAt);
-
+        // Grid: all /videos (skip first if it duplicates the hero)
+        if (!gridRendered) {
           const grid = document.querySelector("[data-video-grid]");
-          videos.slice(1).forEach((video) => {
+          grid.innerHTML = "";
+          const skip = (!latest?.video && videos.length > 0) ? 1 : 0;
+          videos.slice(skip).forEach((video) => {
             const card = document.createElement("a");
             card.className = "video-card";
-            card.href = video.url;
+            card.href = video.watchUrl ?? video.url ?? "#";
             card.target = "_blank";
             card.rel = "noreferrer";
 
@@ -426,36 +447,64 @@
             image.alt = "";
             image.loading = "lazy";
             imageWrap.appendChild(image);
+            if (video.isLive) {
+              const liveDot = document.createElement("span");
+              liveDot.className = "video-card__live";
+              liveDot.textContent = "LIVE";
+              imageWrap.appendChild(liveDot);
+            }
 
             const title = document.createElement("h3");
             title.textContent = video.title;
-            const date = document.createElement("time");
-            date.dateTime = video.publishedAt ?? "";
-            date.textContent = formatDate(video.publishedAt);
             const meta = document.createElement("div");
             meta.className = "video-card__meta";
-            const watchNow = document.createElement("span");
-            watchNow.className = "video-card__cta";
-            watchNow.textContent = "Watch now";
-            meta.append(date, watchNow);
+            const dateEl = document.createElement("time");
+            dateEl.textContent = video.date ?? "";
+            const cta = document.createElement("span");
+            cta.className = "video-card__cta";
+            cta.textContent = video.isLive ? "Watch live" : "Watch now";
+            meta.append(dateEl, cta);
 
             card.append(imageWrap, title, meta);
             grid.appendChild(card);
           });
+          gridRendered = true;
+        }
 
-          loading.hidden = true;
-          error.hidden = true;
-          feed.hidden = false;
-        })
-        .catch((cause) => {
-          const isConfiguration = cause?.code === "YOUTUBE_NOT_CONFIGURED";
+        loading.hidden = true;
+        error.hidden   = true;
+        feed.hidden    = false;
+      }
+
+      async function loadAll() {
+        const [latestResult, videosResult] = await Promise.allSettled([
+          fetch("/api/youtube/latest", { headers: { Accept: "application/json" } })
+            .then(async r => { const d = await r.json(); if (!r.ok) throw d; return d; }),
+          fetch("/api/youtube/videos?limit=12", { headers: { Accept: "application/json" } })
+            .then(async r => { const d = await r.json(); if (!r.ok) throw d; return d; }),
+        ]);
+
+        const latest  = latestResult.status  === "fulfilled" ? latestResult.value  : null;
+        const vPayload = videosResult.status === "fulfilled" ? videosResult.value  : null;
+        const videos   = Array.isArray(vPayload?.videos) ? vPayload.videos : [];
+        const channelUrl = latest?.channelUrl ?? vPayload?.channelUrl;
+
+        if (!latest?.video && videos.length === 0) {
           showError(
-            isConfiguration
-              ? "Watch recent worship, teaching, and full services on the CJC Church YouTube channel."
-              : "The latest videos are available directly from the CJC Church YouTube channel.",
-            cause?.channelUrl
+            "Watch recent worship, teaching, and full services on the CJC Church YouTube channel.",
+            channelUrl
           );
-        });
+          return;
+        }
+        renderFeed(latest, videos, channelUrl);
+      }
+
+      loadAll().catch(() =>
+        showError("The latest videos are available directly from the CJC Church YouTube channel.", null)
+      );
+
+      // Refresh every 3 minutes so a live stream appears without a page reload
+      setInterval(() => loadAll().catch(() => {}), 3 * 60 * 1000);
     })();
   </script>
 </body>
