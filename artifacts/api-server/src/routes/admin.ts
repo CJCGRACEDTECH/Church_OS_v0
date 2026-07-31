@@ -464,6 +464,11 @@ router.get("/admin/invitations/accept/:token", async (req, res): Promise<void> =
   // The full email is withheld to limit what an attacker can learn if they
   // obtain the token (e.g. via log access); a partial redaction still lets the
   // legitimate recipient confirm the invite is meant for them.
+  // Omit `permissions` from the unauthenticated preview — the specific
+  // permission list is not needed to confirm the invite and would give an
+  // attacker who obtained the token slightly more information than the invite
+  // email itself conveys.  Permissions are shown post-authentication on the
+  // accept-confirmation page.
   res.json({
     firstName: invite.firstName,
     lastName: invite.lastName,
@@ -471,7 +476,6 @@ router.get("/admin/invitations/accept/:token", async (req, res): Promise<void> =
     adminLevel: invite.assignedRole,
     adminTitle: adminTitle(invite.assignedRole),
     assignedMinistry: invite.assignedMinistry,
-    permissions: invite.assignedPermissions,
     expiresAt: invite.expiresAt.toISOString(),
   });
 });
