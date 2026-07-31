@@ -1,4 +1,6 @@
+import { desc, eq } from "drizzle-orm";
 import { Router, type IRouter } from "express";
+import { db, sermonsTable } from "@workspace/db";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -65,29 +67,55 @@ async function fetchYouTubeVideos(
   });
 }
 
+async function fetchSermonsFromDb(): Promise<YouTubeVideoItem[]> {
+  const sermons = await db
+    .select()
+    .from(sermonsTable)
+    .where(eq(sermonsTable.isPublished, true))
+    .orderBy(desc(sermonsTable.sermonDate))
+    .limit(13);
+
+  return sermons.map((sermon) => ({
+    videoId: sermon.youtubeVideoId,
+    title: sermon.title,
+    publishedAt: sermon.sermonDate.toISOString(),
+    thumbnail: `https://img.youtube.com/vi/${sermon.youtubeVideoId}/hqdefault.jpg`,
+    url: `https://www.youtube.com/watch?v=${sermon.youtubeVideoId}`,
+    speakerName: sermon.speakerName ?? undefined,
+    seriesName: sermon.seriesName ?? undefined,
+    description: sermon.description ?? undefined,
+  }));
+}
+
 // GET /api/youtube/videos
 // Returns recent public videos from the configured YouTube channel.
-// Requires YOUTUBE_API_KEY and YOUTUBE_CHANNEL_ID environment variables.
-// Falls back gracefully with a YOUTUBE_NOT_CONFIGURED code if not set.
+// Falls back to the sermons database table when YOUTUBE_API_KEY is not set.
 router.get("/youtube/videos", async (_req, res) => {
   const apiKey = process.env.YOUTUBE_API_KEY;
   const channelId = process.env.YOUTUBE_CHANNEL_ID;
   const channelUrl = process.env.YOUTUBE_CHANNEL_URL ?? DEFAULT_CHANNEL_URL;
 
   if (!apiKey || !channelId) {
-    logger.info("YouTube API not configured; returning YOUTUBE_NOT_CONFIGURED");
-    res.status(404).json({
-      code: "YOUTUBE_NOT_CONFIGURED",
-      message:
-        "YouTube API key and channel ID are not configured. Set YOUTUBE_API_KEY and YOUTUBE_CHANNEL_ID environment variables.",
-      channelUrl,
-    });
+    // Fall back to sermons stored in the database
+    try {
+      const videos = await fetchSermonsFromDb();
+      logger.info({ count: videos.length }, "YouTube API not configured; serving sermons from DB");
+      res.json({ videos, channelUrl, source: "db" });
+    } catch (err) {
+      logger.error({ err }, "Failed to fetch sermons from DB as YouTube fallback");
+      res.status(404).json({
+        code: "YOUTUBE_NOT_CONFIGURED",
+        message:
+          "YouTube API key and channel ID are not configured. Set YOUTUBE_API_KEY and YOUTUBE_CHANNEL_ID environment variables, or add sermons manually.",
+        channelUrl,
+      });
+    }
     return;
   }
 
   try {
     const videos = await fetchYouTubeVideos(apiKey, channelId);
-    res.json({ videos, channelUrl });
+    res.json({ videos, channelUrl, source: "youtube" });
   } catch (err) {
     logger.error({ err }, "Failed to fetch YouTube videos");
     res.status(502).json({

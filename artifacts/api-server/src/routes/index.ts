@@ -13,6 +13,7 @@ import memberHouseholdRouter from "./member-household";
 import publicOnboardingRouter from "./public-onboarding";
 import evangelismRouter from "./evangelism";
 import youtubeRouter from "./youtube";
+import sermonsRouter from "./sermons";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(memberHouseholdRouter);
 router.use(publicOnboardingRouter);
 router.use(evangelismRouter);
 router.use(youtubeRouter);
+router.use(sermonsRouter);
 
 export default router;

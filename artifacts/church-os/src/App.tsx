@@ -27,6 +27,7 @@ import AdminCheckIn from "@/pages/admin/check-in";
 import AdminGiving from "@/pages/admin/giving";
 import AdminEvangelism from "@/pages/admin/evangelism";
 import AdminSettings from "@/pages/admin/settings";
+import AdminSermons from "@/pages/admin/sermons";
 import AdminInviteAccept from "@/pages/admin/invite-accept";
 
 import MemberDashboard from "@/pages/member-dashboard";
@@ -264,6 +265,7 @@ function Router() {
       <Route path="/admin/evangelism/contacts">{() => <AdminRoute component={AdminEvangelism} />}</Route>
       <Route path="/admin/evangelism">{() => <AdminRoute component={AdminEvangelism} />}</Route>
       <Route path="/admin/reports">{() => <Redirect to="/admin" />}</Route>
+      <Route path="/admin/sermons">{() => <AdminRoute component={AdminSermons} />}</Route>
       <Route path="/admin/settings">{() => <AdminRoute component={AdminSettings} />}</Route>
       <Route path="/admin/admins">{() => <Redirect to="/admin/settings?section=admins" />}</Route>
 
