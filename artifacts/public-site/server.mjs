@@ -695,7 +695,7 @@ function transformHtml(source, urlPath = "/") {
     '<div class="w-dyn-list"><div role="list" class="c-section w-dyn-items">',
     '<div class="c-section is--homepage">',
     `<section id="watch-home" class="cjc-v0-watch-home" aria-labelledby="watch-home-title">
-      <a class="cjc-v0-watch-home__media" data-home-video-link href="${YOUTUBE_CHANNEL_URL}" target="_blank" rel="noreferrer">
+      <a class="cjc-v0-watch-home__media" data-home-video-media data-home-video-link href="${YOUTUBE_CHANNEL_URL}" target="_blank" rel="noreferrer">
         <img data-home-video-image src="/assets/watch-placeholder.jpg" alt="">
         <span aria-hidden="true">▶</span>
       </a>
@@ -720,13 +720,49 @@ function transformHtml(source, urlPath = "/") {
             if (t.length > 72) t = t.slice(0, 69) + '\u2026';
             return t;
           }
-          fetch("/api/youtube/videos", { headers: { Accept: "application/json" } })
-            .then(async (response) => {
-              const payload = await response.json();
-              if (!response.ok) throw payload;
-              return payload;
-            })
-            .then((payload) => {
+          function fetchJson(url) {
+            return fetch(url, { headers: { Accept: "application/json" } })
+              .then(async (response) => {
+                const payload = await response.json();
+                if (!response.ok) throw payload;
+                return payload;
+              });
+          }
+          Promise.all([
+            fetchJson("/api/youtube/videos").catch(() => ({ videos: [] })),
+            fetchJson("/api/youtube/latest").catch(() => ({ video: null }))
+          ])
+            .then(([payload, latestPayload]) => {
+              const live = latestPayload.video?.isLive ? latestPayload.video : null;
+              const media = document.querySelector("[data-home-video-media]");
+              if (live && media) {
+                const liveUrl = live.url || live.watchUrl || "${YOUTUBE_CHANNEL_URL}";
+                const liveTitle = cleanTitle(live.title || "CJC Church is live now");
+                const embed = document.createElement("div");
+                embed.className = "cjc-v0-watch-home__media cjc-v0-watch-home__media--live";
+                const iframe = document.createElement("iframe");
+                iframe.src = "https://www.youtube.com/embed/" +
+                  encodeURIComponent(live.videoId) +
+                  "?autoplay=1&mute=1&playsinline=1&rel=0";
+                iframe.title = liveTitle;
+                iframe.allow = "autoplay; encrypted-media; picture-in-picture";
+                iframe.allowFullscreen = true;
+                const liveBadge = document.createElement("a");
+                liveBadge.className = "cjc-v0-watch-home__live-badge";
+                liveBadge.href = liveUrl;
+                liveBadge.target = "_blank";
+                liveBadge.rel = "noreferrer";
+                liveBadge.textContent = "LIVE NOW";
+                embed.append(iframe, liveBadge);
+                media.replaceWith(embed);
+                document.querySelectorAll("[data-home-video-link]").forEach((link) => {
+                  link.href = liveUrl;
+                });
+                title.textContent = liveTitle;
+                title.previousElementSibling.textContent = "Live now";
+                document.querySelector("[data-home-video-date]").textContent = "Join the live service";
+                return;
+              }
               const latest = payload.videos?.[0];
               if (!latest) return;
               title.textContent = cleanTitle(latest.title);
@@ -817,6 +853,10 @@ function transformHtml(source, urlPath = "/") {
     ".cjc-v0-watch-home__media img{width:100%;height:100%;display:block;object-fit:cover;transition:transform .25s ease}",
     ".cjc-v0-watch-home__media:hover img{transform:scale(1.02)}",
     ".cjc-v0-watch-home__media span{position:absolute;z-index:1;left:38px;bottom:36px;width:54px;height:54px;display:grid;place-items:center;border-radius:50%;background:#4760ff;color:#fff;font-size:18px}",
+    ".cjc-v0-watch-home__media--live{background:#080c17}",
+    ".cjc-v0-watch-home__media--live iframe{width:100%;height:100%;min-height:520px;display:block;border:0}",
+    ".cjc-v0-watch-home__live-badge{position:absolute;z-index:2;left:38px;bottom:36px;display:inline-flex;align-items:center;min-height:42px;padding:0 16px;border-radius:6px;background:#c9363e;color:#fff!important;text-decoration:none!important;font-size:13px;font-weight:800;letter-spacing:.06em;box-shadow:0 8px 22px rgba(0,0,0,.28)}",
+    ".cjc-v0-watch-home__live-badge:before{content:'';width:8px;height:8px;margin-right:9px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(255,255,255,.18)}",
     ".cjc-v0-watch-home__copy{display:flex;flex-direction:column;justify-content:center;padding:58px max(28px,calc((100vw - 1160px)/2)) 58px 46px}",
     ".cjc-v0-watch-home__copy>p{margin:0;color:#d8bd72;font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}",
     ".cjc-v0-watch-home__copy h2{margin:14px 0 10px;color:#fff;font-size:clamp(32px,4vw,50px);line-height:1.08;letter-spacing:0}",
@@ -841,8 +881,8 @@ function transformHtml(source, urlPath = "/") {
     ".cjc-v0-community-grid{max-width:1160px;margin:0 auto;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}",
     ".cjc-v0-community-grid a{position:relative;min-height:260px;display:flex;align-items:flex-end;padding:20px;border-radius:6px;overflow:hidden;background-image:linear-gradient(180deg,transparent 35%,rgba(10,18,39,.82)),var(--image);background-size:cover;background-position:center;text-decoration:none!important}",
     ".cjc-v0-community-grid span{color:#fff;font-size:20px;font-weight:750;letter-spacing:0}",
-    "@media(max-width:960px){.cjc-v0-nav,.cjc-v0-actions{display:none}.cjc-v0-mobile{display:block}.cjc-v0-header__inner{padding:0 18px}.cjc-v0-watch-home{grid-template-columns:1fr}.cjc-v0-watch-home__media{min-height:440px}.cjc-v0-watch-home__media:after{background:linear-gradient(180deg,transparent 65%,rgba(24,29,46,.72))}.cjc-v0-watch-home__copy{padding:50px 28px 60px}.cjc-v0-beliefs__intro{grid-template-columns:1fr;gap:20px}.cjc-v0-beliefs article{grid-template-columns:54px minmax(170px,.55fr) minmax(0,1fr)}.cjc-v0-community-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}",
-    "@media(max-width:560px){.cjc-v0-brand span{font-size:16px}.cjc-v0-weekly{padding:48px 20px}.cjc-v0-weekly__heading{align-items:flex-start}.cjc-v0-weekly__actions button{display:none}.cjc-v0-weekly__actions a{margin:0;padding:10px 12px}.cjc-v0-weekly h2,.cjc-v0-community h2{font-size:28px}.cjc-v0-watch-home__media{min-height:300px}.cjc-v0-watch-home__media span{left:20px;bottom:20px;width:46px;height:46px}.cjc-v0-watch-home__copy{padding:38px 20px 52px}.cjc-v0-beliefs{padding:60px 20px 70px}.cjc-v0-beliefs__intro{margin-bottom:32px}.cjc-v0-beliefs article{grid-template-columns:36px 1fr;gap:8px 12px;padding:22px 0}.cjc-v0-beliefs article p{grid-column:2}.cjc-v0-community{padding:56px 20px 64px}.cjc-v0-community-grid{grid-template-columns:1fr}.cjc-v0-community-grid a{min-height:220px}}",
+    "@media(max-width:960px){.cjc-v0-nav,.cjc-v0-actions{display:none}.cjc-v0-mobile{display:block}.cjc-v0-header__inner{padding:0 18px}.cjc-v0-watch-home{grid-template-columns:1fr}.cjc-v0-watch-home__media{min-height:440px}.cjc-v0-watch-home__media:after{background:linear-gradient(180deg,transparent 65%,rgba(24,29,46,.72))}.cjc-v0-watch-home__media--live iframe{min-height:440px}.cjc-v0-watch-home__copy{padding:50px 28px 60px}.cjc-v0-beliefs__intro{grid-template-columns:1fr;gap:20px}.cjc-v0-beliefs article{grid-template-columns:54px minmax(170px,.55fr) minmax(0,1fr)}.cjc-v0-community-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}",
+    "@media(max-width:560px){.cjc-v0-brand span{font-size:16px}.cjc-v0-weekly{padding:48px 20px}.cjc-v0-weekly__heading{align-items:flex-start}.cjc-v0-weekly__actions button{display:none}.cjc-v0-weekly__actions a{margin:0;padding:10px 12px}.cjc-v0-weekly h2,.cjc-v0-community h2{font-size:28px}.cjc-v0-watch-home__media{min-height:300px}.cjc-v0-watch-home__media--live iframe{min-height:300px}.cjc-v0-watch-home__media span{left:20px;bottom:20px;width:46px;height:46px}.cjc-v0-watch-home__live-badge{left:20px;bottom:20px}.cjc-v0-watch-home__copy{padding:38px 20px 52px}.cjc-v0-beliefs{padding:60px 20px 70px}.cjc-v0-beliefs__intro{margin-bottom:32px}.cjc-v0-beliefs article{grid-template-columns:36px 1fr;gap:8px 12px;padding:22px 0}.cjc-v0-beliefs article p{grid-column:2}.cjc-v0-community{padding:56px 20px 64px}.cjc-v0-community-grid{grid-template-columns:1fr}.cjc-v0-community-grid a{min-height:220px}}",
     "</style>",
   ].join("");
 
