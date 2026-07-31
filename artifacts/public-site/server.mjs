@@ -439,9 +439,9 @@ function sharedFooter() {
     <footer class="cjc-site-footer">
       <div class="cjc-site-footer__main">
         <div class="cjc-site-footer__brand">
-          <a href="/" aria-label="CJC Church home">
+          <a class="cjc-v0-brand" href="/" aria-label="CJC Church home">
             <img src="${LOGO_URL}" alt="CJC Church">
-            <strong>CJC Church</strong>
+            <span>CJC Church</span>
           </a>
           <p>Christ Jesus Centered Church<br>One Kingdom. All Nations.</p>
         </div>
