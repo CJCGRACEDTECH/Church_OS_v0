@@ -88,7 +88,7 @@ html.js-anim .animate-on-scroll {
   white-space: nowrap;
 }
 .cjc-v0-brand img { width: 40px; height: 40px; object-fit: contain; }
-.cjc-v0-brand span { font-size: 18px; font-weight: 780; }
+.cjc-v0-brand span { font-size: 20px; font-weight: 780; }
 .cjc-v0-nav {
   display: flex;
   align-items: center;
@@ -100,7 +100,7 @@ html.js-anim .animate-on-scroll {
   position: relative;
   color: #cbd1df !important;
   text-decoration: none !important;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 650;
   padding-bottom: 9px;
   transition: color .18s ease;
@@ -132,7 +132,7 @@ html.js-anim .animate-on-scroll {
   background: var(--cjc-blue);
   color: #fff !important;
   text-decoration: none !important;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 750;
   line-height: 1;
   transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
@@ -193,7 +193,7 @@ html.js-anim .animate-on-scroll {
   border-radius: 5px;
   color: #20283a !important;
   text-decoration: none !important;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 650;
   transition: background .16s ease, transform .16s ease;
 }
@@ -214,18 +214,7 @@ html.js-anim .animate-on-scroll {
   position: relative;
   background: var(--cjc-navy);
   color: #cbd1df;
-  font-size: 14px;
-  margin-top: -60px;
-  padding-top: 60px;
-}
-.cjc-site-footer::before {
-  content: "";
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 120px;
-  background: linear-gradient(to bottom, #f8f9fc 0%, rgba(248,249,252,.82) 26%, rgba(248,249,252,.46) 56%, transparent 100%);
-  pointer-events: none;
-  z-index: 1;
+  font-size: 16px;
 }
 .cjc-site-footer * { box-sizing: border-box; }
 .cjc-site-footer__main {
@@ -242,7 +231,7 @@ html.js-anim .animate-on-scroll {
 .cjc-site-footer h2 {
   margin: 0 0 14px;
   color: #fff;
-  font-size: 13px;
+  font-size: 15px;
   text-transform: uppercase;
 }
 .cjc-site-footer p, .cjc-site-footer address {
@@ -305,7 +294,7 @@ html.js-anim .animate-on-scroll {
   gap: 18px;
   border-top: 1px solid #343b50;
   color: #8f99af;
-  font-size: 12px;
+  font-size: 14px;
 }
 .cjc-site-footer__legal a { color: inherit !important; }
 
@@ -327,7 +316,7 @@ html.js-anim .animate-on-scroll {
 }
 
 @media (max-width: 560px) {
-  .cjc-v0-brand span { font-size: 16px; }
+  .cjc-v0-brand span { font-size: 18px; }
   .cjc-site-footer {
     margin-top: -40px;
     padding-top: 40px;
