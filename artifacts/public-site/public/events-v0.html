@@ -489,6 +489,37 @@
       </div>
     </section>
 
+    <section id="baptism-event" style="background:#f7f9fc;border-top:1px solid #dfe4ed;border-bottom:1px solid #dfe4ed;padding:64px 0 72px">
+      <style>
+        .baptism-ev-inner{width:min(1160px,calc(100% - 48px));margin:0 auto}
+        .baptism-ev-header{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:32px;flex-wrap:wrap}
+        .baptism-ev-header p{margin:0 0 6px;color:#4760ff;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+        .baptism-ev-header h2{margin:0;font-size:clamp(30px,4vw,42px);color:#171c2c;line-height:1.1}
+        .baptism-ev-date{padding:6px 15px;border-radius:20px;background:#fff;border:1px solid #dfe4ed;font-size:13px;font-weight:700;color:#687083;white-space:nowrap;align-self:flex-start}
+        .baptism-ev-frame{border-radius:10px;overflow:hidden;box-shadow:0 8px 40px rgba(9,15,35,.12);border:1px solid #dfe4ed}
+        .baptism-ev-frame iframe{width:100%;height:720px;border:0;display:block}
+        @media(max-width:680px){.baptism-ev-frame iframe{height:540px}}
+      </style>
+      <div class="baptism-ev-inner">
+        <div class="baptism-ev-header">
+          <div>
+            <p>Upcoming event</p>
+            <h2>Baptism Service</h2>
+          </div>
+          <span class="baptism-ev-date">Sunday, August 16, 2026</span>
+        </div>
+        <div class="baptism-ev-frame">
+          <iframe src="https://project-tau-rouge-65.vercel.app" title="Baptism Service — August 16, 2026" loading="lazy"></iframe>
+        </div>
+      </div>
+      <script>
+        (function(){
+          var el = document.getElementById('baptism-event');
+          if (el && new Date() > new Date('2026-08-17T00:00:00')) el.remove();
+        })();
+      </script>
+    </section>
+
     <section class="special-events" aria-labelledby="special-events-title">
       <div class="special-events__inner">
         <div class="section-heading">
