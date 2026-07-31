@@ -163,10 +163,10 @@ overrides:
   "lodash": "^4.18.1"
   # GHSA-48c2-rrv3-qjmp — yaml stack overflow
   "yaml": "^2.8.4"
-  # GHSA-3jxr-9vmj-r5cp — brace-expansion DoS via consecutive non-expanding {} groups
-  "brace-expansion": "^2.1.2"
-  # GHSA-qx2v-qp2m-jg93 — postcss XSS
-  "postcss": "^8.5.14"
+  # CVE-2026-14257 — brace-expansion DoS via unbounded expansion length (OOM crash); patched >=5.0.8
+  "brace-expansion": "^5.0.8"
+  # GHSA-r28c-9q8g-f849 — postcss path traversal via sourceMappingURL; patched >=8.5.18
+  "postcss": "^8.5.18"
   # GHSA-qjx8-664m-686j — js-cookie XSS via cookie injection
   "js-cookie": "^3.0.7"
   # GHSA-q8mj-m7cp-5q26 — qs prototype pollution / query string injection
