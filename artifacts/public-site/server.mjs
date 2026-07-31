@@ -639,7 +639,7 @@ function transformHtml(source, urlPath = "/") {
         <article><span>Tuesday</span><h3>Prayer &amp; Bible Study</h3><p>8:00 PM</p><small>Online via Zoom</small></article>
         <article><span>Thursday</span><h3>Thursday Service</h3><p>7:00 PM</p><small>In person</small></article>
         <article><span>Friday</span><h3>Friday Service</h3><p>7:00 PM</p><small>In person</small></article>
-        <article><span>Friday night</span><h3>Discipleship</h3><p>11:00 PM</p><small>Ends 1:00 AM Saturday</small></article>
+        <article><span>Friday night</span><h3>Discipleship</h3><p>11:00 PM</p></article>
         <article><span>Saturday</span><h3>Saturday Service</h3><p>7:00 PM</p><small>In person</small></article>
         <article><span>Sunday</span><h3>Sunday Service</h3><p>11:00 AM</p><small>In person</small></article>
       </div>
