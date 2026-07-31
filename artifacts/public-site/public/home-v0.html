@@ -123,6 +123,10 @@
     .watch__copy h2 { margin: 9px 0; font-size: clamp(34px, 4.2vw, 54px); line-height: 1.06; }
     .watch__copy time { min-height: 21px; color: #aeb7cc; font-size: 15px; }
     .watch__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+   .watch__toggle { display: none; align-items: center; gap: 7px; margin-top: 18px; padding: 0; border: 0; background: none; color: #8f99af; font-size: 13px; font-weight: 700; letter-spacing: .03em; cursor: pointer; transition: color .15s; }
+   .watch__toggle:hover { color: #fff; }
+   .watch__toggle svg { flex-shrink: 0; transition: transform .15s; }
+   .watch__toggle:hover svg { transform: translateX(3px); }
     .community-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 13px; }
     .community-card { position: relative; min-height: 360px; display: flex; align-items: flex-end; padding: 26px; overflow: hidden; border-radius: 8px; background: #26314d var(--image) center / cover no-repeat; color: #fff !important; text-decoration: none; box-shadow: var(--cjc-shadow-soft); transition: transform .24s ease, box-shadow .24s ease; }
     .community-card::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 28%, rgba(8, 15, 32, .89)); transition: background .28s ease; }
@@ -339,13 +343,17 @@
         <span class="watch__play" aria-hidden="true">▶</span>
       </a>
       <div class="watch__copy animate-on-scroll">
-        <p class="eyebrow animate-on-scroll">Latest sermon</p>
+        <p class="eyebrow animate-on-scroll" data-video-kind>Latest sermon</p>
         <h2 data-video-title>Watch CJC Church</h2>
         <time data-video-date></time>
         <div class="watch__actions">
           <a class="cjc-button" data-video-link href="https://www.youtube.com/@cjcinternationalprophetyos9053" target="_blank" rel="noreferrer">Watch Now</a>
           <a class="cjc-button cjc-button--outline" href="/sermons.html">All Sermons</a>
         </div>
+        <button class="watch__toggle" data-video-toggle style="display:none" aria-label="Switch video">
+          <span data-toggle-label></span>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
       </div>
     </section>
 
@@ -417,21 +425,100 @@
         return t;
       }
 
-      fetch("/api/youtube/videos", { headers: { Accept: "application/json" } })
-        .then(async (response) => { const data = await response.json(); if (!response.ok) throw data; return data; })
-        .then((data) => {
-          const video = data.videos?.[0];
-          if (!video) return;
-          document.querySelector("[data-video-title]").textContent = cleanTitle(video.title);
-          document.querySelector("[data-video-image]").src = video.thumbnail;
-          document.querySelectorAll("[data-video-link]").forEach((link) => link.href = video.url);
-          const date = document.querySelector("[data-video-date]");
+      function fetchJson(url) {
+        return fetch(url, { headers: { Accept: "application/json" } })
+          .then(async (r) => { const d = await r.json(); if (!r.ok) throw d; return d; });
+      }
+
+      function applyVideo(video, kindLabel) {
+        const kind = document.querySelector("[data-video-kind]");
+        const title = document.querySelector("[data-video-title]");
+        const image = document.querySelector("[data-video-image]");
+        const date = document.querySelector("[data-video-date]");
+        if (kind) kind.textContent = kindLabel;
+        if (title) title.textContent = cleanTitle(video.title);
+        if (image) image.src = video.thumbnail;
+        document.querySelectorAll("[data-video-link]").forEach((link) => link.href = video.url || video.watchUrl);
+        if (date) {
           if (video.date) {
             date.textContent = video.date;
           } else if (video.publishedAt) {
             date.textContent = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" }).format(new Date(video.publishedAt));
+          } else {
+            date.textContent = "";
           }
-        }).catch(() => {});
+        }
+      }
+
+      Promise.all([
+        fetchJson("/api/youtube/videos").catch(() => ({ videos: [] })),
+        fetchJson("/api/youtube/latest").catch(() => ({ video: null }))
+      ]).then(([videosPayload, latestPayload]) => {
+        const sermon = videosPayload.videos?.[0];
+        const recorded = latestPayload.video;
+        const isLive = recorded?.isLive;
+
+        // If actively live: show embedded player, no toggle
+        if (isLive && recorded) {
+          const media = document.querySelector("[data-video-link].watch__media");
+          if (media) {
+            const liveUrl = recorded.url || recorded.watchUrl;
+            const liveTitle = cleanTitle(recorded.title || "CJC Church is live now");
+            const wrap = document.createElement("div");
+            wrap.className = "watch__media watch__media--live";
+            const iframe = document.createElement("iframe");
+            iframe.src = "https://www.youtube.com/embed/" + encodeURIComponent(recorded.videoId) + "?autoplay=1&mute=1&playsinline=1&rel=0";
+            iframe.title = liveTitle;
+            iframe.allow = "autoplay; encrypted-media; picture-in-picture";
+            iframe.allowFullscreen = true;
+            iframe.style.cssText = "width:100%;height:100%;min-height:500px;display:block;border:0";
+            const badge = document.createElement("a");
+            badge.className = "watch__live-badge";
+            badge.href = liveUrl; badge.target = "_blank"; badge.rel = "noreferrer";
+            badge.textContent = "LIVE NOW";
+            wrap.append(iframe, badge);
+            media.replaceWith(wrap);
+            document.querySelectorAll("[data-video-link]").forEach((l) => l.href = liveUrl);
+          }
+          const kind = document.querySelector("[data-video-kind]");
+          const title = document.querySelector("[data-video-title]");
+          const date = document.querySelector("[data-video-date]");
+          if (kind) kind.textContent = "Live now";
+          if (title) title.textContent = cleanTitle(recorded.title || "CJC Church is live now");
+          if (date) date.textContent = "Join the live service";
+          return;
+        }
+
+        // Not live: build items — sermon first, recorded stream second (if different)
+        const items = [
+          sermon && { video: sermon, label: "Latest sermon" },
+          recorded && sermon?.videoId !== recorded.videoId && { video: recorded, label: "Most recent stream" }
+        ].filter(Boolean);
+        if (!items.length) return;
+
+        let idx = 0;
+        applyVideo(items[0].video, items[0].label);
+
+        if (items.length > 1) {
+          const toggle = document.querySelector("[data-video-toggle]");
+          const toggleLabel = toggle && toggle.querySelector("[data-toggle-label]");
+          if (toggle && toggleLabel) {
+            toggle.style.display = "inline-flex";
+            toggleLabel.textContent = items[1].label;
+            const section = document.querySelector(".watch.section--dark");
+            toggle.addEventListener("click", () => {
+              idx = (idx + 1) % items.length;
+              if (section) section.style.opacity = "0.4";
+              window.setTimeout(() => {
+                applyVideo(items[idx].video, items[idx].label);
+                const next = items[(idx + 1) % items.length];
+                toggleLabel.textContent = next.label;
+                if (section) section.style.opacity = "";
+              }, 160);
+            });
+          }
+        }
+      }).catch(() => {});
 
       // Scroll animations
       if ('IntersectionObserver' in window) document.documentElement.classList.add('js-anim');

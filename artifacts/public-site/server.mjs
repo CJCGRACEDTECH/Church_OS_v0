@@ -452,7 +452,7 @@ function sharedFooter() {
         </div>
         <div>
           <h2>Weekly</h2>
-          <p class="cjc-site-footer__schedule">Tue · 8:00 PM online<br>Thu · 7:00 PM<br>Fri · 7:00 PM<br>Sat · 7:00 PM<br>Sun · 11:00 AM</p>
+          <p class="cjc-site-footer__schedule">Thu · 7:00 PM<br>Fri · 7:00 PM<br>Sat · 7:00 PM<br>Sun · 11:00 AM</p>
           <a href="/events">Full service schedule</a>
         </div>
         <div>
@@ -707,6 +707,10 @@ function transformHtml(source, urlPath = "/") {
           <a class="cjc-v0-watch-home__primary" data-home-video-link href="${YOUTUBE_CHANNEL_URL}" target="_blank" rel="noreferrer">Watch on YouTube</a>
           <a class="cjc-v0-watch-home__secondary" href="/sermons.html">More Sermons</a>
         </div>
+        <button class="cjc-v0-watch-home__toggle" data-home-video-toggle style="display:none" aria-label="Switch video">
+          <span data-toggle-label></span>
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
       </div>
       <script>
         (() => {
@@ -769,14 +773,12 @@ function transformHtml(source, urlPath = "/") {
               }
               const recordedStream = latestPayload.video;
               const sermon = payload.videos?.[0];
+              // Sermon is shown first; arrow switches to the recorded stream
               const items = [
-                recordedStream && {
+                sermon && { video: sermon, label: "Latest sermon" },
+                recordedStream && sermon?.videoId !== recordedStream?.videoId && {
                   video: recordedStream,
-                  label: "Most recent live stream"
-                },
-                sermon && sermon.videoId !== recordedStream?.videoId && {
-                  video: sermon,
-                  label: "Latest sermon"
+                  label: "Most recent stream"
                 }
               ].filter(Boolean);
               if (!items.length) return;
@@ -803,16 +805,24 @@ function transformHtml(source, urlPath = "/") {
                   date.textContent = "";
                 }
               }
-              showRecordedItem(items[itemIndex]);
+              showRecordedItem(items[0]);
               if (items.length > 1) {
-                window.setInterval(() => {
-                  card.classList.add("is-switching");
-                  window.setTimeout(() => {
-                    itemIndex = (itemIndex + 1) % items.length;
-                    showRecordedItem(items[itemIndex]);
-                    card.classList.remove("is-switching");
-                  }, 220);
-                }, 8000);
+                const toggle = document.querySelector("[data-home-video-toggle]");
+                const toggleLabel = toggle && toggle.querySelector("[data-toggle-label]");
+                if (toggle && toggleLabel) {
+                  toggle.style.display = "inline-flex";
+                  toggleLabel.textContent = items[1].label;
+                  toggle.addEventListener("click", () => {
+                    card.classList.add("is-switching");
+                    window.setTimeout(() => {
+                      itemIndex = (itemIndex + 1) % items.length;
+                      showRecordedItem(items[itemIndex]);
+                      const next = items[(itemIndex + 1) % items.length];
+                      toggleLabel.textContent = next.label;
+                      card.classList.remove("is-switching");
+                    }, 180);
+                  });
+                }
               }
             })
             .catch(() => {});
@@ -901,6 +911,10 @@ function transformHtml(source, urlPath = "/") {
     ".cjc-v0-watch-home__copy a{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 17px;border-radius:6px;text-decoration:none!important;font-size:14px;font-weight:750}",
     ".cjc-v0-watch-home__primary{background:#4760ff;color:#fff!important}",
     ".cjc-v0-watch-home__secondary{border:1px solid #4c566f;color:#fff!important}",
+    ".cjc-v0-watch-home__toggle{display:none;align-items:center;gap:7px;margin-top:20px;padding:0;border:0;background:none;color:#8f99af;font-size:13px;font-weight:700;letter-spacing:.03em;cursor:pointer;transition:color .15s}",
+    ".cjc-v0-watch-home__toggle:hover{color:#fff}",
+    ".cjc-v0-watch-home__toggle svg{flex-shrink:0;transition:transform .15s}",
+    ".cjc-v0-watch-home__toggle:hover svg{transform:translateX(3px)}",
     ".cjc-v0-beliefs{padding:84px max(28px,calc((100vw - 1160px)/2)) 96px;background:#f5f7fb;color:#171c2c;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}",
     ".cjc-v0-beliefs__intro{display:grid;grid-template-columns:minmax(260px,.75fr) minmax(320px,1fr);gap:56px;align-items:end;margin-bottom:44px}",
     ".cjc-v0-beliefs__intro>div>p{margin:0;color:#4760ff;font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}",
