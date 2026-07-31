@@ -120,7 +120,7 @@
     .watch__play { position: absolute; left: 28px; bottom: 26px; width: 56px; height: 56px; display: grid; place-items: center; border-radius: 50%; background: var(--cjc-blue); color: #fff; box-shadow: 0 6px 20px rgba(71, 96, 255, .38); transition: transform .24s ease, box-shadow .24s ease; }
     .watch__media:hover .watch__play { transform: scale(1.08); box-shadow: 0 8px 26px rgba(71, 96, 255, .48); }
     .watch__copy { display: flex; flex-direction: column; justify-content: center; padding: 50px; }
-    .watch__copy h2 { margin: 9px 0; font-size: clamp(34px, 4.2vw, 54px); line-height: 1.06; }
+    .watch__copy h2 { margin: 9px 0; font-size: clamp(29px, 3.6vw, 46px); line-height: 1.06; }
     .watch__copy time { min-height: 21px; color: #aeb7cc; font-size: 15px; }
     .watch__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
    .watch__toggle { display: none; align-items: center; gap: 7px; margin-top: 18px; padding: 0; border: 0; background: none; color: #8f99af; font-size: 13px; font-weight: 700; letter-spacing: .03em; cursor: pointer; transition: color .15s; }
@@ -503,8 +503,8 @@
 
         // Not live: sermon first, recorded stream second (embedded player)
         const items = [
-          sermon   && { video: sermon,   label: "Latest sermon",     embed: false },
-          recorded && sermon?.videoId !== recorded.videoId && { video: recorded, label: "Most recent stream", embed: true }
+          recorded && { video: recorded, label: "Most recent stream", embed: true },
+          sermon   && sermon?.videoId !== recorded?.videoId && { video: sermon,  label: "Latest sermon",      embed: true }
         ].filter(Boolean);
         if (!items.length) return;
 
