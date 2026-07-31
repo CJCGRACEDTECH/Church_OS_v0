@@ -1,6 +1,6 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { Router, type IRouter } from "express";
-import { db, sermonsTable } from "@workspace/db";
+import { churchesTable, db, sermonsTable } from "@workspace/db";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -189,11 +189,11 @@ async function getScrapedLatest(): Promise<LatestCache> {
   }
 }
 
-async function fetchSermonsFromDb() {
+async function fetchSermonsFromDb(churchId: number) {
   const sermons = await db
     .select()
     .from(sermonsTable)
-    .where(eq(sermonsTable.isPublished, true))
+    .where(and(eq(sermonsTable.isPublished, true), eq(sermonsTable.churchId, churchId)))
     .orderBy(desc(sermonsTable.sermonDate))
     .limit(13);
 
@@ -249,7 +249,13 @@ router.get("/youtube/videos", async (req, res) => {
   } catch (scrapeErr) {
     logger.warn({ err: scrapeErr }, "YouTube scrape failed; falling back to DB sermons");
     try {
-      const videos = await fetchSermonsFromDb();
+      const slug = process.env.DEFAULT_SIGNUP_CHURCH_SLUG ?? "cjc-international";
+      const [church] = await db.select({ id: churchesTable.id }).from(churchesTable).where(eq(churchesTable.slug, slug));
+      if (!church) {
+        res.status(502).json({ code: "YOUTUBE_FETCH_ERROR", message: "Recent videos are temporarily unavailable.", channelUrl: DEFAULT_CHANNEL_URL, videos: [] });
+        return;
+      }
+      const videos = await fetchSermonsFromDb(church.id);
       logger.info({ count: videos.length }, "Serving sermons from DB as YouTube fallback");
       res.json({ videos, channelUrl: DEFAULT_CHANNEL_URL, source: "db" });
     } catch (dbErr) {

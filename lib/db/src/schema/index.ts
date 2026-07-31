@@ -8,6 +8,7 @@ export * from "./evangelism";
 export * from "./giving";
 export * from "./household-requests";
 export * from "./oauth-accounts";
+export * from "./public-leads";
 export * from "./sermons";
 export * from "./settings";
 export * from "./users";

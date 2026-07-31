@@ -261,7 +261,9 @@ router.patch("/admin/users/:id", requireSuperAdmin, async (req, res): Promise<vo
   }).where(and(eq(usersTable.id, id), eq(usersTable.role, "admin"), eq(usersTable.churchId, churchId))).returning();
 
   if (!updated) { res.status(404).json({ error: "Admin not found." }); return; }
-  res.json({ admin: updated });
+  // Exclude sensitive auth columns before returning to the caller.
+  const { passwordHash: _ph, clerkUserId: _cu, ...safeAdmin } = updated;
+  res.json({ admin: safeAdmin });
 });
 
 router.delete("/admin/users/:id/admin-access", requireSuperAdmin, async (req, res): Promise<void> => {

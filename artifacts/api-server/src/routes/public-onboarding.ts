@@ -5,6 +5,7 @@ import {
   db,
   eventsTable,
   householdUpdateRequestsTable,
+  publicFormLeadsTable,
   usersTable,
 } from "@workspace/db";
 import { calculateProfileCompletionPercent } from "../lib/onboarding";
@@ -84,7 +85,24 @@ router.post("/public/connect", async (req, res): Promise<void> => {
     .from(usersTable)
     .where(eq(usersTable.email, email));
 
+  // If the email belongs to a user in a different church, persist a
+  // tenant-owned lead record (no FK to the foreign user) so the code path
+  // is observably equivalent to the same-church path before returning.
   if (duplicate && duplicate.churchId !== church.id) {
+    await db.insert(publicFormLeadsTable).values({
+      churchId: church.id,
+      requestType: "connect_form",
+      firstName,
+      lastName,
+      email,
+      phoneNumber,
+      message: [
+        "Connect form submitted (email registered in another church tenant).",
+        preferredContactMethod ? `Preferred contact: ${preferredContactMethod}` : null,
+        ministryInterest ? `Ministry interest: ${ministryInterest}` : null,
+        prayerRequest ? `Prayer request / message: ${prayerRequest}` : null,
+      ].filter(Boolean).join("\n"),
+    });
     res.status(201).json({ message: "Thank you for connecting with us.", profile: { firstName, churchName: church.name } });
     return;
   }
@@ -196,7 +214,23 @@ router.post("/public/account-request", async (req, res): Promise<void> => {
     .from(usersTable)
     .where(eq(usersTable.email, email));
 
+  // If the email belongs to a user in a different church, persist a
+  // tenant-owned lead record (no FK to the foreign user) so the code path
+  // is observably equivalent to the same-church path before returning.
   if (matchedByEmail && matchedByEmail.churchId !== church.id) {
+    await db.insert(publicFormLeadsTable).values({
+      churchId: church.id,
+      requestType: "account_request",
+      firstName,
+      lastName,
+      email,
+      phoneNumber,
+      message: [
+        "Account request submitted (email registered in another church tenant).",
+        preferredContactMethod ? `Preferred contact: ${preferredContactMethod}` : null,
+        reason ? `Reason: ${reason}` : null,
+      ].filter(Boolean).join("\n"),
+    });
     res.status(202).json({ message: "Your account request was received.", request: { firstName, churchName: church.name } });
     return;
   }

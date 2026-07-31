@@ -176,7 +176,7 @@ router.get("/giving/campaigns", requireAuth, async (req, res) => {
 
 router.get("/giving/history", requireAuth, async (req, res): Promise<void> => {
   const year = typeof req.query.year === "string" ? Number(req.query.year) : null;
-  const filters = [eq(donationsTable.memberId, req.localUserId)];
+  const filters = [eq(donationsTable.memberId, req.localUserId), eq(donationsTable.churchId, req.localChurchId)];
   if (year) {
     filters.push(gte(donationsTable.donationDate, new Date(`${year}-01-01T00:00:00Z`)));
     filters.push(lte(donationsTable.donationDate, new Date(`${year}-12-31T23:59:59Z`)));
@@ -187,7 +187,7 @@ router.get("/giving/history", requireAuth, async (req, res): Promise<void> => {
     .leftJoin(givingCampaignsTable, eq(donationsTable.campaignId, givingCampaignsTable.id))
     .where(and(...filters))
     .orderBy(desc(donationsTable.donationDate));
-  const recurring = await db.select().from(recurringDonationsTable).where(eq(recurringDonationsTable.memberId, req.localUserId)).orderBy(desc(recurringDonationsTable.createdAt));
+  const recurring = await db.select().from(recurringDonationsTable).where(and(eq(recurringDonationsTable.memberId, req.localUserId), eq(recurringDonationsTable.churchId, req.localChurchId))).orderBy(desc(recurringDonationsTable.createdAt));
   res.json({
     donations: donationRows.map((row) => ({ ...serializeDonation(row.donation), campaignName: row.campaignName ?? null })),
     recurring: recurring.map(serializeRecurring),
@@ -263,6 +263,7 @@ router.get("/giving/receipts/:year", requireAuth, async (req, res): Promise<void
   if (!user) { res.status(401).send("Not authenticated"); return; }
   const donations = await db.select().from(donationsTable).where(and(
     eq(donationsTable.memberId, user.id),
+    eq(donationsTable.churchId, req.localChurchId),
     eq(donationsTable.paymentStatus, "succeeded"),
     gte(donationsTable.donationDate, new Date(`${year}-01-01T00:00:00Z`)),
     lte(donationsTable.donationDate, new Date(`${year}-12-31T23:59:59Z`)),
