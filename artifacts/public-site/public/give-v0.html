@@ -58,11 +58,47 @@
     .give-panel__heading img { width: 72px; height: auto; flex: 0 0 auto; }
     .give-panel__heading h2 { margin: 0; font-size: 24px; }
     .give-panel__heading p { margin: 7px 0 0; color: var(--cjc-muted); font-size: 14px; line-height: 1.5; }
-    stripe-buy-button { display: block; width: 100%; }
-    .giving-fallback { min-height: 138px; display: grid; place-items: center; padding: 20px; border-radius: 6px; background: #fff; text-align: center; }
-    .giving-fallback p { margin: 0; color: var(--cjc-muted); }
-    .giving-fallback a { display: inline-flex; min-height: 44px; align-items: center; margin-top: 17px; padding: 0 18px; border-radius: 6px; background: var(--cjc-blue); color: #fff; font-weight: 750; text-decoration: none; }
     .give-note { margin: 13px 0 0; color: var(--cjc-muted); font-size: 12px; line-height: 1.5; text-align: center; }
+    .stripe-give-embed { display: flex; flex-direction: column; gap: 14px; }
+    .stripe-give-amounts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .stripe-give-amount {
+      padding: 10px 6px;
+      border: 2px solid var(--cjc-line);
+      border-radius: 7px;
+      background: #fff;
+      color: var(--cjc-ink);
+      font-size: 15px;
+      font-weight: 700;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .15s ease, background .15s ease, color .15s ease;
+    }
+    .stripe-give-amount:hover { border-color: var(--cjc-blue); color: var(--cjc-blue); }
+    .stripe-give-amount.active { border-color: var(--cjc-blue); background: #eef3ff; color: var(--cjc-blue); }
+    .stripe-give-divider { display: flex; align-items: center; gap: 10px; color: var(--cjc-muted); font-size: 12px; }
+    .stripe-give-divider::before, .stripe-give-divider::after { content: ""; flex: 1; height: 1px; background: var(--cjc-line); }
+    .stripe-give-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 52px;
+      padding: 0 24px;
+      border-radius: 7px;
+      background: #635bff;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: background .15s ease, transform .12s ease, box-shadow .15s ease;
+      box-shadow: 0 2px 8px rgba(99,91,255,.28);
+    }
+    .stripe-give-btn:hover { background: #4f46e5; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(99,91,255,.35); }
+    .stripe-give-btn svg { flex: 0 0 auto; }
+    .stripe-give-recurring { display: flex; align-items: center; gap: 7px; padding: 10px 13px; border-radius: 6px; background: #f0fdf4; color: #166534; font-size: 13px; line-height: 1.4; }
+    .stripe-give-recurring svg { flex: 0 0 auto; color: #16a34a; }
+    .stripe-give-trust { display: flex; align-items: center; gap: 6px; justify-content: center; color: var(--cjc-muted); font-size: 11px; margin-top: 2px; }
+    .stripe-give-trust svg { flex: 0 0 auto; color: #22c55e; }
     .impact { padding: 68px 0 72px; background: var(--cjc-surface); }
     .impact__inner, .methods__inner { width: min(1160px, calc(100% - 48px)); margin: 0 auto; }
     .section-heading { max-width: 680px; margin-bottom: 28px; }
@@ -172,8 +208,29 @@
             </div>
             <img src="/assets/stripe-mark.svg" alt="Stripe">
           </div>
-          <!-- STRIPE_GIVING_EMBED -->
-          <p class="give-note">Secure payment processing by Stripe</p>
+          <div class="stripe-give-embed">
+            <div class="stripe-give-amounts" role="group" aria-label="Suggested gift amounts">
+              <button class="stripe-give-amount" data-amount="25">$25</button>
+              <button class="stripe-give-amount active" data-amount="50">$50</button>
+              <button class="stripe-give-amount" data-amount="100">$100</button>
+              <button class="stripe-give-amount" data-amount="150">$150</button>
+              <button class="stripe-give-amount" data-amount="250">$250</button>
+              <button class="stripe-give-amount" data-amount="500">$500</button>
+            </div>
+            <div class="stripe-give-divider">or choose your amount on the next screen</div>
+            <a id="stripe-give-link" class="stripe-give-btn" href="https://buy.stripe.com/00g3g83mveETbXW000" target="_blank" rel="noreferrer">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              Give Now
+            </a>
+            <div class="stripe-give-recurring">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+              Recurring giving available — set it up on the next screen
+            </div>
+            <div class="stripe-give-trust">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              Encrypted &amp; secure · Powered by Stripe
+            </div>
+          </div>
         </aside>
       </div>
     </section>
@@ -238,5 +295,20 @@
       </div>
     </section>
   </main>
+  <script>
+    const STRIPE_BASE = "https://buy.stripe.com/00g3g83mveETbXW000";
+    const btns = document.querySelectorAll(".stripe-give-amount");
+    const link = document.getElementById("stripe-give-link");
+
+    btns.forEach(btn => {
+      btn.addEventListener("click", () => {
+        btns.forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        const amount = btn.dataset.amount;
+        // Stripe Payment Links accept ?prefilled_amount= in cents (optional hint)
+        link.href = STRIPE_BASE + "?prefilled_amount=" + (amount * 100);
+      });
+    });
+  </script>
 </body>
 </html>
