@@ -214,7 +214,7 @@ html.js-anim .animate-on-scroll {
   position: relative;
   z-index: 10;
   margin-top: -80px;
-  padding-top: 80px;
+  padding-top: 36px;
   background: var(--cjc-navy);
   color: #cbd1df;
   font-size: 16px;
@@ -225,7 +225,7 @@ html.js-anim .animate-on-scroll {
   z-index: 2;
   width: min(1280px, calc(100% - 64px));
   margin: 0 auto;
-  padding: 24px 0 38px;
+  padding: 0 0 30px;
   display: grid;
   grid-template-columns: 1.4fr repeat(3, 1fr);
   gap: 42px;
@@ -322,13 +322,13 @@ html.js-anim .animate-on-scroll {
   .cjc-v0-brand span { font-size: 18px; }
   .cjc-site-footer {
     margin-top: -54px;
-    padding-top: 54px;
+    padding-top: 22px;
   }
   .cjc-site-footer__main {
     width: min(100% - 40px, 1160px);
     grid-template-columns: 1fr;
     gap: 28px;
-    padding-top: 22px;
+    padding-top: 0;
   }
   .cjc-site-footer__legal {
     width: min(100% - 40px, 1160px);
