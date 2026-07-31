@@ -36,10 +36,55 @@ app.use(
 
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
-app.use(cors({
-  origin: true,
-  credentials: true,
-}));
+// Build an explicit allowlist of origins that may send credentialed requests.
+// Using `origin: true` (mirror mode) is equivalent to allowing any origin
+// with credentials, which enables cross-site request forgery from any page.
+function buildAllowedOrigins(): string[] {
+  const origins: string[] = [];
+
+  // Explicit override from environment (highest priority)
+  if (process.env.ALLOWED_ORIGINS) {
+    origins.push(
+      ...process.env.ALLOWED_ORIGINS.split(",")
+        .map((o) => o.trim())
+        .filter(Boolean),
+    );
+  }
+
+  // Replit workspace domains are always present in the Replit environment
+  if (process.env.REPLIT_DOMAINS) {
+    for (const d of process.env.REPLIT_DOMAINS.split(",").map((d) => d.trim()).filter(Boolean)) {
+      origins.push(`https://${d}`);
+    }
+  }
+
+  if (process.env.REPLIT_DEV_DOMAIN) {
+    origins.push(`https://${process.env.REPLIT_DEV_DOMAIN}`);
+  }
+
+  return origins;
+}
+
+const allowedOrigins = buildAllowedOrigins();
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // No Origin header → same-origin request or server-to-server (curl, webhooks) — allow.
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      // In non-production environments, also allow localhost (any port).
+      if (
+        process.env.NODE_ENV !== "production" &&
+        /^https?:\/\/localhost(:\d+)?$/.test(origin)
+      ) {
+        return callback(null, true);
+      }
+      return callback(null, false);
+    },
+    credentials: true,
+  }),
+);
 
 app.use("/api/giving/stripe/webhook", express.raw({ type: "application/json" }));
 app.use(express.json());

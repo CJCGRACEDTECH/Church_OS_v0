@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import { Router, type IRouter, type Request } from "express";
+import { getAuth, createClerkClient } from "@clerk/express";
 import {
   adminInvitationsTable,
   db,
@@ -36,6 +37,23 @@ function adminTitle(adminLevel: AdminLevel): string {
   if (adminLevel === ADMIN_LEVELS.SUPER_ADMIN) return "Super Admin";
   if (adminLevel === ADMIN_LEVELS.PASTOR) return "Pastor";
   return "Minister";
+}
+
+/**
+ * Partially redact an email address for display in unauthenticated contexts.
+ * Keeps enough characters for the recipient to recognise their own address
+ * without exposing the full address to token holders who may not be the
+ * intended recipient.
+ *
+ * e.g. "alice.smith@example.com" → "a*****@example.com"
+ */
+function redactEmail(email: string): string {
+  const atIdx = email.indexOf("@");
+  if (atIdx < 0) return "***@***";
+  const local = email.slice(0, atIdx);
+  const domain = email.slice(atIdx); // includes the "@"
+  if (local.length <= 1) return `${local}***${domain}`;
+  return `${local[0]}${"*".repeat(Math.min(local.length - 1, 5))}${domain}`;
 }
 
 function getPublicBaseUrl(req: Request): string {
@@ -442,10 +460,14 @@ router.get("/admin/invitations/accept/:token", async (req, res): Promise<void> =
     return;
   }
 
+  // Return only enough information to pre-populate the acceptance UI.
+  // The full email is withheld to limit what an attacker can learn if they
+  // obtain the token (e.g. via log access); a partial redaction still lets the
+  // legitimate recipient confirm the invite is meant for them.
   res.json({
     firstName: invite.firstName,
     lastName: invite.lastName,
-    email: invite.email,
+    email: redactEmail(invite.email),
     adminLevel: invite.assignedRole,
     adminTitle: adminTitle(invite.assignedRole),
     assignedMinistry: invite.assignedMinistry,
@@ -454,7 +476,12 @@ router.get("/admin/invitations/accept/:token", async (req, res): Promise<void> =
   });
 });
 
-router.post("/admin/invitations/accept/:token", requireAuth, async (req, res): Promise<void> => {
+// This endpoint intentionally does NOT use the requireAuth middleware because
+// an admin invitee may not have a local account yet. Authentication and account
+// creation are handled inline so that the invite token — not a pre-existing
+// local session — serves as the gate. Using requireAuth here would require
+// the JIT-provisioning hack in /auth/me, which enables privilege escalation.
+router.post("/admin/invitations/accept/:token", async (req, res): Promise<void> => {
   const [invite] = await db
     .select()
     .from(adminInvitationsTable)
@@ -468,7 +495,22 @@ router.post("/admin/invitations/accept/:token", requireAuth, async (req, res): P
     return;
   }
 
-  const [acceptingUser] = await db
+  // Authenticate the caller via Clerk directly.
+  if (!process.env.CLERK_SECRET_KEY) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  const auth = getAuth(req);
+  if (!auth?.userId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  const clerkUserId = auth.userId;
+
+  // Look up an existing local user for this Clerk identity.
+  let [acceptingUser] = await db
     .select({
       id: usersTable.id,
       email: usersTable.email,
@@ -476,15 +518,62 @@ router.post("/admin/invitations/accept/:token", requireAuth, async (req, res): P
       role: usersTable.role,
     })
     .from(usersTable)
-    .where(eq(usersTable.id, req.localUserId));
+    .where(eq(usersTable.clerkUserId, clerkUserId));
 
   if (!acceptingUser) {
-    res.status(401).json({ error: "Authenticated user not found." });
-    return;
+    // No local account yet — this is the first sign-in for an invited admin.
+    // Verify the Clerk account's primary email matches the invite email before
+    // creating any local record: this prevents an attacker who registers a Clerk
+    // account with an arbitrary email from consuming someone else's invite.
+    const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
+    const clerkUser = await clerkClient.users.getUser(clerkUserId);
+    const primaryEmailObj = clerkUser.emailAddresses.find(
+      (e) => e.id === clerkUser.primaryEmailAddressId,
+    );
+
+    if (!primaryEmailObj?.emailAddress || primaryEmailObj.verification?.status !== "verified") {
+      res.status(403).json({
+        error: "A verified email address is required to accept an admin invitation.",
+      });
+      return;
+    }
+
+    const clerkEmail = normalizeEmail(primaryEmailObj.emailAddress);
+
+    if (clerkEmail !== invite.email) {
+      res.status(403).json({
+        error: "This invite was sent to a different email address. Sign in with the invited email address to accept it.",
+      });
+      return;
+    }
+
+    // Email confirmed — create the local account now.
+    const [newUser] = await db
+      .insert(usersTable)
+      .values({
+        email: clerkEmail,
+        firstName: invite.firstName,
+        lastName: invite.lastName,
+        churchId: invite.churchId,
+        role: "member",
+        accountStatus: "active",
+        isActive: true,
+        clerkUserId,
+      })
+      .returning({
+        id: usersTable.id,
+        email: usersTable.email,
+        churchId: usersTable.churchId,
+        role: usersTable.role,
+      });
+
+    acceptingUser = newUser;
   }
 
   if (acceptingUser.email !== invite.email) {
-    res.status(403).json({ error: "This invite was sent to a different email address. Sign in with the invited email address to accept it." });
+    res.status(403).json({
+      error: "This invite was sent to a different email address. Sign in with the invited email address to accept it.",
+    });
     return;
   }
 

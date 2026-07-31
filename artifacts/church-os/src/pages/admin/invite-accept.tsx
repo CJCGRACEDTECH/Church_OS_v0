@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 type InviteDetails = {
   firstName: string;
   lastName: string;
-  email: string;
+  email: string; // partially redacted by the server for display only
   adminTitle: string;
   assignedMinistry: string | null;
   expiresAt: string;
@@ -35,7 +35,7 @@ export default function AdminInviteAccept() {
   const { toast } = useToast();
   const token = params?.token ?? "";
 
-  const { isLoaded: clerkLoaded, isSignedIn, user: clerkUser } = useUser();
+  const { isLoaded: clerkLoaded, isSignedIn } = useUser();
 
   const inviteQuery = useQuery({
     queryKey: ["admin-invite", token],
@@ -56,15 +56,6 @@ export default function AdminInviteAccept() {
     onError: (error) =>
       toast({ title: "Invite could not be accepted", description: error.message, variant: "destructive" }),
   });
-
-  const invitedEmail = inviteQuery.data?.email;
-  const clerkEmail = clerkUser?.primaryEmailAddress?.emailAddress;
-  const emailMismatch =
-    clerkLoaded && isSignedIn && invitedEmail && clerkEmail &&
-    clerkEmail.toLowerCase() !== invitedEmail.toLowerCase();
-  const emailMatch =
-    clerkLoaded && isSignedIn && invitedEmail && clerkEmail &&
-    clerkEmail.toLowerCase() === invitedEmail.toLowerCase();
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
@@ -103,8 +94,7 @@ export default function AdminInviteAccept() {
                 <div className="rounded-md border border-blue-200 bg-blue-50 p-4 space-y-3">
                   <p className="text-sm font-medium text-blue-900">Sign in first to accept this invite</p>
                   <p className="text-sm text-blue-700">
-                    You must be signed into Church OS with{" "}
-                    <span className="font-semibold">{inviteQuery.data.email}</span> before you can accept this invitation.
+                    Sign into Church OS with the email address that received this invitation before accepting.
                   </p>
                   <Link href={`/sign-in?redirect_url=${encodeURIComponent(window.location.pathname)}`}>
                     <Button className="w-full">Sign in or create an account</Button>
@@ -112,17 +102,10 @@ export default function AdminInviteAccept() {
                 </div>
               )}
 
-              {emailMismatch && (
-                <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4 space-y-2">
-                  <p className="text-sm font-medium text-destructive">Wrong account signed in</p>
-                  <p className="text-sm text-destructive/80">
-                    You're signed in as <span className="font-semibold">{clerkEmail}</span>, but this invite is for{" "}
-                    <span className="font-semibold">{invitedEmail}</span>. Please sign out and sign in with the invited email address.
-                  </p>
-                </div>
-              )}
-
-              {emailMatch && (
+              {/* The server verifies that the signed-in Clerk account's primary
+                  email matches the invite. The Accept button is shown to any
+                  signed-in user; a mismatch produces a clear error message. */}
+              {clerkLoaded && isSignedIn && (
                 <Button
                   className="w-full"
                   onClick={() => acceptInvite.mutate()}

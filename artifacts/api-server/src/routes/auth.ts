@@ -1,12 +1,10 @@
 import { Router, type IRouter } from "express";
-import { and, eq, gte } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import {
   db,
   usersTable,
   churchesTable,
   oauthAccountsTable,
-  adminPermissionsTable,
-  adminInvitationsTable,
 } from "@workspace/db";
 import { UpdateProfileBody } from "@workspace/api-zod";
 import { getAuth, createClerkClient } from "@clerk/express";
@@ -216,57 +214,29 @@ router.get("/auth/me", async (req, res): Promise<void> => {
       .where(eq(usersTable.email, email));
 
     if (byEmail) {
-      const activateNow = byEmail.accountStatus === "pending";
-      await db
-        .update(usersTable)
-        .set({
-          clerkUserId,
-          ...(activateNow ? { accountStatus: "active" as const } : {}),
-        })
-        .where(eq(usersTable.id, byEmail.id));
-      localUser = {
-        id: byEmail.id,
-        isActive: byEmail.isActive,
-        accountStatus: activateNow ? "active" : byEmail.accountStatus,
-      };
-    } else {
-      // Check for a pending admin invite so the invited user can sign in
-      // before they explicitly accept the invite token.
-      const [pendingInvite] = await db
-        .select({
-          id: adminInvitationsTable.id,
-          firstName: adminInvitationsTable.firstName,
-          lastName: adminInvitationsTable.lastName,
-          churchId: adminInvitationsTable.churchId,
-        })
-        .from(adminInvitationsTable)
-        .where(
-          and(
-            eq(adminInvitationsTable.email, email),
-            eq(adminInvitationsTable.status, "pending"),
-            gte(adminInvitationsTable.expiresAt, new Date()),
-          ),
-        );
-
-      if (pendingInvite) {
-        const [newUser] = await db
-          .insert(usersTable)
-          .values({
-            email,
-            firstName: pendingInvite.firstName,
-            lastName: pendingInvite.lastName,
-            churchId: pendingInvite.churchId,
-            role: "member",
-            accountStatus: "active",
-            isActive: true,
-            clerkUserId,
-          })
-          .returning({ id: usersTable.id, isActive: usersTable.isActive, accountStatus: usersTable.accountStatus });
-        localUser = newUser;
-      } else {
-        res.status(403).json({ error: "No account found for this identity. Contact your church administrator to be added." });
+      // Only link a new Clerk identity to an existing account when the account
+      // is still in "pending" status (admin-provisioned, never activated).
+      // Allowing email-match linking for active or disabled accounts would let
+      // anyone who registers a Clerk account with a member's email address take
+      // over that member's profile and all associated data.
+      if (byEmail.accountStatus !== "pending") {
+        res.status(403).json({
+          error: "An account with this email already exists. Contact your church administrator.",
+        });
         return;
       }
+      await db
+        .update(usersTable)
+        .set({ clerkUserId, accountStatus: "active" as const })
+        .where(eq(usersTable.id, byEmail.id));
+      localUser = { id: byEmail.id, isActive: byEmail.isActive, accountStatus: "active" };
+    } else {
+      // No local account found — the user must be added by a church administrator
+      // before they can sign in. Admin-invited users create their local account
+      // through the invite-acceptance flow (/api/admin/invitations/accept/:token),
+      // not here, to prevent JIT provisioning from bypassing the invite gate.
+      res.status(403).json({ error: "No account found for this identity. Contact your church administrator to be added." });
+      return;
     }
   }
 
