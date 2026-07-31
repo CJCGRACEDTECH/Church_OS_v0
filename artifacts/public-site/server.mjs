@@ -700,7 +700,7 @@ function transformHtml(source, urlPath = "/") {
         <span aria-hidden="true">▶</span>
       </a>
       <div class="cjc-v0-watch-home__copy">
-        <p>Latest sermon</p>
+        <p data-home-video-kind>Latest sermon</p>
         <h2 id="watch-home-title" data-home-video-title>Watch CJC Church</h2>
         <time data-home-video-date></time>
         <div>
@@ -710,8 +710,12 @@ function transformHtml(source, urlPath = "/") {
       </div>
       <script>
         (() => {
+          const card = document.querySelector("#watch-home");
           const title = document.querySelector("[data-home-video-title]");
-          if (!title) return;
+          const kind = document.querySelector("[data-home-video-kind]");
+          const date = document.querySelector("[data-home-video-date]");
+          const image = document.querySelector("[data-home-video-image]");
+          if (!card || !title || !kind || !date || !image) return;
           function cleanTitle(raw) {
             let t = raw.replace(/#\\S+/g, '').trim();
             t = t.replace(/\\|\\|\\s*CJC\\s+Church\\s*/gi, '').trim();
@@ -759,25 +763,56 @@ function transformHtml(source, urlPath = "/") {
                   link.href = liveUrl;
                 });
                 title.textContent = liveTitle;
-                title.previousElementSibling.textContent = "Live now";
-                document.querySelector("[data-home-video-date]").textContent = "Join the live service";
+                kind.textContent = "Live now";
+                date.textContent = "Join the live service";
                 return;
               }
-              const latest = payload.videos?.[0];
-              if (!latest) return;
-              title.textContent = cleanTitle(latest.title);
-              document.querySelector("[data-home-video-image]").src = latest.thumbnail;
-              document.querySelectorAll("[data-home-video-link]").forEach((link) => {
-                link.href = latest.url;
-              });
-              const date = document.querySelector("[data-home-video-date]");
-              if (latest.date) {
-                date.textContent = latest.date;
-              } else if (latest.publishedAt) {
-                date.dateTime = latest.publishedAt;
-                date.textContent = new Intl.DateTimeFormat("en-US", {
-                  month: "long", day: "numeric", year: "numeric"
-                }).format(new Date(latest.publishedAt));
+              const recordedStream = latestPayload.video;
+              const sermon = payload.videos?.[0];
+              const items = [
+                recordedStream && {
+                  video: recordedStream,
+                  label: "Most recent live stream"
+                },
+                sermon && sermon.videoId !== recordedStream?.videoId && {
+                  video: sermon,
+                  label: "Latest sermon"
+                }
+              ].filter(Boolean);
+              if (!items.length) return;
+
+              let itemIndex = 0;
+              function showRecordedItem(item) {
+                const video = item.video;
+                const videoUrl = video.url || video.watchUrl || "${YOUTUBE_CHANNEL_URL}";
+                kind.textContent = item.label;
+                title.textContent = cleanTitle(video.title || "Watch CJC Church");
+                image.src = video.thumbnail || "/assets/watch-placeholder.jpg";
+                image.alt = item.label + ": " + cleanTitle(video.title || "CJC Church");
+                document.querySelectorAll("[data-home-video-link]").forEach((link) => {
+                  link.href = videoUrl;
+                });
+                date.dateTime = video.publishedAt || "";
+                if (video.date) {
+                  date.textContent = video.date;
+                } else if (video.publishedAt) {
+                  date.textContent = new Intl.DateTimeFormat("en-US", {
+                    month: "long", day: "numeric", year: "numeric"
+                  }).format(new Date(video.publishedAt));
+                } else {
+                  date.textContent = "";
+                }
+              }
+              showRecordedItem(items[itemIndex]);
+              if (items.length > 1) {
+                window.setInterval(() => {
+                  card.classList.add("is-switching");
+                  window.setTimeout(() => {
+                    itemIndex = (itemIndex + 1) % items.length;
+                    showRecordedItem(items[itemIndex]);
+                    card.classList.remove("is-switching");
+                  }, 220);
+                }, 8000);
               }
             })
             .catch(() => {});
@@ -857,7 +892,8 @@ function transformHtml(source, urlPath = "/") {
     ".cjc-v0-watch-home__media--live iframe{width:100%;height:100%;min-height:520px;display:block;border:0}",
     ".cjc-v0-watch-home__live-badge{position:absolute;z-index:2;left:38px;bottom:36px;display:inline-flex;align-items:center;min-height:42px;padding:0 16px;border-radius:6px;background:#c9363e;color:#fff!important;text-decoration:none!important;font-size:13px;font-weight:800;letter-spacing:.06em;box-shadow:0 8px 22px rgba(0,0,0,.28)}",
     ".cjc-v0-watch-home__live-badge:before{content:'';width:8px;height:8px;margin-right:9px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(255,255,255,.18)}",
-    ".cjc-v0-watch-home__copy{display:flex;flex-direction:column;justify-content:center;padding:58px max(28px,calc((100vw - 1160px)/2)) 58px 46px}",
+    ".cjc-v0-watch-home__copy{display:flex;flex-direction:column;justify-content:center;padding:58px max(28px,calc((100vw - 1160px)/2)) 58px 46px;transition:opacity .22s ease}",
+    ".cjc-v0-watch-home.is-switching .cjc-v0-watch-home__copy{opacity:.15}",
     ".cjc-v0-watch-home__copy>p{margin:0;color:#d8bd72;font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}",
     ".cjc-v0-watch-home__copy h2{margin:14px 0 10px;color:#fff;font-size:clamp(32px,4vw,50px);line-height:1.08;letter-spacing:0}",
     ".cjc-v0-watch-home__copy time{min-height:20px;color:#aeb7cc;font-size:14px}",
