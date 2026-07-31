@@ -63,40 +63,18 @@
       width: 100%;
       margin-top: -260px;
       padding-top: 96px;
-      overflow: hidden;
     }
-    .section--soft.home-weekly { background: var(--cjc-page-bg); }
-    /* blurred hero continuation behind the weekly section */
-    .home-weekly::before {
-      content: "";
-      position: absolute;
-      top: 0; left: -24px; right: -24px;
-      height: 460px;
-      background: #101527 url("/assets/hero-photo-optimized.jpg") 56% 78% / cover no-repeat;
-      filter: blur(24px);
-      z-index: 0;
+    .section--soft.home-weekly {
+      background: linear-gradient(to bottom,
+        transparent 0px,
+        rgba(248,249,252,.12) 80px,
+        rgba(248,249,252,.52) 160px,
+        rgba(248,249,252,.90) 240px,
+        var(--cjc-page-bg) 320px);
     }
-    /* gradient overlay: dark at top for text readability → fades to page-bg */
-    .home-weekly::after {
-      content: "";
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 460px;
-      background: linear-gradient(
-        to bottom,
-        rgba(9,13,27,.42) 0%,
-        rgba(9,13,27,.26) 30%,
-        rgba(248,249,252,.08) 54%,
-        rgba(248,249,252,.68) 72%,
-        var(--cjc-page-bg) 100%
-      );
-      pointer-events: none;
-      z-index: 1;
-    }
-    .home-weekly .section__inner { position: relative; z-index: 2; }
     /* text colours for dark upper zone */
     .home-weekly .weekly-head h2 { color: #fff; }
-    .home-weekly .weekly-head > p  { color: rgba(230,236,250,.84); }
+    .home-weekly .weekly-head > p  { color: var(--cjc-ink); }
     .home-weekly .weekly-head .eyebrow { color: #e0c474; }
     .services-toolbar { display: flex; justify-content: flex-end; gap: 8px; margin: -14px 0 16px; }
     .services-toolbar button { width: 40px; height: 40px; border: 1px solid var(--cjc-line); border-radius: 6px; background: #fff; color: var(--cjc-ink); cursor: pointer; transition: border-color .18s, background .18s, transform .18s; font-size: 18px; }
