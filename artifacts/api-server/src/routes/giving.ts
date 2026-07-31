@@ -523,6 +523,10 @@ function validStripeSignature(rawBody: Buffer, signatureHeader: unknown, secret:
   const timestamp = parts.t;
   const signature = parts.v1;
   if (!timestamp || !signature) return false;
+  // Reject webhooks older than 5 minutes to prevent replay attacks (mirrors Stripe SDK DEFAULT_TOLERANCE=300s)
+  const now = Math.floor(Date.now() / 1000);
+  const webhookTimestamp = Number(timestamp);
+  if (isNaN(webhookTimestamp) || Math.abs(now - webhookTimestamp) > 300) return false;
   const payload = `${timestamp}.${rawBody.toString()}`;
   const expected = createHmac("sha256", secret).update(payload).digest("hex");
   if (signature.length !== expected.length) return false;
