@@ -28,7 +28,7 @@
 
     .watch-hero {
       position: relative;
-      min-height: 590px;
+      min-height: 360px;
       display: flex;
       align-items: flex-end;
       overflow: hidden;
@@ -50,7 +50,7 @@
     }
     .watch-hero__inner {
       position: relative;
-      padding: 150px 0 82px;
+      padding: 60px 0 44px;
     }
 
     .eyebrow {
@@ -225,7 +225,8 @@
     .replay-date { color: var(--muted); font-size: 14px; }
     .schedule-note { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.65; }
     .schedule-pills { display: flex; flex-wrap: wrap; gap: 8px; }
-    .schedule-pills span {
+    .schedule-pills span,
+    .schedule-pills a {
       padding: 6px 14px;
       border-radius: 20px;
       background: #fff;
@@ -233,7 +234,14 @@
       font-size: 13px;
       font-weight: 600;
       color: var(--ink);
+      text-decoration: none;
     }
+    .schedule-pills a {
+      border-color: var(--blue);
+      background: #f0f3ff;
+      color: var(--blue);
+    }
+    .schedule-pills a:hover { background: #e0e5ff; }
 
     /* ── OFFLINE CARD ── */
     .offline-card {
@@ -327,8 +335,8 @@
       .video-grid  { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     @media (max-width: 560px) {
-      .watch-hero { min-height: 560px; padding: 0 20px; background-position: 58% center; }
-      .watch-hero__inner { padding: 150px 0 58px; }
+      .watch-hero { min-height: 280px; padding: 0 20px; background-position: 58% center; }
+      .watch-hero__inner { padding: 40px 0 36px; }
       .watch-content { padding: 44px 20px 64px; }
       .watch-section { margin-bottom: 52px; }
       .offline-card { padding: 28px 22px; }
@@ -391,30 +399,26 @@
               <div class="live-player__embed" data-replay-embed></div>
               <div class="live-player__side">
                 <h3 data-replay-title></h3>
-                <p class="schedule-note">No service is currently live — we go live throughout the week. Join us at the next scheduled service.</p>
+                <p class="schedule-note" data-offline-note>No service is currently live — we go live throughout the week. Join us at the next scheduled service.</p>
                 <div class="schedule-pills">
-                  <span>Tue · 8 PM</span>
+                  <a href="https://us02web.zoom.us/j/4997378220" target="_blank" rel="noreferrer">Tue · 8 PM (Zoom)</a>
                   <span>Thu–Sat · 7 PM</span>
                   <span>Sun · 11 AM</span>
                 </div>
-                <a class="btn-primary" data-channel-link href="https://www.youtube.com/@cjcinternationalprophetyos9053" target="_blank" rel="noreferrer">Watch on YouTube</a>
               </div>
             </div>
           </div>
 
           <!-- No stream data at all -->
           <div class="offline-card" data-live-empty hidden>
-            <h3>No service currently live</h3>
-            <p>CJC Church streams live services throughout the week — join us in person or online via YouTube.</p>
+            <h3 data-offline-note>No service currently live</h3>
+            <p>CJC Church streams live services throughout the week — join us in person or online.</p>
             <div class="schedule-pills">
-              <span>Tue · 8:00 PM</span>
+              <a href="https://us02web.zoom.us/j/4997378220" target="_blank" rel="noreferrer">Tue · 8:00 PM (Zoom)</a>
               <span>Thu · 7:00 PM</span>
               <span>Fri · 7:00 PM</span>
               <span>Sat · 7:00 PM</span>
               <span>Sun · 11:00 AM</span>
-            </div>
-            <div class="offline-card__actions">
-              <a data-channel-link href="https://www.youtube.com/@cjcinternationalprophetyos9053" target="_blank" rel="noreferrer">Watch on YouTube</a>
             </div>
           </div>
 
@@ -477,7 +481,14 @@
       }
 
       function renderLive(payload) {
+        // Reset all live-section states so re-polls transition cleanly
         liveLoading.hidden = true;
+        liveActive.hidden  = true;
+        liveOffline.hidden = true;
+        liveReplay.hidden  = true;
+        liveEmpty.hidden   = true;
+        livePulse.hidden   = true;
+
         const video = payload?.video;
 
         if (video?.isLive) {
@@ -487,9 +498,20 @@
           document.querySelector("[data-live-date]").textContent  = video.date ?? "";
           const liveLink = document.querySelector("[data-live-link]");
           if (liveLink) liveLink.href = video.watchUrl ?? video.url ?? "#";
-          livePulse.hidden = false;
+          // Update "no service" copy so it reads correctly if it was previously shown
+          document.querySelectorAll("[data-offline-note]").forEach(el => {
+            el.textContent = "Service is live now! Watch above or open in YouTube.";
+          });
+          livePulse.hidden  = false;
           liveActive.hidden = false;
         } else {
+          // Reset offline note text back to default
+          document.querySelectorAll("[data-offline-note]").forEach(el => {
+            const isHeading = el.tagName === "H3";
+            el.textContent = isHeading
+              ? "No service currently live"
+              : "No service is currently live — we go live throughout the week. Join us at the next scheduled service.";
+          });
           liveOffline.hidden = false;
           if (video) {
             // ── Most recent stream (replay)
