@@ -78,12 +78,6 @@
     .community-card > div { position: relative; }
     .community-card h3 { margin: 0 0 7px; font-size: 24px; }
     .community-card p { margin: 0; color: #dce2ef; line-height: 1.5; }
-    .events-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-    .event-card { min-height: 180px; padding: 22px; border: 1px solid var(--cjc-line); border-radius: 6px; background: #fff; }
-    .event-card time { color: var(--cjc-blue); font-size: 13px; font-weight: 800; }
-    .event-card h3 { margin: 12px 0 8px; font-size: 20px; }
-    .event-card p { margin: 0; color: var(--cjc-muted); line-height: 1.55; }
-    .events-empty { grid-column: 1 / -1; margin: 0; padding: 22px; border: 1px solid var(--cjc-line); border-radius: 6px; background: #fff; color: var(--cjc-muted); }
     .social-story { padding: 84px 24px; background: var(--cjc-navy); color: #fff; }
     .social-story__inner { width: min(1160px, 100%); margin: 0 auto; display: grid; grid-template-columns: 1.18fr .82fr; gap: 54px; align-items: center; }
     .social-story__gallery { display: grid; grid-template-columns: 1.1fr .9fr; grid-template-rows: 190px 190px; gap: 12px; }
@@ -104,7 +98,7 @@
     .visit__copy address { margin: 12px 0 26px; color: var(--cjc-ink); font-style: normal; font-weight: 700; line-height: 1.6; }
     @media (max-width: 900px) {
       .section-heading, .watch, .visit, .social-story__inner { grid-template-columns: 1fr; }
-      .community-grid, .events-grid { grid-template-columns: repeat(2, 1fr); }
+      .community-grid { grid-template-columns: repeat(2, 1fr); }
       .watch__media { min-height: 390px; }
       .visit__image { min-height: 380px; }
     }
@@ -118,7 +112,7 @@
       .services-toolbar { display: none; }
       .watch__media { min-height: 280px; }
       .watch__copy { padding: 38px 20px 50px; }
-      .community-grid, .events-grid { grid-template-columns: 1fr; }
+      .community-grid { grid-template-columns: 1fr; }
       .community-card { min-height: 280px; }
       .visit__image { min-height: 300px; }
       .visit__copy { padding: 46px 20px 56px; }
@@ -298,19 +292,6 @@
       </div>
     </section>
 
-    <section class="section section--soft" aria-labelledby="events-title">
-      <div class="section__inner">
-        <div class="section-heading section-heading--stacked">
-          <div><p class="eyebrow">Coming up</p><h2 id="events-title">Upcoming events</h2></div>
-          <p>Discover special gatherings and church-wide moments beyond our weekly services.</p>
-        </div>
-        <div class="events-grid" data-events-grid>
-          <p class="events-empty">New gatherings and special events will be shared here. Our complete weekly schedule is always available.</p>
-        </div>
-        <p><a class="cjc-button" href="/events">View All Events</a></p>
-      </div>
-    </section>
-
     <section class="social-story" aria-labelledby="social-title">
       <div class="social-story__inner">
         <div class="social-story__gallery" aria-label="Life at CJC Church">
@@ -375,27 +356,6 @@
           } else if (video.publishedAt) {
             date.textContent = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" }).format(new Date(video.publishedAt));
           }
-        }).catch(() => {});
-
-      fetch("/api/public/events", { headers: { Accept: "application/json" } })
-        .then(async (response) => { const data = await response.json(); if (!response.ok) throw data; return data; })
-        .then((data) => {
-          const events = Array.isArray(data.events) ? data.events.slice(0, 3) : [];
-          if (!events.length) return;
-          const grid = document.querySelector("[data-events-grid]");
-          grid.replaceChildren(...events.map((event) => {
-            const card = document.createElement("article");
-            card.className = "event-card";
-            const date = document.createElement("time");
-            date.dateTime = event.startDatetime;
-            date.textContent = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(event.startDatetime));
-            const title = document.createElement("h3");
-            title.textContent = event.title;
-            const detail = document.createElement("p");
-            detail.textContent = event.description || event.location || "CJC Church";
-            card.append(date, title, detail);
-            return card;
-          }));
         }).catch(() => {});
     })();
   </script>

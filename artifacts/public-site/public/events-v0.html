@@ -240,111 +240,6 @@
       text-decoration: none;
     }
 
-    .special-events {
-      padding: 78px 0 88px;
-      background: var(--surface);
-      border-top: 1px solid var(--line);
-    }
-
-    .special-events__grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 18px;
-    }
-
-    .event-card {
-      overflow: hidden;
-      border: 1px solid var(--line);
-      border-radius: 7px;
-      background: #fff;
-      box-shadow: 0 8px 24px rgba(21, 30, 56, .06);
-    }
-
-    .event-card__media {
-      position: relative;
-      aspect-ratio: 16 / 10;
-      overflow: hidden;
-      background: var(--navy);
-    }
-
-    .event-card__media img {
-      width: 100%;
-      height: 100%;
-      display: block;
-      object-fit: cover;
-    }
-
-    .event-card__media--fallback img {
-      filter: blur(3px);
-      transform: scale(1.04);
-      opacity: .54;
-    }
-
-    .event-card__media--fallback::after {
-      content: attr(data-event-title);
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: flex-end;
-      padding: 22px;
-      background: rgba(18, 25, 50, .4);
-      color: #fff;
-      font-size: 24px;
-      font-weight: 800;
-      line-height: 1.1;
-    }
-
-    .event-card__body { padding: 22px; }
-
-    .event-card__type {
-      display: inline-flex;
-      margin-bottom: 12px;
-      padding: 5px 8px;
-      border-radius: 4px;
-      background: var(--blue-soft);
-      color: var(--blue-dark);
-      font-size: 11px;
-      font-weight: 800;
-      text-transform: capitalize;
-    }
-
-    .event-card time {
-      display: block;
-      color: var(--blue-dark);
-      font-size: 13px;
-      font-weight: 800;
-    }
-
-    .event-card h3 {
-      margin: 9px 0 8px;
-      font-size: 22px;
-      line-height: 1.2;
-    }
-
-    .event-card p {
-      margin: 0;
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.55;
-    }
-
-    .event-card__location { margin-top: 12px !important; font-weight: 700; }
-
-    .events-state {
-      grid-column: 1 / -1;
-      display: grid;
-      grid-template-columns: 5px 1fr;
-      overflow: hidden;
-      border: 1px solid var(--line);
-      border-radius: 7px;
-      background: #fff;
-    }
-
-    .events-state::before { content: ""; background: var(--gold); }
-    .events-state__copy { padding: 28px; }
-    .events-state strong { display: block; margin-bottom: 6px; font-size: 18px; }
-    .events-state p { margin: 0; color: var(--muted); line-height: 1.55; }
-
     .location {
       border-top: 1px solid var(--line);
       border-bottom: 1px solid var(--line);
@@ -381,24 +276,20 @@
     }
 
     @media (max-width: 930px) {
-      .service-grid,
-      .special-events__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .service-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
 
     @media (max-width: 680px) {
       .events-hero { min-height: 570px; background-position: 58% center; }
       .events-hero__inner,
       .schedule,
-      .special-events__inner,
       .location__inner { width: min(100% - 40px, 1160px); }
       .events-hero__inner { padding: 90px 0 54px; }
       .events-hero__copy { font-size: 16px; }
       .schedule { padding: 58px 0 66px; }
       .section-heading { grid-template-columns: 1fr; gap: 12px; }
-      .service-grid,
-      .special-events__grid { grid-template-columns: 1fr; }
+      .service-grid { grid-template-columns: 1fr; }
       .service-card__detail { min-height: 0; }
-      .special-events { padding: 58px 0 66px; }
       .location__inner { align-items: flex-start; flex-direction: column; }
     }
   </style>
@@ -558,23 +449,6 @@
       </script>
     </section>
 
-    <section class="special-events" aria-labelledby="special-events-title">
-      <div class="special-events__inner">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">Coming up</p>
-            <h2 id="special-events-title">Special events</h2>
-          </div>
-          <p>Discover special gatherings and church-wide moments beyond our weekly service schedule.</p>
-        </div>
-        <div class="special-events__grid" data-public-events aria-live="polite">
-          <div class="events-state">
-            <div class="events-state__copy"><strong>Upcoming events</strong><p>Preparing the latest CJC schedule.</p></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
     <section class="location">
       <div class="location__inner">
         <div>
@@ -587,94 +461,5 @@
     </section>
   </main>
 
-  <script>
-    (() => {
-      const grid = document.querySelector("[data-public-events]");
-      const fallbackImages = [
-        "/assets/community-worship.jpg",
-        "/assets/community-serve.jpg",
-        "/assets/community-children.jpg"
-      ];
-
-      const renderState = (title, message) => {
-        grid.innerHTML = `<div class="events-state"><div class="events-state__copy"><strong>${title}</strong><p>${message}</p></div></div>`;
-      };
-
-      const formatDate = (value) => new Intl.DateTimeFormat("en-US", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit"
-      }).format(new Date(value));
-
-      fetch("/api/public/events", { headers: { Accept: "application/json" } })
-        .then(async (response) => {
-          const data = await response.json();
-          if (!response.ok) throw data;
-          return data;
-        })
-        .then((data) => {
-          const events = Array.isArray(data.events) ? data.events : [];
-          if (!events.length) {
-            renderState("Weekly gatherings continue", "No special events are currently published. You are still welcome at any of the six weekly services above.");
-            return;
-          }
-
-          grid.replaceChildren(...events.map((event, index) => {
-            const card = document.createElement("article");
-            card.className = "event-card";
-
-            const media = document.createElement("div");
-            media.className = "event-card__media";
-            const image = document.createElement("img");
-            image.loading = "lazy";
-            image.alt = event.posterUrl ? `${event.title} event poster` : "";
-            image.src = event.posterUrl || fallbackImages[index % fallbackImages.length];
-            if (!event.posterUrl) {
-              media.classList.add("event-card__media--fallback");
-              media.dataset.eventTitle = event.title;
-            }
-            media.append(image);
-
-            const body = document.createElement("div");
-            body.className = "event-card__body";
-
-            if (event.eventType) {
-              const type = document.createElement("span");
-              type.className = "event-card__type";
-              type.textContent = String(event.eventType).replaceAll("_", " ");
-              body.append(type);
-            }
-
-            const date = document.createElement("time");
-            date.dateTime = event.startDatetime;
-            date.textContent = formatDate(event.startDatetime);
-
-            const title = document.createElement("h3");
-            title.textContent = event.title;
-
-            const detail = document.createElement("p");
-            detail.textContent = event.description || "Join us for this upcoming CJC gathering.";
-            body.append(date, title, detail);
-
-            const place = event.location || (event.eventMode === "online" ? "Online" : "");
-            if (place) {
-              const location = document.createElement("p");
-              location.className = "event-card__location";
-              location.textContent = place;
-              body.append(location);
-            }
-
-            card.append(media, body);
-            return card;
-          }));
-        })
-        .catch(() => {
-          renderState("Special events are temporarily unavailable", "The weekly service schedule above is current. Please check back soon for additional events.");
-        });
-    })();
-  </script>
 </body>
 </html>
