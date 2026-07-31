@@ -187,8 +187,8 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
   color: #fff !important;
   text-decoration: none !important;
 }
-.cjc-site-footer__brand img { width: 44px; height: 44px; object-fit: contain; }
-.cjc-site-footer__brand strong { font-size: 18px; }
+.cjc-site-footer__brand img { width: 44px; height: 44px; object-fit: contain; display: block; flex-shrink: 0; }
+.cjc-site-footer__brand strong { font-size: 18px; line-height: 1; }
 .cjc-site-footer h2 {
   margin: 0 0 14px;
   color: #fff;

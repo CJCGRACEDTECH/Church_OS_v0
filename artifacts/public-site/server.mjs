@@ -452,7 +452,7 @@ function sharedFooter() {
         </div>
         <div>
           <h2>Weekly</h2>
-          <p class="cjc-site-footer__schedule">Tue · 8:00 PM online<br>Thu–Sat · 7:00 PM<br>Fri Discipleship · 11:00 PM<br>Sun · 11:00 AM</p>
+          <p class="cjc-site-footer__schedule">Tue · 8:00 PM online<br>Thu · 7:00 PM<br>Fri · 7:00 PM<br>Fri Discipleship · 11:00 PM<br>Sat · 7:00 PM<br>Sun · 11:00 AM</p>
           <a href="/events">Full service schedule</a>
         </div>
         <div>
