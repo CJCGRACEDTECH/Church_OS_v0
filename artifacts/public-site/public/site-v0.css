@@ -180,15 +180,7 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
   grid-template-columns: 1.4fr repeat(3, 1fr);
   gap: 36px;
 }
-.cjc-site-footer__brand > a {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: #fff !important;
-  text-decoration: none !important;
-}
-.cjc-site-footer__brand img { width: 44px; height: 44px; object-fit: contain; display: block; flex-shrink: 0; }
-.cjc-site-footer__brand strong { font-size: 18px; line-height: 1; }
+.cjc-site-footer__brand > a { color: #fff !important; text-decoration: none !important; }
 .cjc-site-footer h2 {
   margin: 0 0 14px;
   color: #fff;
