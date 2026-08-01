@@ -12,7 +12,8 @@ const DEFAULT_CHANNEL_URL =
   process.env.YOUTUBE_CHANNEL_URL ||
   "https://www.youtube.com/@cjcinternationalprophetyos9053";
 
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes (videos list)
+const LIVE_CACHE_TTL_MS = 90 * 1000; // 90 seconds (live status — needs to be fresh)
 
 interface ScrapedVideo {
   videoId: string;
@@ -171,7 +172,7 @@ async function getScrapedVideos(limit: number): Promise<VideosCache> {
 
 async function getScrapedLatest(): Promise<LatestCache> {
   const now = Date.now();
-  if (scrapeLatestCache && now - scrapeLatestCache.cachedAt < CACHE_TTL_MS) {
+  if (scrapeLatestCache && now - scrapeLatestCache.cachedAt < LIVE_CACHE_TTL_MS) {
     return scrapeLatestCache;
   }
   try {

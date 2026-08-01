@@ -1,9 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import * as Linking from "expo-linking";
 import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
 import {
+  Animated,
+  Easing,
   Platform,
   Pressable,
   ScrollView,
@@ -15,7 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
 
-const CJC_YOUTUBE_CHANNEL = "https://www.youtube.com/@CJCChurch";
+const CJC_YOUTUBE_CHANNEL = "https://www.youtube.com/@cjcinternationalprophetyos9053";
 
 const SERVICE_TIMES = [
   { day: "Thursday", time: "7:00 PM", label: "Bible Study", icon: "book-outline" as const },
@@ -31,15 +34,60 @@ const QUICK_LINKS = [
   { label: "Prayer Request", icon: "hand-left-outline" as const, color: "#7c3aed" },
 ];
 
+interface LiveVideo {
+  videoId: string;
+  title: string;
+  watchUrl: string;
+  url: string;
+  isLive: boolean;
+}
+
+async function fetchLiveStatus(): Promise<{ video: LiveVideo | null }> {
+  const domain = process.env.EXPO_PUBLIC_DOMAIN;
+  const baseUrl = domain ? `https://${domain}` : "";
+  const res = await fetch(`${baseUrl}/api/youtube/latest`);
+  if (!res.ok) throw new Error("Failed to fetch live status");
+  return res.json();
+}
+
+// Pulsing dot for the LIVE badge
+function PulsingDot() {
+  const anim = React.useRef(new Animated.Value(1)).current;
+
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(anim, { toValue: 0.3, duration: 700, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
+        Animated.timing(anim, { toValue: 1, duration: 700, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
+      ])
+    ).start();
+  }, [anim]);
+
+  return (
+    <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#f87171", opacity: anim }} />
+  );
+}
+
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const styles = makeStyles(colors, insets, isWeb);
 
-  const openYouTube = () => {
+  const { data: liveData } = useQuery({
+    queryKey: ["liveStatus"],
+    queryFn: fetchLiveStatus,
+    refetchInterval: 90_000, // re-check every 90 s
+    staleTime: 60_000,
+    retry: 1,
+  });
+
+  const liveVideo = liveData?.video?.isLive ? liveData.video : null;
+  const watchUrl = liveVideo?.watchUrl ?? liveVideo?.url ?? CJC_YOUTUBE_CHANNEL;
+
+  const handleWatch = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Linking.openURL(CJC_YOUTUBE_CHANNEL);
+    Linking.openURL(liveVideo ? watchUrl : CJC_YOUTUBE_CHANNEL);
   };
 
   return (
@@ -54,16 +102,40 @@ export default function HomeScreen() {
         end={{ x: 1, y: 1 }}
         style={styles.heroBanner}
       >
+        {liveVideo && (
+          <View style={styles.livePill}>
+            <PulsingDot />
+            <Text style={styles.livePillText}>LIVE NOW</Text>
+          </View>
+        )}
+
         <Text style={styles.heroGreeting}>Welcome to</Text>
         <Text style={styles.heroChurchName}>CJC Church</Text>
-        <Text style={styles.heroTagline}>Christ Jesus Centered</Text>
+        <Text style={styles.heroTagline}>
+          {liveVideo ? liveVideo.title.replace(/\s*\|\|.*$/i, "").trim() : "Christ Jesus Centered"}
+        </Text>
+
         <Pressable
-          style={({ pressed }) => [styles.liveBtn, pressed && { opacity: 0.8 }]}
-          onPress={openYouTube}
+          style={({ pressed }) => [
+            styles.watchBtn,
+            liveVideo ? styles.watchBtnLive : styles.watchBtnDefault,
+            pressed && { opacity: 0.8 },
+          ]}
+          onPress={handleWatch}
           testID="watch-live-button"
         >
-          <View style={styles.liveDot} />
-          <Text style={styles.liveBtnText}>Watch on YouTube</Text>
+          {liveVideo ? (
+            <>
+              <PulsingDot />
+              <Text style={styles.watchBtnText}>Watch Live Now</Text>
+              <Ionicons name="chevron-forward" size={14} color="#fff" />
+            </>
+          ) : (
+            <>
+              <Ionicons name="logo-youtube" size={16} color="#fff" />
+              <Text style={styles.watchBtnText}>Watch on YouTube</Text>
+            </>
+          )}
         </Pressable>
       </LinearGradient>
 
@@ -112,7 +184,7 @@ export default function HomeScreen() {
         </View>
         <Pressable
           style={({ pressed }) => [styles.directionsBtn, pressed && { opacity: 0.7 }]}
-          onPress={() => Linking.openURL("https://maps.google.com")}
+          onPress={() => Linking.openURL("https://share.google/6z0A4LpbKmShWkZbT")}
         >
           <Text style={styles.directionsBtnText}>Directions</Text>
         </Pressable>
@@ -135,6 +207,26 @@ function makeStyles(colors: ReturnType<typeof useColors>, insets: { top: number;
       paddingBottom: 32,
       paddingHorizontal: 24,
     },
+    livePill: {
+      flexDirection: "row",
+      alignItems: "center",
+      alignSelf: "flex-start",
+      backgroundColor: "rgba(239,68,68,0.18)",
+      borderWidth: 1,
+      borderColor: "rgba(239,68,68,0.45)",
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 100,
+      gap: 6,
+      marginBottom: 14,
+    },
+    livePillText: {
+      color: "#f87171",
+      fontSize: 11,
+      fontWeight: "700" as const,
+      fontFamily: "Inter_700Bold",
+      letterSpacing: 1.1,
+    },
     heroGreeting: {
       fontSize: 14,
       color: "rgba(255,255,255,0.6)",
@@ -154,24 +246,24 @@ function makeStyles(colors: ReturnType<typeof useColors>, insets: { top: number;
       color: "#93c5fd",
       fontFamily: "Inter_500Medium",
       marginBottom: 20,
+      lineHeight: 20,
     },
-    liveBtn: {
+    watchBtn: {
       flexDirection: "row",
       alignItems: "center",
       alignSelf: "flex-start",
-      backgroundColor: "#2563eb",
       paddingHorizontal: 16,
       paddingVertical: 10,
       borderRadius: 100,
       gap: 8,
     },
-    liveDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: "#f87171",
+    watchBtnDefault: {
+      backgroundColor: "#2563eb",
     },
-    liveBtnText: {
+    watchBtnLive: {
+      backgroundColor: "#dc2626",
+    },
+    watchBtnText: {
       color: "#ffffff",
       fontSize: 14,
       fontWeight: "600" as const,
