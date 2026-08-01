@@ -6,6 +6,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
 import {
   Animated,
+  Dimensions,
   Easing,
   Platform,
   Pressable,
@@ -15,6 +16,10 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+// WebView is native-only — import conditionally to avoid crashing the web preview
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const WebView: any = Platform.OS !== "web" ? require("react-native-webview").WebView : null;
 
 import { useColors } from "@/hooks/useColors";
 
@@ -102,42 +107,60 @@ export default function HomeScreen() {
         end={{ x: 1, y: 1 }}
         style={styles.heroBanner}
       >
-        {liveVideo && (
-          <View style={styles.livePill}>
-            <PulsingDot />
-            <Text style={styles.livePillText}>LIVE NOW</Text>
-          </View>
-        )}
-
-        <Text style={styles.heroGreeting}>Welcome to</Text>
-        <Text style={styles.heroChurchName}>CJC Church</Text>
-        <Text style={styles.heroTagline}>
-          {liveVideo ? liveVideo.title.replace(/\s*\|\|.*$/i, "").trim() : "Christ Jesus Centered"}
-        </Text>
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.watchBtn,
-            liveVideo ? styles.watchBtnLive : styles.watchBtnDefault,
-            pressed && { opacity: 0.8 },
-          ]}
-          onPress={handleWatch}
-          testID="watch-live-button"
-        >
-          {liveVideo ? (
-            <>
-              <PulsingDot />
-              <Text style={styles.watchBtnText}>Watch Live Now</Text>
-              <Ionicons name="chevron-forward" size={14} color="#fff" />
-            </>
-          ) : (
-            <>
+        {!liveVideo && (
+          <>
+            <Text style={styles.heroGreeting}>Welcome to</Text>
+            <Text style={styles.heroChurchName}>CJC Church</Text>
+            <Text style={styles.heroTagline}>Christ Jesus Centered</Text>
+            <Pressable
+              style={({ pressed }) => [styles.watchBtn, styles.watchBtnDefault, pressed && { opacity: 0.8 }]}
+              onPress={handleWatch}
+              testID="watch-live-button"
+            >
               <Ionicons name="logo-youtube" size={16} color="#fff" />
               <Text style={styles.watchBtnText}>Watch on YouTube</Text>
-            </>
-          )}
-        </Pressable>
+            </Pressable>
+          </>
+        )}
       </LinearGradient>
+
+      {/* Muted live player — rendered outside the gradient so it gets full width */}
+      {liveVideo && (
+        <View style={styles.liveBlock}>
+          <View style={styles.livePlayerWrap}>
+            {WebView ? (
+              <WebView
+                style={styles.livePlayer}
+                source={{
+                  html: `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><style>*{margin:0;padding:0;background:#000}body{overflow:hidden}iframe{position:fixed;inset:0;width:100%;height:100%;border:0}</style></head><body><iframe src="https://www.youtube-nocookie.com/embed/${liveVideo.videoId}?autoplay=1&mute=1&playsinline=1&rel=0&controls=1&modestbranding=1" allow="autoplay;encrypted-media;picture-in-picture" allowfullscreen></iframe></body></html>`,
+                }}
+                allowsInlineMediaPlayback
+                mediaPlaybackRequiresUserAction={false}
+                javaScriptEnabled
+                scrollEnabled={false}
+              />
+            ) : null}
+            <View style={styles.liveBadgeOverlay} pointerEvents="none">
+              <View style={styles.livePill}>
+                <PulsingDot />
+                <Text style={styles.livePillText}>LIVE NOW</Text>
+              </View>
+            </View>
+          </View>
+          <View style={styles.liveInfo}>
+            <Text style={styles.liveTitle} numberOfLines={2}>
+              {liveVideo.title.replace(/\s*\|\|.*$/i, "").trim()}
+            </Text>
+            <Pressable
+              style={({ pressed }) => [styles.watchBtn, styles.watchBtnLive, pressed && { opacity: 0.8 }]}
+              onPress={handleWatch}
+            >
+              <Ionicons name="expand-outline" size={15} color="#fff" />
+              <Text style={styles.watchBtnText}>Open Full Screen</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Service Times</Text>
@@ -206,6 +229,37 @@ function makeStyles(colors: ReturnType<typeof useColors>, insets: { top: number;
       paddingTop: isWeb ? 67 + 24 : insets.top + 24,
       paddingBottom: 32,
       paddingHorizontal: 24,
+    },
+    // Live player block (shown instead of hero content when streaming)
+    liveBlock: {
+      backgroundColor: "#0d1120",
+    },
+    livePlayerWrap: {
+      width: "100%",
+      aspectRatio: 16 / 9,
+      backgroundColor: "#000",
+      position: "relative",
+    },
+    livePlayer: {
+      flex: 1,
+      backgroundColor: "#000",
+    },
+    liveBadgeOverlay: {
+      position: "absolute",
+      top: 10,
+      left: 10,
+    },
+    liveInfo: {
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      gap: 10,
+    },
+    liveTitle: {
+      fontSize: 15,
+      fontWeight: "600" as const,
+      fontFamily: "Inter_600SemiBold",
+      color: "#ffffff",
+      lineHeight: 21,
     },
     livePill: {
       flexDirection: "row",
