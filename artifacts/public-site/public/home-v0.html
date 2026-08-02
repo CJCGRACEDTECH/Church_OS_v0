@@ -130,6 +130,12 @@
    .watch__media--embed { display: block; overflow: hidden; background: #0e1426; border-radius: 10px; }
    .watch__media--embed iframe { width: 100%; height: 100%; min-height: 500px; display: block; border: 0; }
    @media (max-width: 900px) { .watch__media--embed iframe { min-height: 300px; } }
+   .watch__media--live { position: relative; display: block; overflow: hidden; background: #000; border-radius: 10px; box-shadow: var(--cjc-shadow); }
+   .watch__media--live iframe { width: 100%; min-height: 500px; display: block; border: 0; }
+   @media (max-width: 900px) { .watch__media--live iframe { min-height: 260px; } }
+   .watch__live-badge { position: absolute; top: 14px; left: 14px; display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; background: #dc2626; color: #fff; font-size: 11px; font-weight: 800; letter-spacing: .1em; border-radius: 100px; text-decoration: none; z-index: 10; }
+   .watch__live-badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #fff; animation: live-pulse 1.1s ease-in-out infinite; }
+   @keyframes live-pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
     .community-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 13px; }
     .community-card { position: relative; min-height: 360px; display: flex; align-items: flex-end; padding: 26px; overflow: hidden; border-radius: 8px; background: #26314d var(--image) center / cover no-repeat; color: #fff !important; text-decoration: none; box-shadow: var(--cjc-shadow-soft); transition: transform .24s ease, box-shadow .24s ease; }
     .community-card::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 28%, rgba(8, 15, 32, .89)); transition: background .28s ease; }
