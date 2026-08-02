@@ -16,8 +16,36 @@
       display: flex;
       align-items: flex-end;
       overflow: hidden;
-      background: #101527 url("/assets/hero-photo-optimized.jpg") 56% 31% / cover no-repeat;
+      background: #101527;
       color: #fff;
+    }
+    /* ── HERO SLIDESHOW ── */
+    .hero__slide {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      background-size: cover;
+      background-color: #101527;
+      opacity: 0;
+      will-change: opacity;
+      animation: heroFade 42s linear infinite;
+    }
+    .hero__slide:nth-child(1) { background-image: url("/assets/hero-photo-optimized.jpg");   background-position: 56% 31%; animation-delay:  0s; }
+    .hero__slide:nth-child(2) { background-image: url("/assets/about-hero.jpg");             background-position: center 42%; animation-delay:  7s; }
+    .hero__slide:nth-child(3) { background-image: url("/assets/events-hero.jpg");            background-position: center 42%; animation-delay: 14s; }
+    .hero__slide:nth-child(4) { background-image: url("/assets/community-worship.jpg");      background-position: center 42%; animation-delay: 21s; }
+    .hero__slide:nth-child(5) { background-image: url("/assets/contact-hero.jpg");           background-position: center 42%; animation-delay: 28s; }
+    .hero__slide:nth-child(6) { background-image: url("/assets/watch-placeholder.jpg");      background-position: center 42%; animation-delay: 35s; }
+    @keyframes heroFade {
+      0%        { opacity: 0; }
+      3%        { opacity: 1; }
+      13%       { opacity: 1; }
+      17%       { opacity: 0; }
+      100%      { opacity: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .hero__slide { animation: none !important; }
+      .hero__slide:nth-child(1) { opacity: 1; }
     }
     .hero__live-btn {
       position: fixed;
@@ -285,6 +313,12 @@
 <body>
   <main>
     <section class="hero">
+      <div class="hero__slide" aria-hidden="true"></div>
+      <div class="hero__slide" aria-hidden="true"></div>
+      <div class="hero__slide" aria-hidden="true"></div>
+      <div class="hero__slide" aria-hidden="true"></div>
+      <div class="hero__slide" aria-hidden="true"></div>
+      <div class="hero__slide" aria-hidden="true"></div>
       <div class="hero__inner">
         <h1 class="animate-on-scroll">Christ Jesus Centered Church</h1>
         <p class="hero__copy animate-on-scroll"><strong>One Kingdom. All Nations.</strong> Come worship, grow in faith, and find community with us in Springfield, Virginia.</p>
