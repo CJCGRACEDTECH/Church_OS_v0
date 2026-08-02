@@ -219,8 +219,19 @@
       .hero::after { height: 420px; background: linear-gradient(to bottom, transparent 0%, rgba(10, 15, 31, .42) 32%, rgba(9, 13, 27, .84) 64%, rgba(9, 13, 27, .95) 84%, #f8f9fc 100%); }
       .hero__inner { width: min(100% - 40px, 1280px); padding: 130px 0 90px; }
       .home-weekly { width: 100%; margin-top: -60px; padding-top: 60px; }
-      .home-weekly::before { height: 320px; }
-      .home-weekly::after { height: 320px; }
+      .section--soft.home-weekly {
+        background: linear-gradient(to bottom,
+          rgba(9, 13, 27, .82) 0px,
+          rgba(9, 13, 27, .72) 115px,
+          rgba(9, 13, 27, .42) 215px,
+          rgba(248, 249, 252, .82) 335px,
+          var(--cjc-page-bg) 410px);
+      }
+      .home-weekly::before { height: 360px; }
+      .home-weekly::after { height: 360px; }
+      .home-weekly .weekly-head h2 {
+        text-shadow: 0 2px 5px rgba(9, 13, 27, .72), 0 8px 22px rgba(9, 13, 27, .45);
+      }
       .social-story { margin-top: -60px; padding-top: 118px; }
       .eyebrow { font-size: clamp(.875rem, 3.2vw, 1rem); letter-spacing: .11em; }
       h1 { max-width: 13ch; font-size: clamp(2.5rem, 9.2vw, 3.25rem); line-height: 1.02; }
