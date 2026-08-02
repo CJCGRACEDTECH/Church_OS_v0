@@ -118,12 +118,16 @@ async function scrapeYouTubeTab(
         }
       }
 
-      // Detect live status from the stringified lockupViewModel
+      // Detect live status from the stringified lockupViewModel.
+      // YouTube uses several different signals depending on page/version:
       const raw = JSON.stringify(lvm);
       const isLive =
-        /"isLive"\s*:\s*true|LIVE_BADGE_ID|BADGE_STYLE_TYPE_LIVE_NOW/.test(
-          raw,
-        );
+        /"isLive"\s*:\s*true/.test(raw) ||
+        /LIVE_BADGE_ID|BADGE_STYLE_TYPE_LIVE_NOW/.test(raw) ||
+        /"style"\s*:\s*"LIVE"/.test(raw) ||
+        /"isLiveBroadcastContent"\s*:\s*"live"/.test(raw) ||
+        // Overlay thumbnail label text often says "LIVE" in a thumbnailOverlayTimeStatusRenderer
+        /"text"\s*:\s*"LIVE"/.test(raw);
 
       if (videoId && title) {
         const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
