@@ -233,24 +233,9 @@
         padding: 0;
       }
       .home-weekly .weekly-title {
-        position: relative;
         display: inline-block;
         max-width: 100%;
-        isolation: isolate;
         padding: 0 0 22px;
-      }
-      .home-weekly .weekly-title::before {
-        content: "";
-        position: absolute;
-        z-index: -1;
-        inset: -10px -18px;
-        border-radius: 22px;
-        background: linear-gradient(to bottom,
-          rgba(9, 13, 27, .80),
-          rgba(9, 13, 27, .58) 72%,
-          rgba(9, 13, 27, .18));
-        filter: blur(16px);
-        pointer-events: none;
       }
       .home-weekly .weekly-head h2 {
         text-shadow: 0 2px 5px rgba(9, 13, 27, .72), 0 8px 22px rgba(9, 13, 27, .45);
