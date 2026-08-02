@@ -221,14 +221,37 @@
       .home-weekly { width: 100%; margin-top: -60px; padding-top: 60px; }
       .section--soft.home-weekly {
         background: linear-gradient(to bottom,
-          rgba(9, 13, 27, .82) 0px,
-          rgba(9, 13, 27, .72) 115px,
-          rgba(9, 13, 27, .42) 215px,
-          rgba(248, 249, 252, .82) 335px,
-          var(--cjc-page-bg) 410px);
+          transparent 0px,
+          rgba(248, 249, 252, .12) 80px,
+          rgba(248, 249, 252, .52) 160px,
+          rgba(248, 249, 252, .90) 240px,
+          var(--cjc-page-bg) 320px);
       }
       .home-weekly::before { height: 360px; }
       .home-weekly::after { height: 360px; }
+      .home-weekly .weekly-head {
+        padding: 0;
+      }
+      .home-weekly .weekly-title {
+        position: relative;
+        display: inline-block;
+        max-width: 100%;
+        isolation: isolate;
+        padding: 18px 0 22px;
+      }
+      .home-weekly .weekly-title::before {
+        content: "";
+        position: absolute;
+        z-index: -1;
+        inset: -10px -18px;
+        border-radius: 22px;
+        background: linear-gradient(to bottom,
+          rgba(9, 13, 27, .80),
+          rgba(9, 13, 27, .58) 72%,
+          rgba(9, 13, 27, .18));
+        filter: blur(16px);
+        pointer-events: none;
+      }
       .home-weekly .weekly-head h2 {
         text-shadow: 0 2px 5px rgba(9, 13, 27, .72), 0 8px 22px rgba(9, 13, 27, .45);
       }
@@ -293,7 +316,7 @@
     <section class="section section--soft home-weekly" aria-labelledby="weekly-title">
       <div class="section__inner">
         <div class="weekly-head section-heading section-heading--stacked animate-on-scroll">
-          <div><p class="eyebrow animate-on-scroll">Gather with us</p><h2 id="weekly-title">This week at CJC</h2></div>
+          <div class="weekly-title"><p class="eyebrow animate-on-scroll">Gather with us</p><h2 id="weekly-title">This week at CJC</h2></div>
           <p>Join us for worship, prayer, Bible study, and discipleship throughout the week.</p>
         </div>
         <div class="services-toolbar">
