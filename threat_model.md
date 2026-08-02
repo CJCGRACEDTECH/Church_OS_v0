@@ -29,8 +29,8 @@ The mockup sandbox artifact is development-only and should be ignored unless pro
 ## Scan Anchors
 
 - **Production entry points:** `artifacts/api-server/src/index.ts`, `artifacts/api-server/src/app.ts`, `artifacts/api-server/src/routes/*.ts`, `artifacts/church-os/src/App.tsx`, `artifacts/church-os/src/components/auth-context.tsx`
-- **Highest-risk areas:** auth/JIT provisioning and public sign-up (`routes/auth.ts`, `middlewares/auth.ts`), admin/invitation and settings control plane (`routes/admin.ts`, `routes/settings.ts`), giving/payment/webhook logic (`routes/giving.ts`), public onboarding forms (`routes/public-onboarding.ts` — no rate limiting), attendance/check-in APIs (`routes/attendance.ts`, `routes/children-checkin.ts`), and event/church-profile URL fields rendered back into public or member-facing links (`routes/events.ts`, `routes/settings.ts`)
-- **Public vs authenticated vs admin:** health endpoints, public sign-up (`/api/public/connect`, `/api/public/account-request` — no rate limiting), public YouTube (`/api/youtube/videos`, `/api/youtube/latest`), and Stripe webhook are public or semi-public; member routes require auth; admin and permission endpoints must enforce role, permission, and church checks server-side
+- **Highest-risk areas:** auth/JIT provisioning and public sign-up (`routes/auth.ts`, `middlewares/auth.ts`), admin/invitation and settings control plane (`routes/admin.ts`, `routes/settings.ts`), giving/payment/webhook logic (`routes/giving.ts`), public onboarding forms (`routes/public-onboarding.ts`), attendance/check-in APIs (`routes/attendance.ts`, `routes/children-checkin.ts`), and event/church-profile URL fields rendered back into public or member-facing links (`routes/events.ts`, `routes/settings.ts`)
+- **Public vs authenticated vs admin:** health endpoints, public sign-up (`/api/public/connect`, `/api/public/account-request` — rate-limited to 5/IP/15min), public YouTube (`/api/youtube/videos`, `/api/youtube/latest`), and Stripe webhook are public or semi-public; member routes require auth; admin and permission endpoints must enforce role, permission, and church checks server-side
 - **Usually dev-only:** `artifacts/mockup-sandbox/**`, demo-session auth branches when `NODE_ENV !== production`
 - **Confirmed safe:** church-scoped queries across members.ts, admin.ts, member-household.ts, settings.ts, dashboard.ts, giving.ts (admin endpoints), attendance.ts, children-checkin.ts, events.ts, sermons.ts, youtube.ts (DB fallback) — all include `eq(...churchId, ...)` in WHERE clauses
 
@@ -59,13 +59,13 @@ The application stores sensitive church-member, child, attendance, and giving da
 - `PATCH /admin/users/:id` in `settings.ts` now explicitly excludes `passwordHash` and `clerkUserId` from the response using destructuring before returning the updated user row.
 
 **Remaining (open):**
-- `GET /admin/invitations/accept/:token` still returns invitee first name, last name, admin level, assigned ministry, and permissions list to any unauthenticated caller who holds the token. Email is now redacted. LOW severity — see vulnerability `invite-token-metadata-disclosure-002`.
+- `GET /admin/invitations/accept/:token` still returns invitee first name, last name, admin level, assigned ministry, and permissions list to any unauthenticated caller who holds the token. Email is now redacted. LOW severity — see vulnerability `invite-token-metadata-disclosure-001`.
 
 ### Denial of Service
 
 Public and authenticated endpoints that trigger external requests or heavier database work must not allow unbounded abuse.
 
-**Open:** The public onboarding endpoints (`/api/public/connect`, `/api/public/account-request`) have no rate limiting, IP throttling, or CAPTCHA. An attacker can create unlimited junk member records and flood the admin inbox. See vulnerability `public-form-no-rate-limit-001`.
+**Fixed (scan 2025):** Public onboarding endpoints (`/api/public/connect`, `/api/public/account-request`) now use `express-rate-limit` capped at 5 requests per IP per 15-minute window. This prevents automated flooding of the member database and admin inbox.
 
 The YouTube scraping endpoints (`/api/youtube/videos`, `/api/youtube/latest`) are public with no rate limit, but a 5-minute in-memory cache prevents repeated upstream YouTube fetches.
 
