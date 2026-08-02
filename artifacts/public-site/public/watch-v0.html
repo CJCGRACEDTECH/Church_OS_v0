@@ -495,12 +495,13 @@
         document.querySelectorAll("[data-channel-link]").forEach(l => l.href = url);
       }
 
-      function makeEmbed(container, videoId, title) {
+      function makeEmbed(container, videoId, title, live = false) {
         container.innerHTML = "";
         const iframe = document.createElement("iframe");
-        iframe.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}`;
+        const params = live ? "?autoplay=1&mute=1&playsinline=1&rel=0&controls=1" : "";
+        iframe.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}${params}`;
         iframe.title = title ?? "";
-        iframe.loading = "lazy";
+        iframe.loading = live ? "eager" : "lazy";
         iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
         iframe.allowFullscreen = true;
         container.appendChild(iframe);
@@ -517,7 +518,7 @@
         const video = payload?.video;
 
         if (video?.isLive) {
-          makeEmbed(document.querySelector("[data-live-embed]"), video.videoId, video.title);
+          makeEmbed(document.querySelector("[data-live-embed]"), video.videoId, video.title, true);
           document.querySelector("[data-live-title]").textContent = video.title;
           document.querySelector("[data-live-date]").textContent  = video.date ?? "";
           const liveLink = document.querySelector("[data-live-link]");
