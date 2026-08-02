@@ -225,7 +225,7 @@ function SignInPage() {
             routing="path"
             path={`${basePath}/sign-in`}
             signUpUrl={`${basePath}/sign-up`}
-            fallbackRedirectUrl={basePath || "/"}
+            fallbackRedirectUrl={basePath ? basePath : "/app"}
             appearance={{ elements: { cardBox: "!shadow-none !border-0 !rounded-none w-full", rootBox: "w-full" } }}
           />
           <div className="border-t border-gray-100 bg-gray-50 px-6 py-4 flex flex-col items-center gap-2">
@@ -286,6 +286,8 @@ function Router() {
       <Route path="/sign-up/*?" component={SignUpPage} />
 
       <Route path="/" component={HomeRoute} />
+      {/* /app is the post-sign-in landing point; HomeRoute redirects by role */}
+      <Route path="/app" component={HomeRoute} />
 
       <Route path="/unauthorized" component={Unauthorized} />
       <Route path="/attendance/check-in/:token" component={AttendanceCheckIn} />
@@ -341,8 +343,8 @@ function ClerkProviderWithRoutes() {
       appearance={clerkAppearance}
       signInUrl={`${basePath}/sign-in`}
       signUpUrl={`${basePath}/sign-up`}
-      signInFallbackRedirectUrl={basePath || "/"}
-      signUpFallbackRedirectUrl={basePath || "/"}
+      signInFallbackRedirectUrl={basePath ? basePath : "/app"}
+      signUpFallbackRedirectUrl={basePath ? basePath : "/app"}
       localization={{
         signIn: {
           start: {

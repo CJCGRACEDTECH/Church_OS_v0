@@ -162,6 +162,7 @@ function sendJson(res, status, body, cacheControl = "no-store") {
 const CHURCH_OS_ROUTE_PREFIXES = [
   "/sign-in",
   "/sign-up",
+  "/app",        // post-sign-in landing; Church OS HomeRoute redirects by role
   "/connect",
   "/request-account",
   "/admin",
