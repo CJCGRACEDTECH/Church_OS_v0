@@ -7,11 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 
 type InviteDetails = {
-  firstName: string;
-  lastName: string;
+  // The server intentionally omits name, role, and ministry from this
+  // unauthenticated response to prevent PII disclosure to anyone who
+  // obtains the token out-of-band.  Only the redacted email and expiry
+  // are returned so the recipient can confirm the invite is for them.
   email: string; // partially redacted by the server for display only
-  adminTitle: string;
-  assignedMinistry: string | null;
   expiresAt: string;
 };
 
@@ -79,10 +79,7 @@ export default function AdminInviteAccept() {
           {inviteQuery.data && (
             <>
               <div className="grid gap-3 rounded-md border bg-background p-4 text-sm">
-                <Info label="Name" value={`${inviteQuery.data.firstName} ${inviteQuery.data.lastName}`} />
-                <Info label="Email" value={inviteQuery.data.email} />
-                <Info label="Admin Title" value={inviteQuery.data.adminTitle} />
-                <Info label="Ministry / Department" value={inviteQuery.data.assignedMinistry ?? "Not assigned"} />
+                <Info label="Invited email" value={inviteQuery.data.email} />
                 <Info label="Expires" value={new Date(inviteQuery.data.expiresAt).toLocaleString()} />
               </div>
 

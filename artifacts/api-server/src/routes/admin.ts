@@ -460,22 +460,14 @@ router.get("/admin/invitations/accept/:token", async (req, res): Promise<void> =
     return;
   }
 
-  // Return only enough information to pre-populate the acceptance UI.
-  // The full email is withheld to limit what an attacker can learn if they
-  // obtain the token (e.g. via log access); a partial redaction still lets the
-  // legitimate recipient confirm the invite is meant for them.
-  // Omit `permissions` from the unauthenticated preview — the specific
-  // permission list is not needed to confirm the invite and would give an
-  // attacker who obtained the token slightly more information than the invite
-  // email itself conveys.  Permissions are shown post-authentication on the
-  // accept-confirmation page.
+  // Return only the minimum needed to confirm the invite is valid and
+  // addressed to the right person — a redacted email lets the legitimate
+  // recipient recognise their address without revealing PII to anyone who
+  // obtains the token secondarily.  Full name, role, and ministry are
+  // withheld here and surfaced only after the invitee authenticates on the
+  // POST /admin/invitations/accept/:token endpoint.
   res.json({
-    firstName: invite.firstName,
-    lastName: invite.lastName,
     email: redactEmail(invite.email),
-    adminLevel: invite.assignedRole,
-    adminTitle: adminTitle(invite.assignedRole),
-    assignedMinistry: invite.assignedMinistry,
     expiresAt: invite.expiresAt.toISOString(),
   });
 });
