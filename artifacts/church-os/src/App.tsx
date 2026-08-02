@@ -148,22 +148,70 @@ function HomeRoute() {
   return null;
 }
 
+const COLLAGE_IMAGES = [
+  "/assets/hero-photo-optimized.jpg",
+  "/assets/community-worship.jpg",
+  "/assets/worship-leader-01.jpg",
+  "/assets/sunday-service.jpg",
+  "/assets/community-fellowship-01.jpg",
+  "/assets/worship-prayer-01.jpg",
+  "/assets/saturday-service.jpg",
+  "/assets/community-children.jpg",
+  "/assets/community-serve.jpg",
+];
+
 function AuthPageShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-[100dvh] flex-col" style={{ background: "#eef0f8" }}>
-      <PublicSiteHeader
-        basePath={basePath}
-        publicWebsiteUrl={publicWebsiteUrl}
-        givingUrl={publicGivingUrl}
-      />
-
-      <div className="flex flex-1 items-center justify-center px-4 py-12">
-        {children}
+    <div className="relative flex min-h-[100dvh] flex-col overflow-hidden">
+      {/* Blurred photo collage background */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: 0,
+          zIndex: 0,
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gridTemplateRows: "repeat(3, 1fr)",
+          transform: "scale(1.12)",
+          filter: "blur(14px) brightness(0.32) saturate(0.8)",
+        }}
+      >
+        {COLLAGE_IMAGES.map((src, i) => (
+          <div
+            key={i}
+            style={{
+              backgroundImage: `url(${src})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }}
+          />
+        ))}
       </div>
-
-      <footer className="py-4 text-center text-xs text-gray-400">
-        Church OS &middot; CJC Church
-      </footer>
+      {/* Navy color-unity overlay */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: 0,
+          zIndex: 1,
+          background: "rgba(14, 20, 40, 0.42)",
+        }}
+      />
+      {/* Content */}
+      <div className="relative flex min-h-[100dvh] flex-col" style={{ zIndex: 2 }}>
+        <PublicSiteHeader
+          basePath={basePath}
+          publicWebsiteUrl={publicWebsiteUrl}
+          givingUrl={publicGivingUrl}
+        />
+        <div className="flex flex-1 items-center justify-center px-4 py-12">
+          {children}
+        </div>
+        <footer className="py-4 text-center text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>
+          Church OS &middot; CJC Church
+        </footer>
+      </div>
     </div>
   );
 }
