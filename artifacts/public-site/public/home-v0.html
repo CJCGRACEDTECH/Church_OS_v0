@@ -99,6 +99,8 @@
       margin: 0 auto;
       padding: 120px 0 320px;
     }
+    /* ── HERO TEXT SCRIM ── */
+    /* Feathered rectangle — follows the text column, not an oval */
     .hero__copy-area {
       position: relative;
       isolation: isolate;
@@ -108,16 +110,32 @@
       content: "";
       position: absolute;
       z-index: -1;
-      top: -56px;
-      bottom: -56px;
-      left: -56px;
-      width: min(980px, calc(100% + 112px));
-      border-radius: 50%;
-      background: radial-gradient(ellipse at 38% 44%, rgba(8, 13, 30, .46) 0%, rgba(8, 13, 30, .32) 46%, rgba(8, 13, 30, .12) 72%, transparent 96%);
-      -webkit-backdrop-filter: blur(11px) saturate(.92);
-      backdrop-filter: blur(11px) saturate(.92);
-      -webkit-mask-image: radial-gradient(ellipse 84% 78% at 37% 45%, #000 26%, rgba(0, 0, 0, .72) 57%, transparent 100%);
-      mask-image: radial-gradient(ellipse 84% 78% at 37% 45%, #000 26%, rgba(0, 0, 0, .72) 57%, transparent 100%);
+      /* extend generously beyond the text bounding box on all sides */
+      top:    -52px;
+      bottom: -52px;
+      left:   -60px;
+      right:  -32px;
+      /* dark translucent overlay behind the copy column */
+      background: rgba(8, 13, 30, .30);
+      /* blur only the area directly under the text */
+      -webkit-backdrop-filter: blur(14px) saturate(.90);
+              backdrop-filter: blur(14px) saturate(.90);
+      /*
+        Two linear gradient masks composed with intersection:
+        — horizontal: opaque from the left, feathers out before the right edge
+          so the blur dissolves into the crisp photo naturally
+        — vertical: fades in from top, fades out at bottom
+          (the hero::after already darkens the bottom, so this is subtle)
+      */
+      -webkit-mask-image:
+        linear-gradient(to right,  black 52%, transparent 100%),
+        linear-gradient(to bottom, transparent 0%, black 16%, black 78%, transparent 100%);
+              mask-image:
+        linear-gradient(to right,  black 52%, transparent 100%),
+        linear-gradient(to bottom, transparent 0%, black 16%, black 78%, transparent 100%);
+      /* intersect = both masks must be opaque for the pixel to show */
+      -webkit-mask-composite: source-in;
+              mask-composite: intersect;
       pointer-events: none;
     }
     .eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 16px; color: #e0c474; font-size: clamp(.875rem, .62rem + .9vw, 1.3125rem); font-weight: 800; text-transform: uppercase; letter-spacing: .13em; line-height: 1.25; }
