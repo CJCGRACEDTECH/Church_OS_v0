@@ -150,12 +150,12 @@ function HomeRoute() {
 
 const COLLAGE_IMAGES = [
   "/assets/hero-photo-optimized.jpg",
+  "/assets/sunday-service.jpg",
+  "/assets/saturday-service.jpg",
   "/assets/community-worship.jpg",
   "/assets/worship-leader-01.jpg",
-  "/assets/sunday-service.jpg",
   "/assets/community-fellowship-01.jpg",
   "/assets/worship-prayer-01.jpg",
-  "/assets/saturday-service.jpg",
   "/assets/community-children.jpg",
   "/assets/community-serve.jpg",
 ];
@@ -173,8 +173,8 @@ function AuthPageShell({ children }: { children: React.ReactNode }) {
           display: "grid",
           gridTemplateColumns: "repeat(3, 1fr)",
           gridTemplateRows: "repeat(3, 1fr)",
-          transform: "scale(1.12)",
-          filter: "blur(14px) brightness(0.32) saturate(0.8)",
+          transform: "scale(1.08)",
+          filter: "blur(5px) brightness(0.46) saturate(0.9)",
         }}
       >
         {COLLAGE_IMAGES.map((src, i) => (
