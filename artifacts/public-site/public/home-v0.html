@@ -28,21 +28,22 @@
       background-color: #101527;
       opacity: 0;
       will-change: opacity;
-      animation: heroFade 56s linear infinite;
+      animation: heroFade 100s linear infinite;
     }
-    .hero__slide:nth-child(1) { background-image: url("/assets/hero-photo-optimized.jpg");   background-position: 56% 31%;    animation-delay:  0s; }
-    .hero__slide:nth-child(2) { background-image: url("/assets/about-hero.jpg");             background-position: center 42%; animation-delay:  7s; }
-    .hero__slide:nth-child(3) { background-image: url("/assets/community-children.jpg");     background-position: center 38%; animation-delay: 14s; }
-    .hero__slide:nth-child(4) { background-image: url("/assets/events-hero.jpg");            background-position: center 42%; animation-delay: 21s; }
-    .hero__slide:nth-child(5) { background-image: url("/assets/community-worship.jpg");      background-position: center 42%; animation-delay: 28s; }
-    .hero__slide:nth-child(6) { background-image: url("/assets/community-serve.jpg");        background-position: center 38%; animation-delay: 35s; }
-    .hero__slide:nth-child(7) { background-image: url("/assets/contact-hero.jpg");           background-position: center 42%; animation-delay: 42s; }
-    .hero__slide:nth-child(8) { background-image: url("/assets/watch-placeholder.jpg");      background-position: center 42%; animation-delay: 49s; }
+    .hero__slide:nth-child(1) { background-image: url("/assets/hero-photo-optimized.jpg");   background-position: 56% 31%;    animation-delay:    0s; }
+    .hero__slide:nth-child(2) { background-image: url("/assets/about-hero.jpg");             background-position: center 42%; animation-delay: 12.5s; }
+    .hero__slide:nth-child(3) { background-image: url("/assets/community-children.jpg");     background-position: center 38%; animation-delay:   25s; }
+    .hero__slide:nth-child(4) { background-image: url("/assets/events-hero.jpg");            background-position: center 42%; animation-delay: 37.5s; }
+    .hero__slide:nth-child(5) { background-image: url("/assets/community-worship.jpg");      background-position: center 42%; animation-delay:   50s; }
+    .hero__slide:nth-child(6) { background-image: url("/assets/community-serve.jpg");        background-position: center 38%; animation-delay: 62.5s; }
+    .hero__slide:nth-child(7) { background-image: url("/assets/contact-hero.jpg");           background-position: center 42%; animation-delay:   75s; }
+    .hero__slide:nth-child(8) { background-image: url("/assets/watch-placeholder.jpg");      background-position: center 42%; animation-delay: 87.5s; }
     @keyframes heroFade {
+      /* each slide is 12.5% of 100 s = 12.5 s; crossfade ~1.5 s in/out */
       0%        { opacity: 0; }
-      2%        { opacity: 1; }
+      1.5%      { opacity: 1; }
       11%       { opacity: 1; }
-      13%       { opacity: 0; }
+      12.5%     { opacity: 0; }
       100%      { opacity: 0; }
     }
     @media (prefers-reduced-motion: reduce) {
