@@ -67,7 +67,7 @@
       display: flex; align-items: center; gap: 10px;
       margin: 0 0 16px;
       color: #e0c474;
-      font-size: 16px;
+      font-size: clamp(.875rem, .62rem + .9vw, 1rem);
       font-weight: 800;
       letter-spacing: .13em;
       text-transform: uppercase;
@@ -76,9 +76,9 @@
 
     h1 {
       margin: 0;
-      font-size: clamp(44px, 6.2vw, 76px);
-      line-height: .98;
-      letter-spacing: -.01em;
+      font-size: clamp(2.5rem, 4.2rem + 1vw, 4.75rem);
+      line-height: 1;
+      letter-spacing: -.015em;
     }
 
     .watch-hero p:last-child {
@@ -86,8 +86,8 @@
       max-width: 640px;
       margin: 17px 0 0;
       color: #e0c474;
-      font-size: 19px;
-      line-height: 1.60;
+      font-size: clamp(1rem, .88rem + .42vw, 1.1875rem);
+      line-height: 1.68;
       text-shadow: 0 1px 3px rgba(9,15,35,.62), 0 2px 16px rgba(9,15,35,.50);
     }
     .watch-hero p:last-child::before {
@@ -166,7 +166,7 @@
     .eyebrow-small::before { content: ""; display: block; width: 28px; height: 2px; background: currentColor; flex-shrink: 0; }
     .section-title {
       margin: 0;
-      font-size: 34px;
+      font-size: clamp(2rem, 3.1vw + 1rem, 2.125rem);
       display: flex;
       align-items: center;
       gap: 10px;
@@ -282,8 +282,8 @@
       background: var(--surface);
       box-shadow: var(--cjc-shadow-soft);
     }
-    .offline-card h3 { margin: 0 0 9px; font-size: 22px; line-height: 1.3; }
-    .offline-card p  { margin: 0 0 21px; color: var(--muted); font-size: 17px; line-height: 1.60; max-width: 540px; }
+    .offline-card h3 { margin: 0 0 9px; font-size: clamp(1.25rem, 1.1rem + .35vw, 1.375rem); line-height: 1.34; }
+    .offline-card p  { margin: 0 0 21px; color: var(--muted); font-size: var(--cjc-type-body); line-height: 1.68; max-width: 540px; }
     .offline-card__actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 23px; }
     .offline-card__actions a {
       display: inline-flex;
@@ -311,8 +311,8 @@
       background: var(--surface);
       text-align: center;
     }
-    .watch-panel h3 { margin: 0 0 6px; font-size: 20px; }
-    .watch-panel p  { margin: 0; color: var(--muted); font-size: 16px; }
+    .watch-panel h3 { margin: 0 0 6px; font-size: clamp(1.125rem, 1rem + .3vw, 1.25rem); }
+    .watch-panel p  { margin: 0; color: var(--muted); font-size: var(--cjc-type-body); }
 
     .video-grid {
       display: grid;
@@ -353,8 +353,8 @@
       background: #e02020; color: #fff;
       font-size: 12px; font-weight: 800; letter-spacing: .06em;
     }
-    .video-card h3 { margin: 12px 0 7px; font-size: 19px; line-height: 1.34; }
-    .video-card time { color: var(--muted); font-size: 15px; }
+    .video-card h3 { margin: 12px 0 7px; font-size: clamp(1.0625rem, .96rem + .3vw, 1.1875rem); line-height: 1.4; }
+    .video-card time { color: var(--muted); font-size: var(--cjc-type-small); }
     .video-card__meta {
       display: flex; align-items: center;
       justify-content: space-between; gap: 14px;
@@ -369,13 +369,16 @@
       .watch-hero { min-height: clamp(460px, 78svh, 540px); padding: 0 20px; background-position: 58% center; }
       .watch-hero::after { height: 150px; }
       .watch-hero__inner { padding: 90px 0 52px; }
+      .watch-hero h1 { max-width: 12ch; font-size: clamp(2.45rem, 9.8vw, 3.25rem); line-height: 1.03; }
+      .watch-hero p:last-child { max-width: 40ch; margin-top: 18px; font-size: clamp(1rem, 3.8vw, 1.125rem); line-height: 1.68; }
       .watch-content { padding: 42px 20px 60px; }
       .watch-content::before { height: 80px; }
       .watch-section { margin-bottom: 50px; }
       .watch-section__header { flex-direction: column; align-items: flex-start; gap: 10px; }
       .watch-section__header .watch-channel { white-space: normal; }
-      .section-title { font-size: clamp(26px, 7.5vw, 34px); }
+      .section-title { font-size: clamp(2rem, 8.5vw, 2.375rem); line-height: 1.12; }
       .offline-card { padding: 26px 20px; }
+      .offline-card p { font-size: 1rem; line-height: 1.68; }
       .video-grid { grid-template-columns: 1fr; }
     }
   </style>

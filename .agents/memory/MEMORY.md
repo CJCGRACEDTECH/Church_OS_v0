@@ -1,3 +1,4 @@
 - [Household inbox admin permissions](household-inbox-permissions.md) — /admin/household-requests requires super_admin role, not just admin; distinct from /admin/members.
 - [Church OS seed church slug](church-os-seed-slug.md) — seed.ts church slug must match the real dev DB church slug or reseeding creates an orphan duplicate church record.
 - [Gold hero copy contrast](hero-gold-contrast.md) — gold subheaders overlap the hero bottom light fade; keep the local blurred scrim behind each copy line, plus a headless-chromium glyph-mask contrast check recipe.
+- [Responsive typography validation](responsive-typography-validation.md) — public page typography changes need phone edge-width screenshots because hero fades and overlap sections can hide wrapping problems.
