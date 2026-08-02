@@ -297,14 +297,21 @@
       .hero__inner { width: min(100% - 40px, 1280px); padding: 130px 0 90px; }
       .hero__copy-area { width: 100%; }
       .hero__copy-area::before {
-        top: -42px;
-        right: -30px;
-        bottom: -42px;
-        left: -30px;
-        width: auto;
-        background: radial-gradient(ellipse at 40% 42%, rgba(8, 13, 30, .42) 0%, rgba(8, 13, 30, .28) 50%, rgba(8, 13, 30, .10) 76%, transparent 98%);
-        -webkit-mask-image: radial-gradient(ellipse 92% 82% at 40% 43%, #000 24%, rgba(0, 0, 0, .70) 58%, transparent 100%);
-        mask-image: radial-gradient(ellipse 92% 82% at 40% 43%, #000 24%, rgba(0, 0, 0, .70) 58%, transparent 100%);
+        /* on mobile keep the scrim tight — barely above/below the text */
+        top:    -10px;
+        bottom: -10px;
+        left:   -20px;
+        right:  -20px;
+        background: rgba(8, 13, 30, .28);
+        /* feathered rectangle: fade on all four edges, no oval */
+        -webkit-mask-image:
+          linear-gradient(to right,  black 60%, transparent 100%),
+          linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
+                mask-image:
+          linear-gradient(to right,  black 60%, transparent 100%),
+          linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
+        -webkit-mask-composite: source-in;
+                mask-composite: intersect;
       }
       .home-weekly { width: 100%; margin-top: -60px; padding-top: 60px; }
       .section--soft.home-weekly {
