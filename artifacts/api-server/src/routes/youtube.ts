@@ -14,6 +14,19 @@ const DEFAULT_CHANNEL_URL =
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes (videos list)
 const LIVE_CACHE_TTL_MS = 90 * 1000; // 90 seconds (live status — needs to be fresh)
+// Temporary preview-only live state. Expires automatically one minute after
+// this server starts so it cannot remain enabled accidentally.
+const LIVE_SIMULATION_UNTIL = Date.now() + 60 * 1000;
+const SIMULATED_LIVE_VIDEO: ScrapedVideo = {
+  videoId: "AXNn6ry9wq8",
+  title: "CJC Church Live Service — SIMULATION",
+  thumbnail: "https://i.ytimg.com/vi/AXNn6ry9wq8/maxresdefault.jpg",
+  watchUrl: "https://www.youtube.com/watch?v=AXNn6ry9wq8",
+  url: "https://www.youtube.com/watch?v=AXNn6ry9wq8",
+  isLive: true,
+  date: "Live simulation",
+  publishedAt: null,
+};
 
 interface ScrapedVideo {
   videoId: string;
@@ -223,8 +236,13 @@ async function fetchSermonsFromDb(churchId: number) {
 router.get("/youtube/latest", async (_req, res) => {
   try {
     const payload = await getScrapedLatest();
-    res.set("Cache-Control", "public, max-age=300");
-    res.json(payload);
+    const simulationActive = Date.now() < LIVE_SIMULATION_UNTIL;
+    res.set("Cache-Control", simulationActive ? "no-store" : "public, max-age=300");
+    res.json(
+      simulationActive
+        ? { ...payload, video: SIMULATED_LIVE_VIDEO }
+        : payload,
+    );
   } catch (err) {
     logger.error({ err }, "Failed to scrape YouTube latest stream");
     res.status(502).json({

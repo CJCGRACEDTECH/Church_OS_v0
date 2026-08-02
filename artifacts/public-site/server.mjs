@@ -50,6 +50,19 @@ const LOGO_URL =
   "/assets/cdn.prod.website-files.com/6a04d9903c973b192832dc71/6a165063776b2bebe246b54b_Untitled%20design%20(25).png";
 const YOUTUBE_CACHE_TTL_MS = 5 * 60 * 1000;
 const EVENTS_CACHE_TTL_MS = 5 * 60 * 1000;
+// Temporary preview-only live state. Expires automatically one minute after
+// this server starts so it cannot remain enabled accidentally.
+const LIVE_SIMULATION_UNTIL = Date.now() + 60 * 1000;
+const SIMULATED_LIVE_VIDEO = {
+  videoId: "AXNn6ry9wq8",
+  title: "CJC Church Live Service — SIMULATION",
+  thumbnail: "https://i.ytimg.com/vi/AXNn6ry9wq8/maxresdefault.jpg",
+  watchUrl: "https://www.youtube.com/watch?v=AXNn6ry9wq8",
+  url: "https://www.youtube.com/watch?v=AXNn6ry9wq8",
+  isLive: true,
+  date: "Live simulation",
+  publishedAt: null,
+};
 let scrapeVideosCache = null;  // { videos, channelUrl, cachedAt }
 let scrapeLatestCache = null;  // { video, channelUrl, cachedAt }
 let publicEventsCache = null;
@@ -984,7 +997,15 @@ const server = http.createServer((req, res) => {
 
   if (urlPath === "/api/youtube/latest") {
     getScrapedLatest()
-      .then((payload) => sendJson(res, 200, payload, "public, max-age=300"))
+      .then((payload) => {
+        const simulationActive = Date.now() < LIVE_SIMULATION_UNTIL;
+        sendJson(
+          res,
+          200,
+          simulationActive ? { ...payload, video: SIMULATED_LIVE_VIDEO } : payload,
+          simulationActive ? "no-store" : "public, max-age=300",
+        );
+      })
       .catch((err) => {
         console.error("YouTube /latest scrape failed:", err.message);
         sendJson(res, 502, {
