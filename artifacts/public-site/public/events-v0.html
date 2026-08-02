@@ -337,7 +337,7 @@
     }
 
     @media (max-width: 680px) {
-      .events-hero { min-height: 620px; background-position: 58% center; }
+      .events-hero { min-height: clamp(500px, 78svh, 620px); background-position: 58% center; }
       .events-hero::after { height: 180px; }
       .events-hero__inner,
       .schedule,
@@ -350,6 +350,7 @@
       .section-heading { grid-template-columns: 1fr; gap: 11px; }
       .service-grid { grid-template-columns: 1fr; }
       .service-card__detail { min-height: 0; }
+      .service-card__meta { flex-wrap: wrap; justify-content: flex-start; gap: 4px 10px; }
       .location__inner { align-items: flex-start; flex-direction: column; }
     }
   </style>

@@ -214,10 +214,10 @@
       .visit__image { min-height: 400px; }
     }
     @media (max-width: 600px) {
-      .hero { min-height: 900px; background-position: 63% 28%; }
+      .hero { min-height: clamp(640px, 100svh, 780px); background-position: 63% 28%; }
       .hero::before { background: linear-gradient(180deg, rgba(9,14,31,.28), rgba(9,14,31,.93) 70%); }
       .hero::after { height: 420px; background: linear-gradient(to bottom, transparent 0%, rgba(10, 15, 31, .42) 32%, rgba(9, 13, 27, .84) 64%, rgba(9, 13, 27, .95) 84%, #f8f9fc 100%); }
-      .hero__inner { width: min(100% - 40px, 1280px); padding: 180px 0 130px; }
+      .hero__inner { width: min(100% - 40px, 1280px); padding: 130px 0 90px; }
       .home-weekly { width: 100%; margin-top: -140px; padding-top: 60px; }
       .home-weekly::before { height: 320px; }
       .home-weekly::after { height: 320px; }

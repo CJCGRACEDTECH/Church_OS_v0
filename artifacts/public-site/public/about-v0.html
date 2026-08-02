@@ -142,9 +142,9 @@
       .leader:nth-child(even) img { order: 0; }
     }
     @media (max-width: 650px) {
-      .about-hero { min-height: 640px; background-position: 56% center; }
+      .about-hero { min-height: clamp(520px, 78svh, 640px); background-position: 56% center; }
       .about-hero::after { height: 220px; }
-      .about-hero__inner { width: min(100% - 40px, 1280px); padding: 160px 0 62px; }
+      .about-hero__inner { width: min(100% - 40px, 1280px); padding: 120px 0 54px; }
       .section { padding: 58px 0; }
       .section__inner { width: min(100% - 40px, 1280px); }
       .section--soft { margin-top: -120px; padding-top: 148px; }

@@ -366,12 +366,15 @@
       .video-grid  { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     @media (max-width: 560px) {
-      .watch-hero { min-height: 540px; padding: 0 20px; background-position: 58% center; }
+      .watch-hero { min-height: clamp(460px, 78svh, 540px); padding: 0 20px; background-position: 58% center; }
       .watch-hero::after { height: 150px; }
-      .watch-hero__inner { padding: 100px 0 58px; }
+      .watch-hero__inner { padding: 90px 0 52px; }
       .watch-content { padding: 42px 20px 60px; }
       .watch-content::before { height: 80px; }
       .watch-section { margin-bottom: 50px; }
+      .watch-section__header { flex-direction: column; align-items: flex-start; gap: 10px; }
+      .watch-section__header .watch-channel { white-space: normal; }
+      .section-title { font-size: clamp(26px, 7.5vw, 34px); }
       .offline-card { padding: 26px 20px; }
       .video-grid { grid-template-columns: 1fr; }
     }

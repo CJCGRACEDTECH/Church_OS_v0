@@ -93,16 +93,17 @@
     @media (max-width: 860px) {
       .contact-grid, .map-section { grid-template-columns: 1fr; }
       .map-frame { min-height: 410px; }
+      .map-section { min-height: 0; }
     }
     @media (max-width: 620px) {
-      .contact-hero { min-height: 620px; background-position: 54% center; }
+      .contact-hero { min-height: clamp(500px, 78svh, 620px); background-position: 54% center; }
       .contact-hero::after { height: 180px; }
-      .contact-hero__inner { width: min(100% - 40px, 1280px); padding: 160px 0 66px; }
+      .contact-hero__inner { width: min(100% - 40px, 1280px); padding: 120px 0 58px; }
       .contact-main { width: min(100% - 32px, 1280px); margin-top: -36px; padding-bottom: 64px; }
       .visit-panel, .service-panel { padding: 28px 22px; }
-      .service-list li { align-items: flex-start; }
+      .service-list li { align-items: flex-start; flex-wrap: wrap; gap: 2px 10px; }
       .map-section { margin-top: 0; padding-top: 0; }
-      .social-copy { padding: 44px 20px 52px; }
+      .social-copy { padding: 36px 20px 44px; }
     }
   </style>
 </head>

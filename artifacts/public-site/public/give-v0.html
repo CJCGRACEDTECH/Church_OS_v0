@@ -214,15 +214,17 @@
       .methods-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     @media (max-width: 620px) {
-      .give-hero { min-height: 620px; background-position: 58% center; }
+      .give-hero { min-height: clamp(500px, 78svh, 620px); background-position: 58% center; }
       .give-hero::after { height: 170px; }
-      .give-hero__inner { width: min(100% - 40px, 1280px); padding: 160px 0 68px; }
+      .give-hero__inner { width: min(100% - 40px, 1280px); padding: 120px 0 60px; }
       .give-main { width: min(100% - 32px, 1280px); margin-top: -36px; padding-bottom: 60px; }
       .give-layout { gap: 28px; padding: 24px 20px; }
       .give-panel { padding: 21px; }
-      .impact { margin-top: -40px; padding-top: 92px; padding-bottom: 56px; }
-      .methods { padding: 52px 0 56px; }
+      .stripe-give-amounts { grid-template-columns: repeat(2, 1fr); }
+      .impact { margin-top: -40px; padding-top: 72px; padding-bottom: 44px; }
+      .methods { padding: 40px 0 44px; }
       .impact::before { height: 100px; }
+      .giving-trust { padding: 40px 20px 44px; }
       .giving-trust::after { height: 90px; }
       .impact__inner, .methods__inner { width: min(100% - 40px, 1280px); }
       .impact-card { display: block; }
