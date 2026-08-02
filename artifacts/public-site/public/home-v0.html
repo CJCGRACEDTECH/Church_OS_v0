@@ -227,7 +227,17 @@
       .hero__copy { max-width: 42ch; margin-top: 18px; font-size: clamp(1rem, 3.8vw, 1.125rem); line-height: 1.68; }
       .hero__actions { gap: 10px; margin-top: 26px; }
       .hero__actions .cjc-button { min-height: 46px; padding-inline: clamp(15px, 4vw, 20px); font-size: clamp(.9375rem, 3.5vw, 1rem); }
-      .hero__schedule { margin-top: 34px; gap: 8px 16px; font-size: .875rem; }
+      .hero__schedule {
+        margin-top: 34px;
+        gap: clamp(3px, 1.1vw, 8px);
+        justify-content: space-between;
+        flex-wrap: nowrap;
+        font-size: clamp(.5625rem, 2.8vw, .875rem);
+        line-height: 1.35;
+        letter-spacing: -.02em;
+        white-space: nowrap;
+      }
+      .hero__schedule span { white-space: nowrap; }
       .section { padding: 54px 20px; }
       .section-heading { gap: 14px; margin-bottom: 26px; }
       .section-heading h2 { font-size: clamp(2rem, 8.8vw, 2.75rem); line-height: 1.1; }
