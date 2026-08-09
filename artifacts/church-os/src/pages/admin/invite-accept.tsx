@@ -16,6 +16,16 @@ type InviteDetails = {
   expiresAt: string;
 };
 
+class ApiError extends Error {
+  code?: string;
+  status: number;
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.status = status;
+    this.code = code;
+  }
+}
+
 async function apiJson<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`/api${path}`, {
     credentials: "include",
@@ -26,7 +36,7 @@ async function apiJson<T>(path: string, options?: RequestInit): Promise<T> {
     ...options,
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error ?? "Request failed");
+  if (!response.ok) throw new ApiError(data.error ?? "Request failed", response.status, data.code);
   return data as T;
 }
 
@@ -84,11 +94,23 @@ export default function AdminInviteAccept() {
           {inviteQuery.isLoading && (
             <p className="text-sm text-muted-foreground">Loading invite...</p>
           )}
-          {inviteQuery.error && (
-            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-              {inviteQuery.error.message}
-            </div>
-          )}
+          {inviteQuery.error && (() => {
+            const isExpired =
+              inviteQuery.error instanceof ApiError &&
+              inviteQuery.error.code === "INVITE_EXPIRED";
+            return isExpired ? (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-4 space-y-2">
+                <p className="text-sm font-semibold text-amber-900">This invite has expired</p>
+                <p className="text-sm text-amber-800">
+                  The link is no longer valid. Ask your admin to send a new invitation to your email address.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                {inviteQuery.error.message}
+              </div>
+            );
+          })()}
           {inviteQuery.data && (
             <>
               <div className="grid gap-3 rounded-md border bg-background p-4 text-sm">

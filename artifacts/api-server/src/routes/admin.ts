@@ -455,8 +455,21 @@ router.get("/admin/invitations/accept/:token", async (req, res): Promise<void> =
     .from(adminInvitationsTable)
     .where(eq(adminInvitationsTable.tokenHash, tokenHash(String(req.params.token))));
 
-  if (!invite || invite.status !== "pending" || invite.expiresAt <= new Date()) {
-    res.status(404).json({ error: "This invite is invalid or expired." });
+  if (!invite || invite.status !== "pending") {
+    res.status(404).json({ error: "This invite link is not valid." });
+    return;
+  }
+
+  if (invite.expiresAt <= new Date()) {
+    // Mark it expired in the DB so the admin dashboard reflects the true state.
+    await db
+      .update(adminInvitationsTable)
+      .set({ status: "expired" })
+      .where(eq(adminInvitationsTable.id, invite.id));
+    res.status(410).json({
+      error: "This invite has expired. Ask your admin to send a new one.",
+      code: "INVITE_EXPIRED",
+    });
     return;
   }
 
