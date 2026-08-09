@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/reac
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth, ProtectedRoute } from "@/components/auth-context";
-import { ClerkProvider, SignIn, useClerk } from "@clerk/react";
+import { ClerkProvider, SignIn, useClerk, useUser } from "@clerk/react";
 import { shadcn } from "@clerk/themes";
 import { PublicSiteHeader } from "@/components/public-site-header";
 
@@ -134,9 +134,25 @@ function ClerkQueryClientCacheInvalidator() {
 
 function HomeRoute() {
   const { user, isLoading } = useAuth();
+  const { isSignedIn: clerkSignedIn, isLoaded: clerkLoaded } = useUser();
   const [, setLocation] = useLocation();
 
   useEffect(() => {
+    // Check for a pending invite token as soon as Clerk confirms the user is
+    // signed in — do NOT wait for the local /auth/me to resolve. A newly
+    // invited admin has no local account yet, so /auth/me returns 403 and
+    // `user` stays null. Redirecting to /admin/invite/:token before that 403
+    // propagates prevents the auto-signout in auth-context from firing (it
+    // suppresses 403 sign-outs on /admin/invite/* routes).
+    if (clerkLoaded && clerkSignedIn) {
+      const pendingInviteToken = sessionStorage.getItem("pendingInviteToken");
+      if (pendingInviteToken) {
+        sessionStorage.removeItem("pendingInviteToken");
+        setLocation(`/admin/invite/${pendingInviteToken}`, { replace: true });
+        return;
+      }
+    }
+
     if (!isLoading) {
       if (user) {
         setLocation(user.role === "admin" ? "/admin" : "/member", { replace: true });
@@ -144,7 +160,7 @@ function HomeRoute() {
         setLocation("/sign-in", { replace: true });
       }
     }
-  }, [isLoading, user, setLocation]);
+  }, [isLoading, user, setLocation, clerkLoaded, clerkSignedIn]);
 
   return null;
 }

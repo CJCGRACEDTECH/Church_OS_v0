@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useLocation, useRoute, Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@clerk/react";
@@ -37,6 +38,13 @@ export default function AdminInviteAccept() {
   const token = params?.token ?? "";
 
   const { isLoaded: clerkLoaded, isSignedIn } = useUser();
+
+  // Clear any pending invite token from sessionStorage as soon as we land on
+  // this page — whether via a direct Clerk redirect or the /app fallback
+  // recovery path. Without this, a later visit to / or /app would incorrectly
+  // redirect an already-accepted admin back to a stale (or expired) invite URL.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { sessionStorage.removeItem("pendingInviteToken"); }, []);
 
   const inviteQuery = useQuery({
     queryKey: ["admin-invite", token],
@@ -98,9 +106,18 @@ export default function AdminInviteAccept() {
                   <p className="text-sm text-blue-700">
                     Sign into Church OS with the email address that received this invitation before accepting.
                   </p>
-                  <Link href={`/sign-in?redirect_url=${encodeURIComponent(window.location.pathname)}`}>
-                    <Button className="w-full">Sign in or create an account</Button>
-                  </Link>
+                  <Button
+                    className="w-full"
+                    onClick={() => {
+                      // Persist the invite token so HomeRoute can recover it if
+                      // Clerk's allowed-redirect-URL list silently falls back to
+                      // /app instead of returning to /admin/invite/:token.
+                      sessionStorage.setItem("pendingInviteToken", token);
+                      window.location.href = `/sign-in?redirect_url=${encodeURIComponent(window.location.pathname)}`;
+                    }}
+                  >
+                    Sign in or create an account
+                  </Button>
                 </div>
               )}
 
