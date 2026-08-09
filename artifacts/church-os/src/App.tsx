@@ -29,6 +29,7 @@ import AdminEvangelism from "@/pages/admin/evangelism";
 import AdminSettings from "@/pages/admin/settings";
 import AdminSermons from "@/pages/admin/sermons";
 import AdminInviteAccept from "@/pages/admin/invite-accept";
+import NoAccount from "@/pages/no-account";
 
 import MemberDashboard from "@/pages/member-dashboard";
 import MemberProfile from "@/pages/member/profile";
@@ -295,6 +296,7 @@ function Router() {
       <Route path="/app" component={HomeRoute} />
 
       <Route path="/unauthorized" component={Unauthorized} />
+      <Route path="/no-account" component={NoAccount} />
       <Route path="/attendance/check-in/:token" component={AttendanceCheckIn} />
       <Route path="/admin/invite/:token" component={AdminInviteAccept} />
       <Route path="/connect" component={ConnectPage} />

@@ -165,6 +165,7 @@ const CHURCH_OS_ROUTE_PREFIXES = [
   "/app",        // post-sign-in landing; Church OS HomeRoute redirects by role
   "/connect",
   "/request-account",
+  "/no-account", // shown when Clerk identity has no local account (e.g. invite expired)
   "/admin",
   "/member",
   "/attendance",
