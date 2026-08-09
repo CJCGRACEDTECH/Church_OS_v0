@@ -676,12 +676,21 @@ function transformHtml(source, urlPath = "/") {
       <style>
         .baptism-inner{max-width:1160px;margin:0 auto}
         .baptism-header{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:28px;flex-wrap:wrap}
-        .baptism-header p{margin:0 0 6px;color:#4760ff;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;font-family:system-ui,sans-serif}
-        .baptism-header h2{margin:0;font-size:32px;font-family:system-ui,sans-serif;color:#171c2c;line-height:1.1}
-        .baptism-header time{padding:6px 14px;border-radius:20px;background:#fff;border:1px solid #dfe4ed;font-size:13px;font-weight:700;color:#687083;font-family:system-ui,sans-serif;white-space:nowrap;align-self:flex-start}
+        .baptism-header p{margin:0 0 6px;color:#4760ff;font-size:clamp(11px,1.2vw,12px);font-weight:800;letter-spacing:.08em;text-transform:uppercase;font-family:system-ui,sans-serif}
+        .baptism-header h2{margin:0;font-size:clamp(28px,3vw,32px);font-family:system-ui,sans-serif;color:#171c2c;line-height:1.1}
+        .baptism-header time{padding:6px 14px;border-radius:20px;background:#fff;border:1px solid #dfe4ed;font-size:clamp(12px,1.4vw,13px);font-weight:700;color:#687083;font-family:system-ui,sans-serif;white-space:nowrap;align-self:flex-start}
         .baptism-frame{border-radius:10px;overflow:hidden;box-shadow:0 8px 40px rgba(9,15,35,.12);border:1px solid #dfe4ed}
         .baptism-frame iframe{width:100%;height:700px;border:0;display:block}
-        @media(max-width:768px){.baptism-frame iframe{height:520px}}
+        @media(max-width:768px){
+          #baptism-event{padding:38px 16px 52px!important}
+          .baptism-header{align-items:flex-start;gap:12px;margin-bottom:20px}
+          .baptism-header time{padding:6px 11px}
+          .baptism-frame{border-radius:12px}
+          /* The embedded event page has a full hero and photo collage. Give it
+             enough vertical room on phones instead of compressing it into a
+             desktop-sized card. Scale with viewport width for different phones. */
+          .baptism-frame iframe{height:clamp(660px,175vw,780px)}
+        }
       </style>
       <div class="baptism-inner">
         <div class="baptism-header">
