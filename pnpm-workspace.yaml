@@ -176,7 +176,13 @@ overrides:
   # GHSA-22p9-wv53-3rq4 — linkify-it quadratic scan loop ReDoS
   "linkify-it": "^5.0.1"
   # GHSA-52cp-r559-cp3m, GHSA-h67p-54hq-rp68 — js-yaml merge-key quadratic CPU DoS
-  "js-yaml": "^4.3.0"
+  # GHSA-5p4m-2wfm-xmqj — js-yaml quadratic CPU consumption in !!omap (patched >=4.3.1)
+  "js-yaml": "^4.3.1"
+  # CVE-2026-67213, CVE-2026-67214 — nanoid non-secure/custom generators can loop indefinitely (patched >=3.3.18)
+  "nanoid": "^3.3.18"
+  # CVE-2025-71329, CVE-2025-71330 — image-size ICNS/JXL/HEIF parsers DoS via infinite loops
+  # No upstream patch exists (npm advisory: patched versions <0.0.0); pinning to latest (2.0.2) as best available mitigation
+  "image-size": "^2.0.2"
   # GHSA-gcfj-64vw-6mp9 and others — axios multiple vulns (proxy, prototype pollution, maxBodyLength)
   "axios": "^1.18.0"
   # GHSA-6v5v-wf23-fmfq — markdown-it smartquotes quadratic complexity DoS
