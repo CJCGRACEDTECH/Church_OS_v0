@@ -217,6 +217,10 @@ function AuthPageShell({ children }: { children: React.ReactNode }) {
 }
 
 function SignInPage() {
+  // Member invite emails link to /sign-in?email=<invited-email>. Pre-filling
+  // the address reduces the chance the recipient signs in with the wrong
+  // account and hits a 403 because their Clerk email doesn't match the record.
+  const emailHint = new URLSearchParams(window.location.search).get("email") ?? undefined;
   return (
     <AuthPageShell>
       <div className="flex flex-col items-center">
@@ -226,6 +230,7 @@ function SignInPage() {
             path={`${basePath}/sign-in`}
             signUpUrl={`${basePath}/sign-up`}
             fallbackRedirectUrl={basePath ? basePath : "/app"}
+            initialValues={emailHint ? { emailAddress: emailHint } : undefined}
             appearance={{ elements: { cardBox: "!shadow-none !border-0 !rounded-none w-full", rootBox: "w-full" } }}
           />
           <div className="border-t border-gray-100 bg-gray-50 px-6 py-4 flex flex-col items-center gap-2">

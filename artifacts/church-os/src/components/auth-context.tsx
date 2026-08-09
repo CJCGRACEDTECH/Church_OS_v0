@@ -104,13 +104,19 @@ function ClerkBackedAuthProvider({ children }: { children: ReactNode }) {
 
   // Sign out only on 403 — Clerk identity exists but has no local DB account.
   // (Clerk handles 401/session-expiry itself via token refresh + isSignedIn=false.)
+  //
+  // Exception: /admin/invite/* pages create the local account inline via the
+  // POST /admin/invitations/accept/:token endpoint, so a 403 from /auth/me is
+  // expected there. Signing out on those pages would prevent invite acceptance.
+  const [location] = useLocation();
   React.useEffect(() => {
-    if (clerkLoaded && isSignedIn && !localLoading && errorStatus === 403) {
+    const isInvitePage = /^\/admin\/invite\//.test(location);
+    if (clerkLoaded && isSignedIn && !localLoading && errorStatus === 403 && !isInvitePage) {
       void signOut().then(() => {
         queryClient.clear();
       });
     }
-  }, [clerkLoaded, isSignedIn, localLoading, errorStatus, signOut, queryClient]);
+  }, [clerkLoaded, isSignedIn, localLoading, errorStatus, location, signOut, queryClient]);
 
   const logout = () => {
     void signOut().then(() => {

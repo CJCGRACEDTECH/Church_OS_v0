@@ -1,5 +1,5 @@
 import { useLocation, useRoute, Link } from "wouter";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@clerk/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ export default function AdminInviteAccept() {
   const [, params] = useRoute("/admin/invite/:token");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const token = params?.token ?? "";
 
   const { isLoaded: clerkLoaded, isSignedIn } = useUser();
@@ -51,6 +52,10 @@ export default function AdminInviteAccept() {
       }),
     onSuccess: (data) => {
       toast({ title: "Admin account activated" });
+      // The local account was just created by the accept endpoint. Clear the
+      // stale 403 from /auth/me so auth-context fetches a fresh result on the
+      // next render and does not sign the user out as they navigate to /admin.
+      queryClient.removeQueries({ queryKey: ["/api/auth/me"] });
       setLocation(data.redirectTo);
     },
     onError: (error) =>
