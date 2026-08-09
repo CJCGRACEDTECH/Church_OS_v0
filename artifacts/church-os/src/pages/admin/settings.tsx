@@ -275,6 +275,15 @@ export default function AdminSettings() {
     onError: (error) => toast({ title: "Could not revoke invitation", description: error.message, variant: "destructive" }),
   });
 
+  const resendInvite = useMutation({
+    mutationFn: (id: number) => apiJson(`/admin/invitations/${id}/resend`, { method: "POST" }),
+    onSuccess: () => {
+      toast({ title: "Invitation resent", description: "A fresh invite link has been emailed." });
+      void queryClient.invalidateQueries({ queryKey: ["admin-invitations"] });
+    },
+    onError: (error) => toast({ title: "Could not resend invitation", description: error.message, variant: "destructive" }),
+  });
+
   const admins = adminsQuery.data?.admins ?? [];
   const selectedAdmin = admins.find((admin) => admin.id === selectedAdminId) ?? admins[0];
   const settings = settingsQuery.data?.settings ?? {};
@@ -338,8 +347,10 @@ export default function AdminSettings() {
                 onUpdate={(id, updates) => updateAdmin.mutate({ id, updates })}
                 onRemove={(id) => removeAdminAccess.mutate(id)}
                 onRevoke={(id) => revokeInvite.mutate(id)}
+                onResend={(id) => resendInvite.mutate(id)}
                 isSaving={inviteAdmin.isPending || updateAdmin.isPending || removeAdminAccess.isPending}
                 isRevoking={revokeInvite.isPending}
+                isResending={resendInvite.isPending}
               />
             )}
             {active === "permissions" && (
@@ -447,8 +458,10 @@ function AdminsSection({
   onUpdate,
   onRemove,
   onRevoke,
+  onResend,
   isSaving,
   isRevoking,
+  isResending,
 }: {
   admins: AdminUser[];
   invitations: AdminInvitation[];
@@ -460,8 +473,10 @@ function AdminsSection({
   onUpdate: (id: number, updates: Partial<AdminUser>) => void;
   onRemove: (id: number) => void;
   onRevoke: (id: number) => void;
+  onResend: (id: number) => void;
   isSaving: boolean;
   isRevoking: boolean;
+  isResending: boolean;
 }) {
   const [search, setSearch] = React.useState("");
   const filtered = admins.filter((admin) => `${admin.firstName} ${admin.lastName} ${admin.email} ${admin.assignedMinistry ?? ""}`.toLowerCase().includes(search.toLowerCase()));
@@ -516,11 +531,18 @@ function AdminsSection({
                   <TableCell>{dateTime(invite.expiresAt)}</TableCell>
                   {canManage && (
                     <TableCell className="text-right">
-                      {invite.status === "pending" && (
-                        <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" disabled={isRevoking} onClick={() => onRevoke(invite.id)}>
-                          Revoke
-                        </Button>
-                      )}
+                      <div className="flex items-center justify-end gap-1">
+                        {(invite.status === "pending" || invite.status === "expired") && (
+                          <Button size="sm" variant="ghost" disabled={isResending} onClick={() => onResend(invite.id)}>
+                            Resend
+                          </Button>
+                        )}
+                        {invite.status === "pending" && (
+                          <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" disabled={isRevoking} onClick={() => onRevoke(invite.id)}>
+                            Revoke
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   )}
                 </TableRow>

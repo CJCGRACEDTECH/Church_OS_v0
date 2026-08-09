@@ -648,6 +648,83 @@ router.delete("/admin/invitations/:id", requireSuperAdmin, async (req, res): Pro
   res.json({ message: "Invitation revoked." });
 });
 
+// Resend an invitation — expires the old link and creates a fresh one with
+// the same name / email / role / ministry / permissions so the admin doesn't
+// have to retype anything.
+router.post("/admin/invitations/:id/resend", requireSuperAdmin, async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) { res.status(400).json({ error: "Invalid invitation id." }); return; }
+
+  const [requester] = await db
+    .select({ id: usersTable.id, churchId: usersTable.churchId, firstName: usersTable.firstName, lastName: usersTable.lastName })
+    .from(usersTable)
+    .where(eq(usersTable.id, req.localUserId));
+
+  if (!requester) { res.status(401).json({ error: "Requester not found." }); return; }
+
+  const [invite] = await db
+    .select()
+    .from(adminInvitationsTable)
+    .where(and(eq(adminInvitationsTable.id, id), eq(adminInvitationsTable.churchId, requester.churchId)));
+
+  if (!invite) { res.status(404).json({ error: "Invitation not found." }); return; }
+  if (invite.status === "accepted") {
+    res.status(409).json({ error: "This invitation has already been accepted and cannot be resent." });
+    return;
+  }
+
+  // Expire the old invite so the previous link stops working immediately.
+  await db
+    .update(adminInvitationsTable)
+    .set({ status: "expired" })
+    .where(eq(adminInvitationsTable.id, id));
+
+  // Create a fresh invite with a new token and expiry, same recipient details.
+  const token = randomBytes(32).toString("base64url");
+  const expiresAt = new Date(Date.now() + Number(process.env.ADMIN_INVITE_TTL_HOURS ?? 72) * 60 * 60 * 1000);
+
+  const [newInvite] = await db
+    .insert(adminInvitationsTable)
+    .values({
+      churchId: requester.churchId,
+      invitedByUserId: requester.id,
+      tokenHash: tokenHash(token),
+      firstName: invite.firstName,
+      lastName: invite.lastName,
+      email: invite.email,
+      assignedRole: invite.assignedRole,
+      assignedMinistry: invite.assignedMinistry,
+      assignedPermissions: invite.assignedPermissions,
+      status: "pending",
+      expiresAt,
+    })
+    .returning();
+
+  const inviteUrl = `${getPublicBaseUrl(req).replace(/\/$/, "")}/admin/invite/${token}`;
+  await sendAdminInviteEmail({
+    to: invite.email,
+    name: `${invite.firstName} ${invite.lastName}`,
+    inviteUrl,
+    invitedBy: `${requester.firstName} ${requester.lastName}`,
+    baseUrl: getPublicBaseUrl(req),
+  });
+
+  res.status(201).json({
+    invitation: {
+      id: newInvite.id,
+      name: `${newInvite.firstName} ${newInvite.lastName}`,
+      email: newInvite.email,
+      adminLevel: newInvite.assignedRole,
+      adminTitle: adminTitle(newInvite.assignedRole),
+      assignedMinistry: newInvite.assignedMinistry,
+      permissions: newInvite.assignedPermissions,
+      status: newInvite.status,
+      sentAt: newInvite.createdAt.toISOString(),
+      expiresAt: newInvite.expiresAt.toISOString(),
+    },
+  });
+});
+
 router.get("/admin/permissions/giving-records", requireAdminPermission(ADMIN_PERMISSIONS.GIVING_DETAILS), (_req, res) => {
   res.json({ message: "Giving records access granted" });
 });
