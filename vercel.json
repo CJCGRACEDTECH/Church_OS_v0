@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "pnpm install",
+  "buildCommand": "pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/church-os run build",
+  "outputDirectory": "artifacts/church-os/dist/public",
+  "framework": null,
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index" },
+    { "source": "/((?!api/|assets/|church-os-assets/).*)", "destination": "/index.html" }
+  ]
+}

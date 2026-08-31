@@ -15,7 +15,10 @@ const isWatch = process.argv.includes("--watch");
 const distDir = path.resolve(artifactDir, "dist");
 
 const esbuildOptions = {
-  entryPoints: [path.resolve(artifactDir, "src/index.ts")],
+  entryPoints: [
+    path.resolve(artifactDir, "src/index.ts"),
+    path.resolve(artifactDir, "src/vercel.ts"),
+  ],
   platform: "node",
   bundle: true,
   format: "esm",
