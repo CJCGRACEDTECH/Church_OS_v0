@@ -21,12 +21,15 @@ export const givingCampaignsTable = pgTable("giving_campaigns", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
 
+export const PAYMENT_METHODS = ["stripe", "square", "paypal", "cash_app", "venmo", "zelle", "cash", "check", "other"] as const;
+
 export const donationsTable = pgTable("donations", {
   id: serial("id").primaryKey(),
   churchId: integer("church_id").notNull().references(() => churchesTable.id),
-  memberId: integer("member_id").notNull().references(() => usersTable.id),
+  // Nullable: live Square taps arrive without member identity until an admin assigns them.
+  memberId: integer("member_id").references(() => usersTable.id),
   donorName: text("donor_name").notNull(),
-  donorEmail: text("donor_email").notNull(),
+  donorEmail: text("donor_email").notNull().default(""),
   amountCents: integer("amount_cents").notNull(),
   donationDate: timestamp("donation_date", { withTimezone: true }).notNull().defaultNow(),
   donationType: text("donation_type", { enum: ["one_time", "recurring"] }).notNull().default("one_time"),
@@ -38,6 +41,9 @@ export const donationsTable = pgTable("donations", {
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
   stripeReceiptUrl: text("stripe_receipt_url"),
+  paymentMethod: text("payment_method", { enum: PAYMENT_METHODS }).notNull().default("stripe"),
+  // Provider-side reference: Square payment id, check number, PayPal transaction id, etc.
+  externalPaymentId: text("external_payment_id"),
   paymentStatus: text("payment_status", { enum: ["pending", "succeeded", "failed", "refunded"] }).notNull().default("pending"),
   taxDeductible: boolean("tax_deductible").notNull().default(true),
   receiptIssued: boolean("receipt_issued").notNull().default(false),

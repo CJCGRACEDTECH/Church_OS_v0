@@ -3,10 +3,12 @@ import { and, desc, eq, gte, ilike, lte, or } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   db,
+  churchesTable,
   donationsTable,
   givingCampaignsTable,
   recurringDonationsTable,
   usersTable,
+  PAYMENT_METHODS,
   type Donation,
   type GivingCampaign,
   type RecurringDonation,
@@ -19,6 +21,7 @@ const requireGivingManagement = requireAdminPermission(ADMIN_PERMISSIONS.GIVING_
 const requireCampaignManagement = requireAdminPermission(ADMIN_PERMISSIONS.CAMPAIGN_MANAGEMENT);
 
 const CATEGORIES = new Set(["tithe", "offering", "building_fund"]);
+const METHODS = new Set<string>(PAYMENT_METHODS);
 const FREQUENCIES = new Set(["weekly", "biweekly", "monthly", "yearly"]);
 const CAMPAIGN_STATUSES = new Set(["draft", "active", "completed", "cancelled"]);
 const PAYMENT_STATUSES = new Set(["pending", "succeeded", "failed", "refunded"]);
@@ -75,6 +78,8 @@ function serializeDonation(donation: Donation) {
     stripeCustomerId: donation.stripeCustomerId,
     stripeSubscriptionId: donation.stripeSubscriptionId,
     stripeReceiptUrl: donation.stripeReceiptUrl,
+    paymentMethod: donation.paymentMethod,
+    externalPaymentId: donation.externalPaymentId,
     paymentStatus: donation.paymentStatus,
     taxDeductible: donation.taxDeductible,
     receiptIssued: donation.receiptIssued,
@@ -321,12 +326,73 @@ router.get("/admin/giving/donations", requireGivingManagement, async (req, res) 
   res.json({ donations: donations.map(serializeDonation) });
 });
 
+router.post("/admin/giving/donations", requireGivingManagement, async (req, res): Promise<void> => {
+  const amountCents = cents(req.body?.amount);
+  if (amountCents < 1) { res.status(400).json({ error: "Amount must be greater than $0." }); return; }
+  const method = enumValue(req.body?.paymentMethod, METHODS, "other");
+  const category = enumValue(req.body?.givingCategory, CATEGORIES, "offering");
+  const donationDate = req.body?.donationDate ? new Date(req.body.donationDate) : new Date();
+  if (isNaN(donationDate.getTime())) { res.status(400).json({ error: "Donation date is invalid." }); return; }
+
+  let memberId: number | null = null;
+  let donorName = textOrNull(req.body?.donorName);
+  let donorEmail = textOrNull(req.body?.donorEmail) ?? "";
+  if (req.body?.memberId) {
+    const linkedId = Number(req.body.memberId);
+    const [member] = Number.isInteger(linkedId)
+      ? await db.select().from(usersTable).where(and(eq(usersTable.id, linkedId), eq(usersTable.churchId, req.localChurchId)))
+      : [];
+    if (!member) { res.status(400).json({ error: "Member not found." }); return; }
+    memberId = member.id;
+    donorName = donorName ?? `${member.firstName} ${member.lastName}`;
+    donorEmail = donorEmail || member.email;
+  }
+  if (!donorName) { res.status(400).json({ error: "Donor name is required (or link a member)." }); return; }
+
+  let campaignId: number | null = null;
+  if (req.body?.campaignId) {
+    const parsed = Number(req.body.campaignId);
+    const [campaign] = Number.isInteger(parsed)
+      ? await db.select({ id: givingCampaignsTable.id }).from(givingCampaignsTable).where(and(eq(givingCampaignsTable.id, parsed), eq(givingCampaignsTable.churchId, req.localChurchId)))
+      : [];
+    if (!campaign) { res.status(400).json({ error: "Campaign not found." }); return; }
+    campaignId = campaign.id;
+  }
+
+  const [donation] = await db.insert(donationsTable).values({
+    churchId: req.localChurchId,
+    memberId,
+    donorName,
+    donorEmail,
+    amountCents,
+    donationDate,
+    donationType: "one_time",
+    givingCategory: category,
+    campaignId,
+    paymentMethod: method,
+    externalPaymentId: textOrNull(req.body?.externalPaymentId),
+    paymentStatus: "succeeded",
+    taxDeductible: req.body?.taxDeductible !== false,
+  }).returning();
+  res.status(201).json({ donation: serializeDonation(donation) });
+});
+
 router.patch("/admin/giving/donations/:id", requireGivingManagement, async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) { res.status(400).json({ error: "Invalid donation." }); return; }
-  const updates: Partial<{ taxDeductible: boolean; receiptIssued: boolean }> = {};
+  const updates: Partial<{ taxDeductible: boolean; receiptIssued: boolean; memberId: number; donorName: string; donorEmail: string }> = {};
   if (typeof req.body?.taxDeductible === "boolean") updates.taxDeductible = req.body.taxDeductible;
   if (typeof req.body?.receiptIssued === "boolean") updates.receiptIssued = req.body.receiptIssued;
+  if (req.body?.memberId) {
+    const linkedId = Number(req.body.memberId);
+    const [member] = Number.isInteger(linkedId)
+      ? await db.select().from(usersTable).where(and(eq(usersTable.id, linkedId), eq(usersTable.churchId, req.localChurchId)))
+      : [];
+    if (!member) { res.status(400).json({ error: "Member not found." }); return; }
+    updates.memberId = member.id;
+    updates.donorName = `${member.firstName} ${member.lastName}`;
+    updates.donorEmail = member.email;
+  }
   if (Object.keys(updates).length === 0) { res.status(400).json({ error: "No valid fields to update." }); return; }
   const [donation] = await db.update(donationsTable).set(updates).where(and(eq(donationsTable.id, id), eq(donationsTable.churchId, req.localChurchId))).returning();
   if (!donation) { res.status(404).json({ error: "Donation not found." }); return; }
@@ -524,6 +590,109 @@ async function syncStripeEvent(type: string, object: Record<string, unknown>) {
       cancelledAt: new Date(),
     }).where(eq(recurringDonationsTable.stripeSubscriptionId, String(object.id ?? "")));
   }
+}
+
+router.post("/giving/square/webhook", async (req, res): Promise<void> => {
+  const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body ?? {}));
+  const signatureKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
+
+  if (!signatureKey) {
+    if (process.env.NODE_ENV === "production") {
+      res.status(503).json({ error: "Square webhook signature key is not configured." });
+      return;
+    }
+    // Development only: allow unsigned test webhooks when the key is absent
+  } else {
+    const notificationUrl =
+      process.env.SQUARE_WEBHOOK_NOTIFICATION_URL ??
+      `${process.env.APP_BASE_URL ?? ""}/api/giving/square/webhook`;
+    if (!validSquareSignature(rawBody, req.headers["x-square-hmacsha256-signature"], signatureKey, notificationUrl)) {
+      res.status(400).json({ error: "Invalid Square signature." });
+      return;
+    }
+  }
+
+  const event = JSON.parse(rawBody.toString()) as {
+    type?: string;
+    data?: { object?: { payment?: Record<string, unknown> } };
+  };
+  if (event.type === "payment.created" || event.type === "payment.updated") {
+    await syncSquarePayment(event.data?.object?.payment ?? {});
+  }
+  res.json({ received: true });
+});
+
+const SQUARE_STATUS_MAP: Record<string, Donation["paymentStatus"]> = {
+  APPROVED: "pending",
+  PENDING: "pending",
+  COMPLETED: "succeeded",
+  CANCELED: "failed",
+  FAILED: "failed",
+};
+
+async function syncSquarePayment(payment: Record<string, unknown>) {
+  const squarePaymentId = typeof payment.id === "string" ? payment.id : null;
+  if (!squarePaymentId) return;
+  const amountMoney = typeof payment.amount_money === "object" && payment.amount_money ? payment.amount_money as Record<string, unknown> : {};
+  const amountCents = typeof amountMoney.amount === "number" ? amountMoney.amount : 0;
+  if (amountCents <= 0) return;
+  const status = SQUARE_STATUS_MAP[String(payment.status ?? "")] ?? "pending";
+  const buyerEmail = typeof payment.buyer_email_address === "string" ? payment.buyer_email_address.trim().toLowerCase() : "";
+  const createdAt = typeof payment.created_at === "string" ? new Date(payment.created_at) : new Date();
+  const refunded = Array.isArray(payment.refund_ids) && payment.refund_ids.length > 0;
+
+  // Webhooks carry no session, so resolve the church from the signup slug.
+  const slug = process.env.DEFAULT_SIGNUP_CHURCH_SLUG ?? "cjc-international";
+  const [church] = await db.select({ id: churchesTable.id }).from(churchesTable).where(eq(churchesTable.slug, slug));
+  if (!church) return;
+
+  // Attribute by receipt email when the giver provided one and it matches a member.
+  let memberId: number | null = null;
+  let donorName = "Square Live Giving";
+  let donorEmail = buyerEmail;
+  if (buyerEmail) {
+    const [member] = await db.select().from(usersTable).where(and(eq(usersTable.email, buyerEmail), eq(usersTable.churchId, church.id)));
+    if (member) {
+      memberId = member.id;
+      donorName = `${member.firstName} ${member.lastName}`;
+      donorEmail = member.email;
+    }
+  }
+
+  const [existing] = await db.select({ id: donationsTable.id, memberId: donationsTable.memberId }).from(donationsTable)
+    .where(and(eq(donationsTable.externalPaymentId, squarePaymentId), eq(donationsTable.paymentMethod, "square")));
+  if (existing) {
+    await db.update(donationsTable).set({
+      amountCents,
+      paymentStatus: refunded ? "refunded" : status,
+      // Never overwrite an assignment an admin already made.
+      ...(existing.memberId == null && memberId != null ? { memberId, donorName, donorEmail } : {}),
+    }).where(eq(donationsTable.id, existing.id));
+    return;
+  }
+
+  await db.insert(donationsTable).values({
+    churchId: church.id,
+    memberId,
+    donorName,
+    donorEmail,
+    amountCents,
+    donationDate: isNaN(createdAt.getTime()) ? new Date() : createdAt,
+    donationType: "one_time",
+    givingCategory: "offering",
+    paymentMethod: "square",
+    externalPaymentId: squarePaymentId,
+    paymentStatus: refunded ? "refunded" : status,
+  });
+}
+
+function validSquareSignature(rawBody: Buffer, signatureHeader: unknown, signatureKey: string, notificationUrl: string) {
+  if (typeof signatureHeader !== "string" || !signatureHeader) return false;
+  const expected = createHmac("sha256", signatureKey).update(notificationUrl + rawBody.toString()).digest("base64");
+  const provided = Buffer.from(signatureHeader);
+  const expectedBuffer = Buffer.from(expected);
+  if (provided.length !== expectedBuffer.length) return false;
+  return timingSafeEqual(provided, expectedBuffer);
 }
 
 function validStripeSignature(rawBody: Buffer, signatureHeader: unknown, secret: string) {

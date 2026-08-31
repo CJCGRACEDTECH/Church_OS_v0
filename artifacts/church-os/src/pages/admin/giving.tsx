@@ -27,6 +27,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { customFetch } from "@workspace/api-client-react";
+import SearchableSelect from "@/components/SearchableSelect";
 import {
   apiJson,
   dollars,
@@ -37,9 +38,10 @@ import {
   type GivingCampaign,
   type GivingCategory,
   type GivingSummary,
+  type PaymentMethod,
   type PaymentStatus,
 } from "@/lib/giving";
-import { BadgeDollarSign, ChevronDown, Download, Megaphone, Pencil, Plus, Search, ShieldCheck, Trash2, Users } from "lucide-react";
+import { BadgeDollarSign, ChevronDown, Download, HandCoins, Megaphone, Pencil, Plus, Search, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
 
 type CampaignForm = {
   campaignName: string;
@@ -92,6 +94,34 @@ function validateCampaignForm(form: CampaignForm): CampaignErrors {
   return errors;
 }
 
+type RecordDonationForm = {
+  memberId: string;
+  donorName: string;
+  donorEmail: string;
+  amount: string;
+  donationDate: string;
+  givingCategory: GivingCategory;
+  paymentMethod: PaymentMethod;
+  externalPaymentId: string;
+  campaignId: string;
+};
+
+const emptyRecordForm: RecordDonationForm = {
+  memberId: "",
+  donorName: "",
+  donorEmail: "",
+  amount: "",
+  donationDate: new Date().toISOString().slice(0, 10),
+  givingCategory: "offering",
+  paymentMethod: "cash",
+  externalPaymentId: "",
+  campaignId: "",
+};
+
+const RECORDABLE_METHODS: PaymentMethod[] = ["cash", "check", "square", "paypal", "cash_app", "venmo", "zelle", "other"];
+
+type MemberOption = { id: number; firstName: string; lastName: string; email: string };
+
 const thisYear = new Date().getFullYear();
 
 export default function AdminGiving() {
@@ -108,6 +138,10 @@ export default function AdminGiving() {
   const [editingCampaign, setEditingCampaign] = React.useState<GivingCampaign | null>(null);
   const [campaignsExpanded, setCampaignsExpanded] = React.useState(true);
   const [recordsExpanded, setRecordsExpanded] = React.useState(true);
+  const [recordOpen, setRecordOpen] = React.useState(false);
+  const [recordForm, setRecordForm] = React.useState<RecordDonationForm>(emptyRecordForm);
+  const [assigningDonation, setAssigningDonation] = React.useState<Donation | null>(null);
+  const [assignMemberId, setAssignMemberId] = React.useState("");
 
   async function exportCsv() {
     try {
@@ -144,6 +178,65 @@ export default function AdminGiving() {
   const campaignsQuery = useQuery({
     queryKey: ["admin-giving-campaigns"],
     queryFn: () => apiJson<{ campaigns: GivingCampaign[] }>("/admin/giving/campaigns"),
+  });
+
+  const membersQuery = useQuery({
+    queryKey: ["admin-members-for-giving"],
+    queryFn: () => apiJson<{ members: MemberOption[] }>("/admin/members"),
+    enabled: recordOpen || assigningDonation !== null,
+  });
+  const memberOptions = (membersQuery.data?.members ?? []).map((member) => ({
+    value: String(member.id),
+    label: `${member.firstName} ${member.lastName}`,
+    sublabel: member.email,
+  }));
+
+  function invalidateGiving() {
+    void queryClient.invalidateQueries({ queryKey: ["admin-giving-donations"] });
+    void queryClient.invalidateQueries({ queryKey: ["admin-giving-summary"] });
+    void queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+  }
+
+  const recordDonation = useMutation({
+    mutationFn: () =>
+      apiJson<{ donation: Donation }>("/admin/giving/donations", {
+        method: "POST",
+        body: JSON.stringify({
+          memberId: recordForm.memberId || undefined,
+          donorName: recordForm.donorName || undefined,
+          donorEmail: recordForm.donorEmail || undefined,
+          amount: Number(recordForm.amount),
+          donationDate: recordForm.donationDate || undefined,
+          givingCategory: recordForm.givingCategory,
+          paymentMethod: recordForm.paymentMethod,
+          externalPaymentId: recordForm.externalPaymentId || undefined,
+          campaignId: recordForm.campaignId || undefined,
+        }),
+      }),
+    onSuccess: () => {
+      setRecordOpen(false);
+      setRecordForm(emptyRecordForm);
+      toast({ title: "Donation recorded" });
+      invalidateGiving();
+    },
+    onError: (error) => toast({ title: "Could not record donation", description: error.message, variant: "destructive" }),
+  });
+
+  const assignDonation = useMutation({
+    mutationFn: () => {
+      if (!assigningDonation) throw new Error("Choose a donation to assign.");
+      return apiJson<{ donation: Donation }>(`/admin/giving/donations/${assigningDonation.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ memberId: Number(assignMemberId) }),
+      });
+    },
+    onSuccess: () => {
+      setAssigningDonation(null);
+      setAssignMemberId("");
+      toast({ title: "Donation assigned to member" });
+      invalidateGiving();
+    },
+    onError: (error) => toast({ title: "Could not assign donation", description: error.message, variant: "destructive" }),
   });
 
   function submitCampaign() {
@@ -275,6 +368,135 @@ export default function AdminGiving() {
               <Button variant="outline" onClick={exportCsv}>
                 <Download className="mr-2 h-4 w-4" /> Export CSV
               </Button>
+              <Dialog open={recordOpen} onOpenChange={setRecordOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <HandCoins className="mr-2 h-4 w-4" /> Record Donation
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Record a Donation</DialogTitle>
+                    <DialogDescription>
+                      Log cash, checks, and gifts received through Square, PayPal, Cash App, Venmo, or Zelle. Linked
+                      donations count toward the member's giving history and tax receipt.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Member (optional)</Label>
+                      <SearchableSelect
+                        options={memberOptions}
+                        value={recordForm.memberId}
+                        onChange={(value) => setRecordForm({ ...recordForm, memberId: value })}
+                        placeholder="Link to a member…"
+                      />
+                    </div>
+                    {!recordForm.memberId && (
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="record-donor-name">Donor name</Label>
+                          <Input
+                            id="record-donor-name"
+                            value={recordForm.donorName}
+                            onChange={(event) => setRecordForm({ ...recordForm, donorName: event.target.value })}
+                            placeholder="Guest or visitor name"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="record-donor-email">Donor email (optional)</Label>
+                          <Input
+                            id="record-donor-email"
+                            type="email"
+                            value={recordForm.donorEmail}
+                            onChange={(event) => setRecordForm({ ...recordForm, donorEmail: event.target.value })}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="record-amount">Amount</Label>
+                        <Input
+                          id="record-amount"
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          value={recordForm.amount}
+                          onChange={(event) => setRecordForm({ ...recordForm, amount: event.target.value })}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="record-date">Date</Label>
+                        <Input
+                          id="record-date"
+                          type="date"
+                          value={recordForm.donationDate}
+                          onChange={(event) => setRecordForm({ ...recordForm, donationDate: event.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Payment method</Label>
+                        <select
+                          value={recordForm.paymentMethod}
+                          onChange={(event) => setRecordForm({ ...recordForm, paymentMethod: event.target.value as PaymentMethod })}
+                          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                        >
+                          {RECORDABLE_METHODS.map((method) => (
+                            <option key={method} value={method}>{labelize(method)}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Category</Label>
+                        <select
+                          value={recordForm.givingCategory}
+                          onChange={(event) => setRecordForm({ ...recordForm, givingCategory: event.target.value as GivingCategory })}
+                          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                        >
+                          <option value="tithe">Tithe</option>
+                          <option value="offering">Gift/Offering</option>
+                          <option value="building_fund">Building Fund</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="record-reference">Reference (optional)</Label>
+                        <Input
+                          id="record-reference"
+                          value={recordForm.externalPaymentId}
+                          onChange={(event) => setRecordForm({ ...recordForm, externalPaymentId: event.target.value })}
+                          placeholder="Check #, transaction ID…"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Campaign (optional)</Label>
+                        <select
+                          value={recordForm.campaignId}
+                          onChange={(event) => setRecordForm({ ...recordForm, campaignId: event.target.value })}
+                          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                        >
+                          <option value="">General giving</option>
+                          {campaigns.map((campaign) => (
+                            <option key={campaign.id} value={campaign.id}>{campaign.campaignName}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <Button
+                      className="w-full"
+                      disabled={recordDonation.isPending || Number(recordForm.amount) <= 0 || (!recordForm.memberId && !recordForm.donorName.trim())}
+                      onClick={() => recordDonation.mutate()}
+                    >
+                      {recordDonation.isPending ? "Recording…" : "Record Donation"}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
               <Dialog open={campaignOpen} onOpenChange={setCampaignOpen}>
                 <DialogTrigger asChild><Button onClick={openNewCampaign}><Plus className="mr-2 h-4 w-4" /> New Campaign</Button></DialogTrigger>
                 <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
@@ -430,6 +652,7 @@ export default function AdminGiving() {
                     <TableHead>Donor</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Category</TableHead>
+                    <TableHead>Method</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Payment Type</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
@@ -453,9 +676,19 @@ export default function AdminGiving() {
                         <TableCell>
                           <div className="font-medium">{donation.donorName}</div>
                           <div className="text-xs text-muted-foreground">{donation.donorEmail}</div>
+                          {donation.memberId == null && (
+                            <button
+                              type="button"
+                              className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-amber-700 hover:underline"
+                              onClick={() => { setAssigningDonation(donation); setAssignMemberId(""); }}
+                            >
+                              <UserPlus className="h-3 w-3" /> Unassigned — link to member
+                            </button>
+                          )}
                         </TableCell>
                         <TableCell>{formatDate(donation.donationDate)}</TableCell>
                         <TableCell>{labelize(donation.givingCategory)}</TableCell>
+                        <TableCell>{labelize(donation.paymentMethod)}</TableCell>
                         <TableCell><Badge variant={statusVariant(donation.paymentStatus)}>{labelize(donation.paymentStatus)}</Badge></TableCell>
                         <TableCell>{labelize(donation.donationType)}</TableCell>
                         <TableCell className="text-right font-medium">{dollars(donation.amountCents)}</TableCell>
@@ -463,7 +696,7 @@ export default function AdminGiving() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={6} className="py-12 text-center">
+                      <TableCell colSpan={7} className="py-12 text-center">
                         <div className="flex flex-col items-center gap-2">
                           <Users className="h-8 w-8 text-muted-foreground/40" />
                           <p className="font-medium text-muted-foreground">No donations recorded yet</p>
@@ -479,6 +712,30 @@ export default function AdminGiving() {
             </CollapsibleContent>
           </Card>
         </Collapsible>
+
+        <Dialog open={assigningDonation !== null} onOpenChange={(open) => { if (!open) setAssigningDonation(null); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Link Donation to Member</DialogTitle>
+              <DialogDescription>
+                {assigningDonation
+                  ? `${dollars(assigningDonation.amountCents)} · ${labelize(assigningDonation.paymentMethod)} · ${formatDate(assigningDonation.donationDate)}. Linking adds this gift to the member's giving history and tax receipt.`
+                  : ""}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <SearchableSelect
+                options={memberOptions}
+                value={assignMemberId}
+                onChange={setAssignMemberId}
+                placeholder="Search members…"
+              />
+              <Button className="w-full" disabled={!assignMemberId || assignDonation.isPending} onClick={() => assignDonation.mutate()}>
+                {assignDonation.isPending ? "Linking…" : "Link to Member"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );

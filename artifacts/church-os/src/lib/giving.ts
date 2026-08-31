@@ -4,9 +4,20 @@ export type PaymentStatus = "pending" | "succeeded" | "failed" | "refunded";
 export type CampaignStatus = "draft" | "active" | "completed" | "cancelled";
 export type GivingFrequency = "weekly" | "biweekly" | "monthly" | "yearly";
 
+export type PaymentMethod =
+  | "stripe"
+  | "square"
+  | "paypal"
+  | "cash_app"
+  | "venmo"
+  | "zelle"
+  | "cash"
+  | "check"
+  | "other";
+
 export type Donation = {
   id: number;
-  memberId: number;
+  memberId: number | null;
   donorName: string;
   donorEmail: string;
   amountCents: number;
@@ -21,6 +32,8 @@ export type Donation = {
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
   stripeReceiptUrl: string | null;
+  paymentMethod: PaymentMethod;
+  externalPaymentId: string | null;
   paymentStatus: PaymentStatus;
   taxDeductible: boolean;
   receiptIssued: boolean;
