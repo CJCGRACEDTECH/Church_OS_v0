@@ -1,9 +1,10 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import {
   db,
   usersTable,
   churchesTable,
+  donationsTable,
   oauthAccountsTable,
 } from "@workspace/db";
 import { UpdateProfileBody } from "@workspace/api-zod";
@@ -209,7 +210,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     const email = normalizeEmail(primaryEmail);
 
     const [byEmail] = await db
-      .select({ id: usersTable.id, role: usersTable.role, isActive: usersTable.isActive, accountStatus: usersTable.accountStatus })
+      .select({ id: usersTable.id, role: usersTable.role, churchId: usersTable.churchId, isActive: usersTable.isActive, accountStatus: usersTable.accountStatus })
       .from(usersTable)
       .where(eq(usersTable.email, email));
 
@@ -229,6 +230,17 @@ router.get("/auth/me", async (req, res): Promise<void> => {
         .update(usersTable)
         .set({ clerkUserId, accountStatus: "active" as const })
         .where(eq(usersTable.id, byEmail.id));
+      // Registration is the moment giving becomes attributable: claim any
+      // donations recorded under this verified email that no member owns yet.
+      // Giving records alone never create members.
+      await db
+        .update(donationsTable)
+        .set({ memberId: byEmail.id })
+        .where(and(
+          eq(donationsTable.churchId, byEmail.churchId),
+          isNull(donationsTable.memberId),
+          sql`lower(${donationsTable.donorEmail}) = ${email}`,
+        ));
       localUser = { id: byEmail.id, isActive: byEmail.isActive, accountStatus: "active" };
     } else {
       // No local account found — the user must be added by a church administrator
