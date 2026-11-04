@@ -1,5 +1,5 @@
 import React from "react";
-import { apiJson } from "@/lib/api";
+import { apiJson, errorMessage } from "@/lib/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import AdminLayout from "@/components/AdminLayout";
 import PageHeader from "@/components/PageHeader";
@@ -170,8 +170,8 @@ export default function AdminCheckIn() {
   const activeClassrooms = new Set(activeChildren.map((child) => child.activeCheckIn?.classroom || child.classroom || "Unassigned"));
 
   const printLabels = (childId: number) => {
-    printLabelsForChild(childId).catch((error: Error) =>
-      toast({ title: "Could not print labels", description: error.message, variant: "destructive" }),
+    printLabelsForChild(childId).catch((error: unknown) =>
+      toast({ title: "Could not print labels", description: errorMessage(error), variant: "destructive" }),
     );
   };
 
@@ -195,7 +195,7 @@ export default function AdminCheckIn() {
       toast({ title: "Child registered" });
       void refresh();
     },
-    onError: (error) => toast({ title: "Could not register child", description: error.message, variant: "destructive" }),
+    onError: (error) => toast({ title: "Could not register child", description: errorMessage(error), variant: "destructive" }),
   });
 
   const checkIn = useMutation({
@@ -208,7 +208,7 @@ export default function AdminCheckIn() {
       setPickupCodeDisplay({ childId: child.id, childName: `${child.firstName} ${child.lastName}`, code: data.pickupCode });
       void refresh();
     },
-    onError: (error) => toast({ title: "Check-in failed", description: error.message, variant: "destructive" }),
+    onError: (error) => toast({ title: "Check-in failed", description: errorMessage(error), variant: "destructive" }),
   });
 
   const checkOut = useMutation({
@@ -222,7 +222,7 @@ export default function AdminCheckIn() {
       toast({ title: "Child checked out" });
       void refresh();
     },
-    onError: (error) => toast({ title: "Check-out failed", description: error.message, variant: "destructive" }),
+    onError: (error) => toast({ title: "Check-out failed", description: errorMessage(error), variant: "destructive" }),
   });
 
   const removeActiveCheckIn = useMutation({
@@ -235,7 +235,7 @@ export default function AdminCheckIn() {
       toast({ title: "Accidental check-in removed" });
       void refresh();
     },
-    onError: (error) => toast({ title: "Could not remove check-in", description: error.message, variant: "destructive" }),
+    onError: (error) => toast({ title: "Could not remove check-in", description: errorMessage(error), variant: "destructive" }),
   });
 
   const updateChild = useMutation({
@@ -249,7 +249,7 @@ export default function AdminCheckIn() {
       toast({ title: "Child profile updated" });
       void refresh();
     },
-    onError: (error) => toast({ title: "Could not update child", description: error.message, variant: "destructive" }),
+    onError: (error) => toast({ title: "Could not update child", description: errorMessage(error), variant: "destructive" }),
   });
 
   const addGuardian = useMutation({
@@ -263,7 +263,7 @@ export default function AdminCheckIn() {
       toast({ title: "Pickup contact added" });
       void refresh();
     },
-    onError: (error) => toast({ title: "Could not add pickup contact", description: error.message, variant: "destructive" }),
+    onError: (error) => toast({ title: "Could not add pickup contact", description: errorMessage(error), variant: "destructive" }),
   });
 
   return (

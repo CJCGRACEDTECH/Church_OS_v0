@@ -1,7 +1,7 @@
 import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ClipboardCheck, Plus } from "lucide-react";
-import { apiJson } from "@/lib/api";
+import { apiJson, errorMessage } from "@/lib/api";
 import { childName, type Child, type PermissionSlip } from "@/lib/children";
 import { useToast } from "@/hooks/use-toast";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -52,7 +52,7 @@ export function PermissionSlipsDialog({ children }: { children: Child[] }) {
       toast({ title: "Permission slip created", description: "Upload each family's signed slip from the child's profile." });
       void queryClient.invalidateQueries({ queryKey: PERMISSION_SLIPS_QUERY_KEY });
     },
-    onError: (error) => toast({ title: "Could not create permission slip", description: error.message, variant: "destructive" }),
+    onError: (error) => toast({ title: "Could not create permission slip", description: errorMessage(error), variant: "destructive" }),
   });
 
   return (

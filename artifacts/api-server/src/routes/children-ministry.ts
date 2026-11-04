@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import express, { Router, type IRouter } from "express";
 import {
@@ -91,7 +91,12 @@ router.get("/admin/children/classrooms", requireCheckInAccess, async (req, res):
     .select()
     .from(childrenClassroomsTable)
     .where(eq(childrenClassroomsTable.churchId, churchId))
-    .orderBy(asc(childrenClassroomsTable.sortOrder), asc(childrenClassroomsTable.minAgeYears), asc(childrenClassroomsTable.name));
+    // Youngest rooms first; the special needs room (any age) last.
+    .orderBy(
+      asc(childrenClassroomsTable.isSpecialNeeds),
+      sql`${childrenClassroomsTable.minAgeYears} asc nulls last`,
+      asc(childrenClassroomsTable.name),
+    );
 
   res.json({ classrooms: classrooms.map(serializeClassroom) });
 });

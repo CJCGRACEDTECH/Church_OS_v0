@@ -1,7 +1,7 @@
 import React from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, School, Trash2 } from "lucide-react";
-import { apiJson } from "@/lib/api";
+import { apiJson, errorMessage } from "@/lib/api";
 import { classroomAgeLabel, type Classroom } from "@/lib/children";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -74,7 +74,7 @@ export function ClassroomsDialog({ classrooms }: { classrooms: Classroom[] }) {
       toast({ title: classroomId ? "Classroom updated" : "Classroom added" });
       refresh();
     },
-    onError: (error) => toast({ title: "Could not save classroom", description: error.message, variant: "destructive" }),
+    onError: (error) => toast({ title: "Could not save classroom", description: errorMessage(error), variant: "destructive" }),
   });
 
   const remove = useMutation({
@@ -83,7 +83,7 @@ export function ClassroomsDialog({ classrooms }: { classrooms: Classroom[] }) {
       toast({ title: "Classroom removed", description: "Children already in it keep their classroom until edited." });
       refresh();
     },
-    onError: (error) => toast({ title: "Could not remove classroom", description: error.message, variant: "destructive" }),
+    onError: (error) => toast({ title: "Could not remove classroom", description: errorMessage(error), variant: "destructive" }),
   });
 
   return (

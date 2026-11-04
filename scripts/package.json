@@ -10,7 +10,8 @@
     "seed:dev:reset": "tsx ./src/seed.dev.ts --reset",
     "seed:inbox": "tsx ./src/seed.inbox.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "backfill:children-leader": "tsx ./src/backfill-children-leader-permission.ts"
+    "backfill:children-leader": "tsx ./src/backfill-children-leader-permission.ts",
+    "test:e2e:children": "tsx ./src/e2e-children-ministry.ts"
   },
   "dependencies": {
     "@workspace/db": "workspace:*",

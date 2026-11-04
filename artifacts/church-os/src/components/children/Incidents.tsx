@@ -1,7 +1,7 @@
 import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2, ClipboardPen } from "lucide-react";
-import { apiJson } from "@/lib/api";
+import { apiJson, errorMessage } from "@/lib/api";
 import { childName, type Child, type Incident } from "@/lib/children";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -58,7 +58,7 @@ export function ReportIncidentDialog({ child, size = "sm" }: { child: Child; siz
       toast({ title: "Incident reported", description: "A Children Ministry leader will follow up with the parents." });
       refresh();
     },
-    onError: (error) => toast({ title: "Could not report incident", description: error.message, variant: "destructive" }),
+    onError: (error) => toast({ title: "Could not report incident", description: errorMessage(error), variant: "destructive" }),
   });
 
   return (
@@ -120,7 +120,7 @@ function ResolveIncidentDialog({ incident }: { incident: Incident }) {
       toast({ title: "Incident closed", description: `The alert for ${incident.childName} has been cleared.` });
       refresh();
     },
-    onError: (error) => toast({ title: "Could not close incident", description: error.message, variant: "destructive" }),
+    onError: (error) => toast({ title: "Could not close incident", description: errorMessage(error), variant: "destructive" }),
   });
 
   return (

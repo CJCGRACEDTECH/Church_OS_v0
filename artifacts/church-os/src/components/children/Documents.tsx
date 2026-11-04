@@ -2,7 +2,7 @@ import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
 import { FileText, Trash2, Upload } from "lucide-react";
-import { apiJson } from "@/lib/api";
+import { apiJson, errorMessage } from "@/lib/api";
 import { DOCUMENT_CATEGORY_LABELS, type Child, type ChildDocument, type DocumentCategory, type PermissionSlip } from "@/lib/children";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -102,7 +102,7 @@ export function ChildDocumentsSection({ child }: { child: Child }) {
       toast({ title: "Document saved" });
       refresh();
     },
-    onError: (error) => toast({ title: "Could not upload document", description: error.message, variant: "destructive" }),
+    onError: (error) => toast({ title: "Could not upload document", description: errorMessage(error), variant: "destructive" }),
   });
 
   const remove = useMutation({
@@ -111,7 +111,7 @@ export function ChildDocumentsSection({ child }: { child: Child }) {
       toast({ title: "Document deleted" });
       refresh();
     },
-    onError: (error) => toast({ title: "Could not delete document", description: error.message, variant: "destructive" }),
+    onError: (error) => toast({ title: "Could not delete document", description: errorMessage(error), variant: "destructive" }),
   });
 
   return (
@@ -127,8 +127,8 @@ export function ChildDocumentsSection({ child }: { child: Child }) {
                 type="button"
                 className="flex min-w-0 items-center gap-2 text-left hover:underline"
                 onClick={() => {
-                  openDocument(document).catch((error: Error) =>
-                    toast({ title: "Could not open document", description: error.message, variant: "destructive" }),
+                  openDocument(document).catch((error: unknown) =>
+                    toast({ title: "Could not open document", description: errorMessage(error), variant: "destructive" }),
                   );
                 }}
               >
