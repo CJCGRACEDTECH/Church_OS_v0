@@ -519,6 +519,10 @@ async function seed() {
 
   if (isReset) {
     console.log("🗑️  Resetting users and churches...");
+    await db.delete(schema.childDocumentsTable);
+    await db.delete(schema.childIncidentsTable);
+    await db.delete(schema.childPermissionSlipsTable);
+    await db.delete(schema.childrenClassroomsTable);
     await db.delete(schema.checkinRecordsTable);
     await db.delete(schema.attendanceRecordsTable);
     await db.delete(schema.attendanceSessionsTable);

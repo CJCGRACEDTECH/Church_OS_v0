@@ -14,7 +14,7 @@ import {
 import { getDiscipleMembers } from "../lib/discipleship";
 import { getActiveMemberIdsForMonth } from "../lib/member-engagement";
 import { requireRole } from "../middlewares/auth";
-import { ADMIN_PERMISSIONS, getStoredAdminPermissions, isAdminLevel } from "../lib/admin-permissions";
+import { ADMIN_PERMISSIONS, getStoredAdminPermissions, isAdminLevel, isChildrenMinistryOnly } from "../lib/admin-permissions";
 
 const router: IRouter = Router();
 const DEFAULT_MONTHLY_GIVING_GOAL_CENTS = 25000000;
@@ -61,7 +61,7 @@ router.get("/admin/dashboard/summary", requireRole("admin"), async (req, res): P
     req.localUserId,
     isAdminLevel(requester?.adminLevel) ? requester.adminLevel : null,
   );
-  if (requesterPermissions.length === 1 && requesterPermissions.includes(ADMIN_PERMISSIONS.ATTENDANCE_CHECKIN)) {
+  if (isChildrenMinistryOnly(requesterPermissions)) {
     res.status(403).json({ error: "Dashboard access is not available for Children Ministry-only admins." });
     return;
   }

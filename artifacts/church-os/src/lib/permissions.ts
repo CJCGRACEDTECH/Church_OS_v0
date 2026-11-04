@@ -10,6 +10,7 @@ export const ADMIN_LEVELS = {
 
 export const PERMISSIONS = {
   ATTENDANCE_CHECKIN: "attendance_checkin",
+  CHILDREN_MINISTRY_MANAGE: "children_ministry_manage",
   ATTENDANCE_MANAGEMENT: "attendance_management",
   MEMBER_DIRECTORY: "member_directory",
   MEMBER_PROFILES: "member_profiles",
@@ -30,7 +31,8 @@ export const PERMISSIONS = {
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
 export const PERMISSION_LABELS: Record<Permission, string> = {
-  [PERMISSIONS.ATTENDANCE_CHECKIN]: "Attendance Check-In",
+  [PERMISSIONS.ATTENDANCE_CHECKIN]: "Children Check-In",
+  [PERMISSIONS.CHILDREN_MINISTRY_MANAGE]: "Children Ministry Leader",
   [PERMISSIONS.ATTENDANCE_MANAGEMENT]: "Attendance Management",
   [PERMISSIONS.MEMBER_DIRECTORY]: "Member Directory",
   [PERMISSIONS.MEMBER_PROFILES]: "Member Profiles",
@@ -58,4 +60,15 @@ export function hasPermission(
   }
 
   return false;
+}
+
+const CHILDREN_MINISTRY_PERMISSIONS: ReadonlySet<string> = new Set([
+  PERMISSIONS.ATTENDANCE_CHECKIN,
+  PERMISSIONS.CHILDREN_MINISTRY_MANAGE,
+]);
+
+/** True when every permission the admin holds is a Children Ministry permission. */
+export function isChildrenMinistryOnly(adminPermissions?: string[] | null): boolean {
+  const permissions = adminPermissions ?? [];
+  return permissions.length > 0 && permissions.every((permission) => CHILDREN_MINISTRY_PERMISSIONS.has(permission));
 }

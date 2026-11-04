@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { hasPermission, isChildrenMinistryOnly, PERMISSIONS } from "@/lib/permissions";
 import { apiJson, labelize, type GivingCampaign } from "@/lib/giving";
 import { apiJson as eventsApiJson, eventTypeCalendarClasses, formatDateTimeRange, labelize as eventLabelize, type ChurchEvent } from "@/lib/events";
 import {
@@ -134,16 +134,16 @@ export default function AdminDashboard() {
   const canSeeChildren = hasPermission("admin", PERMISSIONS.ATTENDANCE_CHECKIN, permissions);
   const canSeeEvents = hasPermission("admin", PERMISSIONS.EVENT_MANAGEMENT, permissions);
   const isSuperAdmin = user?.adminLevel === "super_admin";
-  const isChildrenMinistryOnly = permissions.length === 1 && permissions.includes(PERMISSIONS.ATTENDANCE_CHECKIN);
+  const childrenMinistryOnly = isChildrenMinistryOnly(permissions);
 
   React.useEffect(() => {
-    if (isChildrenMinistryOnly) setLocation("/admin/check-in");
-  }, [isChildrenMinistryOnly, setLocation]);
+    if (childrenMinistryOnly) setLocation("/admin/check-in");
+  }, [childrenMinistryOnly, setLocation]);
 
   const summaryQuery = useQuery({
     queryKey: ["dashboard-summary", "children-ministry-kpi-v2"],
     queryFn: () => apiJson<DashboardSummary>("/admin/dashboard/summary", { cache: "no-store" }),
-    enabled: !isChildrenMinistryOnly,
+    enabled: !childrenMinistryOnly,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
     staleTime: 0,
@@ -158,7 +158,7 @@ export default function AdminDashboard() {
   const activityQuery = useQuery({
     queryKey: ["dashboard-activity-log"],
     queryFn: () => apiJson<{ log: ActivityLogEntry[] }>("/admin/activity-log"),
-    enabled: !isChildrenMinistryOnly,
+    enabled: !childrenMinistryOnly,
   });
 
   const summary = summaryQuery.data;

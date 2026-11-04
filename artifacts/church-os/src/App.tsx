@@ -1,9 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Switch, Route, Redirect, Link, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider, useAuth, ProtectedRoute } from "@/components/auth-context";
+import { AuthProvider, useAuth, ProtectedRoute, isDemoAuth, DEMO_TOKEN_KEY } from "@/components/auth-context";
 import { ClerkProvider, SignIn, useClerk, useUser } from "@clerk/react";
 import { shadcn } from "@clerk/themes";
 import { PublicSiteHeader } from "@/components/public-site-header";
@@ -233,7 +233,65 @@ function AuthPageShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+const DEMO_ACCOUNTS = [
+  { email: "superadmin@churchos.test", label: "Super Admin" },
+  { email: "admin2@churchos.test", label: "Children Ministry Leader" },
+  { email: "helper@churchos.test", label: "Children Check-In Helper (teen)" },
+  { email: "admin1@churchos.test", label: "Operations Admin" },
+  { email: "admin3@churchos.test", label: "Giving Admin" },
+  { email: "admin4@churchos.test", label: "Member Care Admin" },
+  { email: "admin5@churchos.test", label: "Services Admin" },
+  { email: "member@churchos.test", label: "Member" },
+];
+
+function DemoSignInPage() {
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  async function signInAs(email: string) {
+    setBusy(email);
+    setError(null);
+    try {
+      const res = await fetch(`${basePath}/api/auth/demo-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Sign-in failed");
+      const { token, role } = await res.json();
+      localStorage.setItem(DEMO_TOKEN_KEY, token);
+      window.location.href = `${basePath}${role === "admin" ? "/admin" : "/member"}`;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Sign-in failed");
+      setBusy(null);
+    }
+  }
+
+  return (
+    <AuthPageShell>
+      <div className="w-[440px] max-w-full rounded-2xl border border-gray-100 bg-white px-6 py-6 shadow-xl">
+        <h1 className="text-lg font-semibold text-gray-900 text-center">CJC Church</h1>
+        <p className="mt-1 mb-5 text-sm text-gray-500 text-center">Demo sign-in</p>
+        <div className="flex flex-col gap-2">
+          {DEMO_ACCOUNTS.map((a) => (
+            <button
+              key={a.email}
+              onClick={() => void signInAs(a.email)}
+              disabled={!!busy}
+              className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-60"
+            >
+              {busy === a.email ? "Signing in…" : `Continue as ${a.label}`}
+            </button>
+          ))}
+        </div>
+        {error && <p className="mt-3 text-center text-sm text-red-600">{error}</p>}
+      </div>
+    </AuthPageShell>
+  );
+}
+
 function SignInPage() {
+  if (isDemoAuth) return <DemoSignInPage />;
   // Member invite emails link to /sign-in?email=<invited-email>. Pre-filling
   // the address reduces the chance the recipient signs in with the wrong
   // account and hits a 403 because their Clerk email doesn't match the record.

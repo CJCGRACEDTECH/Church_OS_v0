@@ -107,6 +107,7 @@ const PERMISSION_GROUPS = [
     label: "Operations",
     keys: [
       "attendance_checkin",
+      "children_ministry_manage",
       "attendance_management",
       "member_directory",
       "member_profiles",

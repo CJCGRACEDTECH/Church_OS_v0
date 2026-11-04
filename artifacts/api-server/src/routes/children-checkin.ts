@@ -1,10 +1,13 @@
 import { randomBytes } from "node:crypto";
-import { and, desc, eq, ilike, isNull, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, isNull, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { Router, type IRouter } from "express";
 import {
+  childDocumentsTable,
   childGuardianRelationshipsTable,
+  childIncidentsTable,
   checkinRecordsTable,
+  childrenClassroomsTable,
   childrenTable,
   db,
   parentGuardiansTable,
@@ -14,7 +17,102 @@ import { ADMIN_PERMISSIONS } from "../lib/admin-permissions";
 import { requireAdminPermission } from "../middlewares/auth";
 
 const router: IRouter = Router();
+// Check-in helpers (e.g. teen volunteers) can check children in and out.
+// Leaders can also register and edit children and see history.
 const requireCheckInAccess = requireAdminPermission(ADMIN_PERMISSIONS.ATTENDANCE_CHECKIN);
+const requireLeaderAccess = requireAdminPermission(ADMIN_PERMISSIONS.CHILDREN_MINISTRY_MANAGE);
+
+function booleanFlag(value: unknown): boolean {
+  return value === true || value === "true" || value === "on";
+}
+
+type Classroom = typeof childrenClassroomsTable.$inferSelect;
+
+type ChildFlags = {
+  openIncidents: Map<number, number>;
+  documentCategories: Map<number, Set<string>>;
+  classrooms: Classroom[];
+};
+
+async function loadChildFlags(churchId: number, childIds?: number[]): Promise<ChildFlags> {
+  const incidentFilters = [eq(childIncidentsTable.churchId, churchId), eq(childIncidentsTable.status, "open")];
+  const documentFilters = [eq(childDocumentsTable.churchId, churchId)];
+  if (childIds) {
+    if (childIds.length === 0) return { openIncidents: new Map(), documentCategories: new Map(), classrooms: [] };
+    incidentFilters.push(inArray(childIncidentsTable.childId, childIds));
+    documentFilters.push(inArray(childDocumentsTable.childId, childIds));
+  }
+
+  const incidentRows = await db
+    .select({ childId: childIncidentsTable.childId, total: count() })
+    .from(childIncidentsTable)
+    .where(and(...incidentFilters))
+    .groupBy(childIncidentsTable.childId);
+
+  const documentRows = await db
+    .selectDistinct({ childId: childDocumentsTable.childId, category: childDocumentsTable.category })
+    .from(childDocumentsTable)
+    .where(and(...documentFilters));
+
+  const documentCategories = new Map<number, Set<string>>();
+  for (const row of documentRows) {
+    const categories = documentCategories.get(row.childId) ?? new Set<string>();
+    categories.add(row.category);
+    documentCategories.set(row.childId, categories);
+  }
+
+  return {
+    openIncidents: new Map(incidentRows.map((row) => [row.childId, Number(row.total)])),
+    documentCategories,
+    classrooms: await loadClassrooms(churchId),
+  };
+}
+
+/** Classrooms youngest first (rooms without a minimum age last). */
+function loadClassrooms(churchId: number): Promise<Classroom[]> {
+  return db
+    .select()
+    .from(childrenClassroomsTable)
+    .where(eq(childrenClassroomsTable.churchId, churchId))
+    .orderBy(asc(childrenClassroomsTable.minAgeYears), asc(childrenClassroomsTable.name));
+}
+
+/**
+ * The classroom a child should move to, or null when their room still fits.
+ * - Special-needs children belong in the special needs room at any age.
+ * - Anyone a leader placed in the special needs room stays there.
+ * - Children who outgrew their room's age range (or whose room no longer
+ *   exists) move to the room for their age. Children placed in an older room
+ *   early are left alone.
+ */
+function suggestedClassroom(child: typeof childrenTable.$inferSelect, classrooms: Classroom[]): string | null {
+  if (classrooms.length === 0) return null;
+  const current = classrooms.find((classroom) => classroom.name === child.classroom) ?? null;
+
+  if (child.hasSpecialNeeds) {
+    const specialNeedsRoom = classrooms.find((classroom) => classroom.isSpecialNeeds);
+    return specialNeedsRoom && current?.id !== specialNeedsRoom.id ? specialNeedsRoom.name : null;
+  }
+  if (current?.isSpecialNeeds) return null;
+
+  const age = calculateAge(child.dateOfBirth);
+  if (age === null) return null;
+  if (current && (current.maxAgeYears === null || age <= current.maxAgeYears)) return null;
+
+  const target = classrooms.find((classroom) =>
+    !classroom.isSpecialNeeds
+    && (classroom.minAgeYears === null || age >= classroom.minAgeYears)
+    && (classroom.maxAgeYears === null || age <= classroom.maxAgeYears),
+  );
+  return target && target.name !== child.classroom ? target.name : null;
+}
+
+/** Forms the ministry expects on file for this child that are not uploaded yet. */
+function missingDocuments(child: typeof childrenTable.$inferSelect, categories: Set<string> | undefined): string[] {
+  const missing: string[] = [];
+  if (child.allergyInformation && !categories?.has("medication_consent")) missing.push("medication_consent");
+  return missing;
+}
 
 function textOrNull(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -49,7 +147,8 @@ async function getRequesterChurchId(userId: number) {
   return user?.churchId ?? null;
 }
 
-async function serializeChild(child: typeof childrenTable.$inferSelect) {
+async function serializeChild(child: typeof childrenTable.$inferSelect, flags?: ChildFlags) {
+  const childFlags = flags ?? await loadChildFlags(child.churchId, [child.id]);
   const guardians = await db
     .select({
       id: parentGuardiansTable.id,
@@ -86,6 +185,12 @@ async function serializeChild(child: typeof childrenTable.$inferSelect) {
     medicalNotes: child.medicalNotes,
     specialInstructions: child.specialInstructions,
     classroom: child.classroom,
+    isVisitor: child.isVisitor,
+    hasSpecialNeeds: child.hasSpecialNeeds,
+    registeredAt: child.createdAt.toISOString(),
+    openIncidentCount: childFlags.openIncidents.get(child.id) ?? 0,
+    missingDocuments: missingDocuments(child, childFlags.documentCategories.get(child.id)),
+    suggestedClassroom: suggestedClassroom(child, childFlags.classrooms),
     checkinStatus: child.checkinStatus,
     guardians,
     activeCheckIn: activeCheckIn
@@ -121,10 +226,11 @@ router.get("/admin/checkin/children", requireCheckInAccess, async (req, res): Pr
     .where(eq(childrenTable.churchId, churchId))
     .orderBy(childrenTable.lastName, childrenTable.firstName);
 
-  res.json({ children: await Promise.all(children.map(serializeChild)) });
+  const flags = await loadChildFlags(churchId);
+  res.json({ children: await Promise.all(children.map((child) => serializeChild(child, flags))) });
 });
 
-router.get("/admin/checkin/history", requireCheckInAccess, async (req, res): Promise<void> => {
+router.get("/admin/checkin/history", requireLeaderAccess, async (req, res): Promise<void> => {
   const churchId = await getRequesterChurchId(req.localUserId);
   if (!churchId) {
     res.status(401).json({ error: "User church not found." });
@@ -176,7 +282,7 @@ router.get("/admin/checkin/history", requireCheckInAccess, async (req, res): Pro
   });
 });
 
-router.get("/admin/checkin/member-contacts", requireCheckInAccess, async (req, res): Promise<void> => {
+router.get("/admin/checkin/member-contacts", requireLeaderAccess, async (req, res): Promise<void> => {
   const churchId = await getRequesterChurchId(req.localUserId);
   if (!churchId) {
     res.status(401).json({ error: "User church not found." });
@@ -222,7 +328,7 @@ router.get("/admin/checkin/member-contacts", requireCheckInAccess, async (req, r
   });
 });
 
-router.post("/admin/checkin/children", requireCheckInAccess, async (req, res): Promise<void> => {
+router.post("/admin/checkin/children", requireLeaderAccess, async (req, res): Promise<void> => {
   const churchId = await getRequesterChurchId(req.localUserId);
   if (!churchId) {
     res.status(401).json({ error: "User church not found." });
@@ -255,6 +361,8 @@ router.post("/admin/checkin/children", requireCheckInAccess, async (req, res): P
       medicalNotes: textOrNull(req.body?.medicalNotes),
       specialInstructions: textOrNull(req.body?.specialInstructions),
       classroom: textOrNull(req.body?.classroom),
+      isVisitor: booleanFlag(req.body?.isVisitor),
+      hasSpecialNeeds: booleanFlag(req.body?.hasSpecialNeeds),
       checkinStatus: "checked_out",
     })
     .returning();
@@ -280,7 +388,7 @@ router.post("/admin/checkin/children", requireCheckInAccess, async (req, res): P
   res.status(201).json({ child: await serializeChild(child) });
 });
 
-router.patch("/admin/checkin/children/:childId", requireCheckInAccess, async (req, res): Promise<void> => {
+router.patch("/admin/checkin/children/:childId", requireLeaderAccess, async (req, res): Promise<void> => {
   const childId = Number(req.params.childId);
   const churchId = await getRequesterChurchId(req.localUserId);
   if (!Number.isInteger(childId) || !churchId) {
@@ -307,6 +415,8 @@ router.patch("/admin/checkin/children/:childId", requireCheckInAccess, async (re
       medicalNotes: textOrNull(req.body?.medicalNotes),
       specialInstructions: textOrNull(req.body?.specialInstructions),
       classroom: textOrNull(req.body?.classroom),
+      isVisitor: booleanFlag(req.body?.isVisitor),
+      hasSpecialNeeds: booleanFlag(req.body?.hasSpecialNeeds),
     })
     .where(and(eq(childrenTable.id, childId), eq(childrenTable.churchId, churchId)))
     .returning();
@@ -319,7 +429,7 @@ router.patch("/admin/checkin/children/:childId", requireCheckInAccess, async (re
   res.json({ child: await serializeChild(child) });
 });
 
-router.post("/admin/checkin/children/:childId/guardians", requireCheckInAccess, async (req, res): Promise<void> => {
+router.post("/admin/checkin/children/:childId/guardians", requireLeaderAccess, async (req, res): Promise<void> => {
   const childId = Number(req.params.childId);
   const churchId = await getRequesterChurchId(req.localUserId);
   if (!Number.isInteger(childId) || !churchId) {
@@ -467,7 +577,7 @@ router.post("/admin/checkin/children/:childId/check-out", requireCheckInAccess, 
   res.json({ child: await serializeChild(updatedChild) });
 });
 
-router.delete("/admin/checkin/children/:childId/active-check-in", requireCheckInAccess, async (req, res): Promise<void> => {
+router.delete("/admin/checkin/children/:childId/active-check-in", requireLeaderAccess, async (req, res): Promise<void> => {
   const childId = Number(req.params.childId);
   const churchId = await getRequesterChurchId(req.localUserId);
   if (!Number.isInteger(childId) || !churchId) {
@@ -505,6 +615,87 @@ router.delete("/admin/checkin/children/:childId/active-check-in", requireCheckIn
     .returning();
 
   res.json({ child: await serializeChild(updatedChild) });
+});
+
+// Moves children into the classroom suggested for them (e.g. on promotion Sunday).
+router.post("/admin/children/move-up", requireLeaderAccess, async (req, res): Promise<void> => {
+  const churchId = await getRequesterChurchId(req.localUserId);
+  if (!churchId) {
+    res.status(401).json({ error: "User church not found." });
+    return;
+  }
+
+  const requestedIds: unknown[] = Array.isArray(req.body?.childIds) ? req.body.childIds : [];
+  const childIds = requestedIds.map(Number).filter((id) => Number.isInteger(id) && id > 0);
+  if (childIds.length === 0) {
+    res.status(400).json({ error: "Choose at least one child to move." });
+    return;
+  }
+
+  const children = await db
+    .select()
+    .from(childrenTable)
+    .where(and(eq(childrenTable.churchId, churchId), inArray(childrenTable.id, childIds)));
+  const classrooms = await loadClassrooms(churchId);
+  const moved: Array<{ childId: number; from: string | null; to: string }> = [];
+  for (const child of children) {
+    const target = suggestedClassroom(child, classrooms);
+    if (!target) continue;
+    await db.update(childrenTable).set({ classroom: target }).where(eq(childrenTable.id, child.id));
+    moved.push({ childId: child.id, from: child.classroom, to: target });
+  }
+
+  res.json({ moved });
+});
+
+// Data for the printed child name tag and parent pickup stub.
+router.get("/admin/checkin/children/:childId/label", requireCheckInAccess, async (req, res): Promise<void> => {
+  const childId = Number(req.params.childId);
+  const churchId = await getRequesterChurchId(req.localUserId);
+  if (!Number.isInteger(childId) || !churchId) {
+    res.status(400).json({ error: "Invalid child." });
+    return;
+  }
+
+  const [record] = await db
+    .select({
+      firstName: childrenTable.firstName,
+      lastName: childrenTable.lastName,
+      allergyInformation: childrenTable.allergyInformation,
+      medicalNotes: childrenTable.medicalNotes,
+      hasSpecialNeeds: childrenTable.hasSpecialNeeds,
+      classroom: checkinRecordsTable.classroom,
+      pickupCode: checkinRecordsTable.pickupCode,
+      checkinTime: checkinRecordsTable.checkinTime,
+    })
+    .from(checkinRecordsTable)
+    .innerJoin(childrenTable, eq(checkinRecordsTable.childId, childrenTable.id))
+    .where(
+      and(
+        eq(checkinRecordsTable.childId, childId),
+        eq(childrenTable.churchId, churchId),
+        eq(checkinRecordsTable.status, "active"),
+        isNull(checkinRecordsTable.checkoutTime),
+      ),
+    )
+    .orderBy(desc(checkinRecordsTable.checkinTime));
+
+  if (!record) {
+    res.status(409).json({ error: "Child is not currently checked in." });
+    return;
+  }
+
+  res.json({
+    label: {
+      childName: `${record.firstName} ${record.lastName}`,
+      classroom: record.classroom,
+      allergyInformation: record.allergyInformation,
+      medicalNotes: record.medicalNotes,
+      hasSpecialNeeds: record.hasSpecialNeeds,
+      pickupCode: record.pickupCode,
+      checkinTime: record.checkinTime.toISOString(),
+    },
+  });
 });
 
 async function createGuardianRelationship(params: {

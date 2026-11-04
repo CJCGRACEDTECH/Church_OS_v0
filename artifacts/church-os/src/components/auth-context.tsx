@@ -136,7 +136,46 @@ function ClerkBackedAuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+export const DEMO_TOKEN_KEY = "churchos_demo_token";
+export const isDemoAuth = !import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
+function readDemoToken(): string | null {
+  try { return localStorage.getItem(DEMO_TOKEN_KEY); } catch { return null; }
+}
+
+// Local demo only: used when no Clerk publishable key is configured. The API
+// accepts these tokens only outside production (see middlewares/auth.ts).
+function DemoAuthProvider({ children }: { children: ReactNode }) {
+  const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
+  const token = readDemoToken();
+
+  useLayoutEffect(() => {
+    setAuthTokenGetter(() => readDemoToken());
+    return () => { setAuthTokenGetter(null); };
+  }, []);
+
+  const { data: localUser, isLoading: localLoading } = useGetMe({
+    query: { queryKey: getGetMeQueryKey(), enabled: !!token },
+  });
+
+  const logout = () => {
+    try { localStorage.removeItem(DEMO_TOKEN_KEY); } catch { /* ignore */ }
+    queryClient.clear();
+    setLocation("/sign-in");
+  };
+
+  return (
+    <AuthContext.Provider
+      value={{ user: token && localUser ? (localUser as LocalUser) : null, isLoading: !!token && localLoading, logout }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
+  if (isDemoAuth) return <DemoAuthProvider>{children}</DemoAuthProvider>;
   return <ClerkBackedAuthProvider>{children}</ClerkBackedAuthProvider>;
 }
 
