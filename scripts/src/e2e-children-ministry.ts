@@ -182,6 +182,33 @@ async function run() {
   const afterRename = (await call(leader, "GET", "/admin/checkin/children")).body?.children?.find((row: any) => row.id === childId);
   check("child moved to the renamed classroom", afterRename?.classroom === `${TEST_CLASSROOM} Renamed`, afterRename?.classroom);
 
+  section("Move up");
+  const yearsAgo = (years: number) => {
+    const date = new Date();
+    date.setFullYear(date.getFullYear() - years);
+    date.setDate(date.getDate() - 30);
+    return date.toISOString().slice(0, 10);
+  };
+  const guardian = [{ name: "Parent E2E-Test", phoneNumber: "555-0102", relationship: "parent", authorizedPickup: true }];
+  const outgrew = await call(leader, "POST", "/admin/checkin/children", { firstName: "Bina", lastName: TEST_LAST_NAME, dateOfBirth: yearsAgo(9), classroom: "Toddlers", guardians: guardian });
+  const placedEarly = await call(leader, "POST", "/admin/checkin/children", { firstName: "Caleb", lastName: TEST_LAST_NAME, dateOfBirth: yearsAgo(5), classroom: "Elementary", guardians: guardian });
+  const outgrewId: number = outgrew.body?.child?.id;
+  const placedEarlyId: number = placedEarly.body?.child?.id;
+  check("9-year-old in Toddlers is suggested Elementary", outgrew.body?.child?.suggestedClassroom === "Elementary", outgrew.body?.child?.suggestedClassroom);
+  check("5-year-old placed early in Elementary is left alone", placedEarly.body?.child?.suggestedClassroom === null, placedEarly.body?.child?.suggestedClassroom);
+  const specialNeedsChild = (await call(leader, "GET", "/admin/checkin/children")).body?.children?.find((row: any) => row.id === childId);
+  check("special-needs child outside the special needs room is suggested that room", specialNeedsChild?.suggestedClassroom === "Special Needs", specialNeedsChild?.suggestedClassroom);
+  check("helper cannot move children up (403)", (await call(helper, "POST", "/admin/children/move-up", { childIds: [outgrewId] })).status === 403);
+  check("move up with no children is refused (400)", (await call(leader, "POST", "/admin/children/move-up", { childIds: [] })).status === 400);
+  const movedUp = await call(leader, "POST", "/admin/children/move-up", { childIds: [outgrewId, placedEarlyId] });
+  check("leader moves up only the child who outgrew their room", movedUp.status === 200
+    && movedUp.body?.moved?.length === 1
+    && movedUp.body.moved[0].childId === outgrewId
+    && movedUp.body.moved[0].from === "Toddlers"
+    && movedUp.body.moved[0].to === "Elementary", movedUp.body);
+  const afterMove = (await call(leader, "GET", "/admin/checkin/children")).body?.children?.find((row: any) => row.id === outgrewId);
+  check("moved child is in Elementary with no further suggestion", afterMove?.classroom === "Elementary" && afterMove?.suggestedClassroom === null, afterMove);
+
   section("Check-in and check-out");
   const checkIn = await call(helper, "POST", `/admin/checkin/children/${childId}/check-in`, {});
   const pickupCode: string = checkIn.body?.pickupCode;

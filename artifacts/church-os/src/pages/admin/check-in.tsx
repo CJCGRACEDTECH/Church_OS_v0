@@ -33,6 +33,7 @@ import ChildFlags from "@/components/children/ChildFlags";
 import { ClassroomsDialog, CLASSROOMS_QUERY_KEY } from "@/components/children/Classrooms";
 import { ChildDocumentsSection } from "@/components/children/Documents";
 import { ChildIncidentsSection, OpenIncidentsDialog, ReportIncidentDialog } from "@/components/children/Incidents";
+import { MoveUpDialog } from "@/components/children/MoveUp";
 import { PermissionSlipsDialog } from "@/components/children/PermissionSlips";
 import {
   ageFromDateOfBirth,
@@ -72,7 +73,7 @@ function relationshipLabel(value: string) {
   return value[0].toUpperCase() + value.slice(1);
 }
 
-type ChildFilter = "all" | "visitors" | "new" | "special_needs" | "incidents" | "missing_forms";
+type ChildFilter = "all" | "visitors" | "new" | "special_needs" | "incidents" | "missing_forms" | "move_up";
 
 const CHILD_FILTERS: Array<{ value: ChildFilter; label: string; matches: (child: Child) => boolean; leaderOnly?: boolean }> = [
   { value: "all", label: "All", matches: () => true },
@@ -81,6 +82,7 @@ const CHILD_FILTERS: Array<{ value: ChildFilter; label: string; matches: (child:
   { value: "special_needs", label: "Special needs", matches: (child) => child.hasSpecialNeeds },
   { value: "incidents", label: "Open incidents", matches: (child) => child.openIncidentCount > 0 },
   { value: "missing_forms", label: "Missing forms", matches: (child) => child.missingDocuments.length > 0, leaderOnly: true },
+  { value: "move_up", label: "Ready to move up", matches: (child) => child.suggestedClassroom !== null, leaderOnly: true },
 ];
 
 async function printLabelsForChild(childId: number) {
@@ -308,6 +310,7 @@ export default function AdminCheckIn() {
           <div className="flex flex-wrap gap-2">
           <OpenIncidentsDialog openCount={openIncidentCount} />
           <PermissionSlipsDialog children={children} />
+          <MoveUpDialog children={children} />
           <ClassroomsDialog classrooms={classrooms} />
           <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
             <DialogTrigger asChild>
@@ -508,7 +511,7 @@ export default function AdminCheckIn() {
                               <ChildAvatar child={child} />
                               <div>
                                 <div className="font-medium">{childName(child)}</div>
-                                <ChildFlags child={child} />
+                                <ChildFlags child={child} showMoveUp={isLeader} />
                                 <div className="text-xs text-muted-foreground">
                                   {child.allergyInformation ? `Allergies: ${child.allergyInformation}` : "No allergies listed"}
                                 </div>
@@ -626,7 +629,7 @@ function ChildProfileDetails({
               <p className="text-sm text-muted-foreground">
                 {child.age !== null ? `${child.age} years old` : "Age not listed"} · {child.classroom || "No classroom"}
               </p>
-              <ChildFlags child={child} />
+              <ChildFlags child={child} showMoveUp={isLeader} />
             </div>
           </div>
           <div className="flex items-center gap-2">

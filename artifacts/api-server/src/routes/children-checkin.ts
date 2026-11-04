@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { and, count, desc, eq, ilike, inArray, isNull, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, isNull, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { Router, type IRouter } from "express";
 import {
@@ -7,6 +7,7 @@ import {
   childGuardianRelationshipsTable,
   childIncidentsTable,
   checkinRecordsTable,
+  childrenClassroomsTable,
   childrenTable,
   db,
   parentGuardiansTable,
@@ -25,16 +26,19 @@ function booleanFlag(value: unknown): boolean {
   return value === true || value === "true" || value === "on";
 }
 
+type Classroom = typeof childrenClassroomsTable.$inferSelect;
+
 type ChildFlags = {
   openIncidents: Map<number, number>;
   documentCategories: Map<number, Set<string>>;
+  classrooms: Classroom[];
 };
 
 async function loadChildFlags(churchId: number, childIds?: number[]): Promise<ChildFlags> {
   const incidentFilters = [eq(childIncidentsTable.churchId, churchId), eq(childIncidentsTable.status, "open")];
   const documentFilters = [eq(childDocumentsTable.churchId, churchId)];
   if (childIds) {
-    if (childIds.length === 0) return { openIncidents: new Map(), documentCategories: new Map() };
+    if (childIds.length === 0) return { openIncidents: new Map(), documentCategories: new Map(), classrooms: [] };
     incidentFilters.push(inArray(childIncidentsTable.childId, childIds));
     documentFilters.push(inArray(childDocumentsTable.childId, childIds));
   }
@@ -60,7 +64,47 @@ async function loadChildFlags(churchId: number, childIds?: number[]): Promise<Ch
   return {
     openIncidents: new Map(incidentRows.map((row) => [row.childId, Number(row.total)])),
     documentCategories,
+    classrooms: await loadClassrooms(churchId),
   };
+}
+
+/** Classrooms youngest first (rooms without a minimum age last). */
+function loadClassrooms(churchId: number): Promise<Classroom[]> {
+  return db
+    .select()
+    .from(childrenClassroomsTable)
+    .where(eq(childrenClassroomsTable.churchId, churchId))
+    .orderBy(asc(childrenClassroomsTable.minAgeYears), asc(childrenClassroomsTable.name));
+}
+
+/**
+ * The classroom a child should move to, or null when their room still fits.
+ * - Special-needs children belong in the special needs room at any age.
+ * - Anyone a leader placed in the special needs room stays there.
+ * - Children who outgrew their room's age range (or whose room no longer
+ *   exists) move to the room for their age. Children placed in an older room
+ *   early are left alone.
+ */
+function suggestedClassroom(child: typeof childrenTable.$inferSelect, classrooms: Classroom[]): string | null {
+  if (classrooms.length === 0) return null;
+  const current = classrooms.find((classroom) => classroom.name === child.classroom) ?? null;
+
+  if (child.hasSpecialNeeds) {
+    const specialNeedsRoom = classrooms.find((classroom) => classroom.isSpecialNeeds);
+    return specialNeedsRoom && current?.id !== specialNeedsRoom.id ? specialNeedsRoom.name : null;
+  }
+  if (current?.isSpecialNeeds) return null;
+
+  const age = calculateAge(child.dateOfBirth);
+  if (age === null) return null;
+  if (current && (current.maxAgeYears === null || age <= current.maxAgeYears)) return null;
+
+  const target = classrooms.find((classroom) =>
+    !classroom.isSpecialNeeds
+    && (classroom.minAgeYears === null || age >= classroom.minAgeYears)
+    && (classroom.maxAgeYears === null || age <= classroom.maxAgeYears),
+  );
+  return target && target.name !== child.classroom ? target.name : null;
 }
 
 /** Forms the ministry expects on file for this child that are not uploaded yet. */
@@ -146,6 +190,7 @@ async function serializeChild(child: typeof childrenTable.$inferSelect, flags?: 
     registeredAt: child.createdAt.toISOString(),
     openIncidentCount: childFlags.openIncidents.get(child.id) ?? 0,
     missingDocuments: missingDocuments(child, childFlags.documentCategories.get(child.id)),
+    suggestedClassroom: suggestedClassroom(child, childFlags.classrooms),
     checkinStatus: child.checkinStatus,
     guardians,
     activeCheckIn: activeCheckIn
@@ -570,6 +615,37 @@ router.delete("/admin/checkin/children/:childId/active-check-in", requireLeaderA
     .returning();
 
   res.json({ child: await serializeChild(updatedChild) });
+});
+
+// Moves children into the classroom suggested for them (e.g. on promotion Sunday).
+router.post("/admin/children/move-up", requireLeaderAccess, async (req, res): Promise<void> => {
+  const churchId = await getRequesterChurchId(req.localUserId);
+  if (!churchId) {
+    res.status(401).json({ error: "User church not found." });
+    return;
+  }
+
+  const requestedIds: unknown[] = Array.isArray(req.body?.childIds) ? req.body.childIds : [];
+  const childIds = requestedIds.map(Number).filter((id) => Number.isInteger(id) && id > 0);
+  if (childIds.length === 0) {
+    res.status(400).json({ error: "Choose at least one child to move." });
+    return;
+  }
+
+  const children = await db
+    .select()
+    .from(childrenTable)
+    .where(and(eq(childrenTable.churchId, churchId), inArray(childrenTable.id, childIds)));
+  const classrooms = await loadClassrooms(churchId);
+  const moved: Array<{ childId: number; from: string | null; to: string }> = [];
+  for (const child of children) {
+    const target = suggestedClassroom(child, classrooms);
+    if (!target) continue;
+    await db.update(childrenTable).set({ classroom: target }).where(eq(childrenTable.id, child.id));
+    moved.push({ childId: child.id, from: child.classroom, to: target });
+  }
+
+  res.json({ moved });
 });
 
 // Data for the printed child name tag and parent pickup stub.

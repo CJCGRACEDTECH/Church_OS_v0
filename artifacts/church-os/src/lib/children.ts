@@ -26,6 +26,8 @@ export type Child = {
   registeredAt: string;
   openIncidentCount: number;
   missingDocuments: DocumentCategory[];
+  /** Classroom the child should move to (outgrew their room, or special needs); null when it still fits. */
+  suggestedClassroom: string | null;
   checkinStatus: "checked_in" | "checked_out";
   guardians: Guardian[];
   activeCheckIn: {

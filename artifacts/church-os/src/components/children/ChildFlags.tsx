@@ -1,9 +1,9 @@
-import { AlertTriangle, FileWarning, HeartHandshake, Sparkles } from "lucide-react";
+import { AlertTriangle, ArrowUpCircle, FileWarning, HeartHandshake, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DOCUMENT_CATEGORY_LABELS, isNewChild, type Child } from "@/lib/children";
 
 /** Small alert badges shown next to a child's name wherever the child appears. */
-export default function ChildFlags({ child, compact = false }: { child: Child; compact?: boolean }) {
+export default function ChildFlags({ child, compact = false, showMoveUp = false }: { child: Child; compact?: boolean; showMoveUp?: boolean }) {
   const missing = child.missingDocuments.map((category) => DOCUMENT_CATEGORY_LABELS[category]);
 
   return (
@@ -24,6 +24,12 @@ export default function ChildFlags({ child, compact = false }: { child: Child; c
         <Badge variant="outline" className="gap-1 border-amber-400 bg-amber-50 text-amber-900" title={`Missing: ${missing.join(", ")}`}>
           <FileWarning className="h-3 w-3" />
           {compact ? null : `Missing ${missing.join(", ").toLowerCase()}`}
+        </Badge>
+      )}
+      {showMoveUp && child.suggestedClassroom && (
+        <Badge variant="outline" className="gap-1 border-indigo-300 bg-indigo-50 text-indigo-900" title={`Ready to move to ${child.suggestedClassroom}`}>
+          <ArrowUpCircle className="h-3 w-3" />
+          {compact ? null : `Ready for ${child.suggestedClassroom}`}
         </Badge>
       )}
       {child.isVisitor ? (
