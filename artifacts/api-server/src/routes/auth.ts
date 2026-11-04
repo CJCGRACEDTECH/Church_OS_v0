@@ -11,8 +11,37 @@ import { UpdateProfileBody } from "@workspace/api-zod";
 import { getAuth, createClerkClient } from "@clerk/express";
 import { getStoredAdminPermissions, isAdminLevel } from "../lib/admin-permissions";
 import { requireAuth } from "../middlewares/auth";
+import jwt from "jsonwebtoken";
 
 const router: IRouter = Router();
+
+// Local demo only: issue a demo session for a seeded test account when Clerk is
+// not configured. Disabled in production and whenever CLERK_SECRET_KEY is set.
+router.post("/auth/demo-login", async (req, res): Promise<void> => {
+  if (process.env.NODE_ENV === "production" || process.env.CLERK_SECRET_KEY) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  const email = String(req.body?.email ?? "");
+  if (!email.endsWith("@churchos.test")) {
+    res.status(400).json({ error: "Demo login only works for seeded test accounts" });
+    return;
+  }
+  const [user] = await db
+    .select({ id: usersTable.id, role: usersTable.role })
+    .from(usersTable)
+    .where(eq(usersTable.email, email));
+  if (!user) {
+    res.status(404).json({ error: "Demo account not found" });
+    return;
+  }
+  const token = jwt.sign(
+    { sub: String(user.id), role: user.role },
+    process.env.SESSION_SECRET ?? "dev-demo-secret",
+    { expiresIn: "12h" },
+  );
+  res.json({ token, role: user.role });
+});
 
 const ADMIN_TITLE_LABELS = {
   super_admin: "Super Admin",
@@ -171,6 +200,18 @@ async function findAuthProfileByUserId(userId: number): Promise<AuthProfile | nu
 
 router.get("/auth/me", async (req, res): Promise<void> => {
   if (!process.env.CLERK_SECRET_KEY) {
+    // Local demo only: resolve the demo session issued by /auth/demo-login.
+    if (process.env.NODE_ENV !== "production") {
+      await requireAuth(req, res, async () => {
+        const profile = await findAuthProfileByUserId(req.localUserId);
+        if (!profile) {
+          res.status(401).json({ error: "Not authenticated" });
+          return;
+        }
+        res.json(serializeUser(profile));
+      });
+      return;
+    }
     res.status(401).json({ error: "Not authenticated" });
     return;
   }
