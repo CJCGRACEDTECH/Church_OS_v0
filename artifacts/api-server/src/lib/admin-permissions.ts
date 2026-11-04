@@ -11,6 +11,7 @@ export type AdminLevel = (typeof ADMIN_LEVELS)[keyof typeof ADMIN_LEVELS];
 
 export const ADMIN_PERMISSIONS = {
   ATTENDANCE_CHECKIN: "attendance_checkin",
+  CHILDREN_MINISTRY_MANAGE: "children_ministry_manage",
   ATTENDANCE_MANAGEMENT: "attendance_management",
   MEMBER_DIRECTORY: "member_directory",
   MEMBER_PROFILES: "member_profiles",
@@ -37,8 +38,13 @@ export const PERMISSION_CATALOG: Array<{
 }> = [
   {
     key: ADMIN_PERMISSIONS.ATTENDANCE_CHECKIN,
-    label: "Attendance Check-In",
-    description: "Run children ministry check-in and operational check-in workflows.",
+    label: "Children Check-In",
+    description: "Check children in and out, print labels, and report incidents.",
+  },
+  {
+    key: ADMIN_PERMISSIONS.CHILDREN_MINISTRY_MANAGE,
+    label: "Children Ministry Leader",
+    description: "Register and edit children, view history, manage incidents, documents, permission slips, and classrooms.",
   },
   {
     key: ADMIN_PERMISSIONS.ATTENDANCE_MANAGEMENT,
@@ -87,6 +93,7 @@ export const VALID_ADMIN_PERMISSIONS = PERMISSION_CATALOG.map((permission) => pe
 export const DEFAULT_ADMIN_LEVEL_PERMISSIONS: Record<AdminLevel, AdminPermission[]> = {
   [ADMIN_LEVELS.MINISTER]: [
     ADMIN_PERMISSIONS.ATTENDANCE_CHECKIN,
+    ADMIN_PERMISSIONS.CHILDREN_MINISTRY_MANAGE,
     ADMIN_PERMISSIONS.ATTENDANCE_MANAGEMENT,
     ADMIN_PERMISSIONS.MEMBER_DIRECTORY,
     ADMIN_PERMISSIONS.MEMBER_PROFILES,
@@ -94,6 +101,7 @@ export const DEFAULT_ADMIN_LEVEL_PERMISSIONS: Record<AdminLevel, AdminPermission
   ],
   [ADMIN_LEVELS.PASTOR]: [
     ADMIN_PERMISSIONS.ATTENDANCE_CHECKIN,
+    ADMIN_PERMISSIONS.CHILDREN_MINISTRY_MANAGE,
     ADMIN_PERMISSIONS.ATTENDANCE_MANAGEMENT,
     ADMIN_PERMISSIONS.MEMBER_DIRECTORY,
     ADMIN_PERMISSIONS.MEMBER_PROFILES,
@@ -103,13 +111,29 @@ export const DEFAULT_ADMIN_LEVEL_PERMISSIONS: Record<AdminLevel, AdminPermission
 };
 
 export const ADMIN_PERMISSION_PRESETS = {
-  CHILDREN_MINISTRY_ONLY: {
-    key: "children_ministry_only",
-    label: "Children Ministry Only",
-    description: "Limits a regular admin to Children Ministry check-in tools only.",
+  CHILDREN_CHECKIN_HELPER: {
+    key: "children_checkin_helper",
+    label: "Children Check-In Helper",
+    description: "Check-in and check-out only, for volunteers such as teen helpers.",
     permissions: [ADMIN_PERMISSIONS.ATTENDANCE_CHECKIN],
   },
+  CHILDREN_MINISTRY_LEADER: {
+    key: "children_ministry_leader",
+    label: "Children Ministry Leader",
+    description: "Full Children Ministry access: records, history, incidents, documents, and classrooms.",
+    permissions: [ADMIN_PERMISSIONS.ATTENDANCE_CHECKIN, ADMIN_PERMISSIONS.CHILDREN_MINISTRY_MANAGE],
+  },
 } as const;
+
+const CHILDREN_MINISTRY_PERMISSIONS: ReadonlySet<AdminPermission> = new Set([
+  ADMIN_PERMISSIONS.ATTENDANCE_CHECKIN,
+  ADMIN_PERMISSIONS.CHILDREN_MINISTRY_MANAGE,
+]);
+
+/** True when every permission the admin holds is a Children Ministry permission. */
+export function isChildrenMinistryOnly(permissions: readonly AdminPermission[]): boolean {
+  return permissions.length > 0 && permissions.every((permission) => CHILDREN_MINISTRY_PERMISSIONS.has(permission));
+}
 
 export function isAdminLevel(value: unknown): value is AdminLevel {
   return value === ADMIN_LEVELS.MINISTER || value === ADMIN_LEVELS.PASTOR || value === ADMIN_LEVELS.SUPER_ADMIN;

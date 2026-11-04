@@ -85,7 +85,13 @@ const EXTRA_LAST = ["Washington", "Adams", "Jefferson", "Hamilton", "Franklin", 
 const MINISTRIES = ["Worship Team", "Children Ministry", "Hospitality", "Prayer Team", "Youth Ministry", "Outreach", "Media & Tech", "Ushers", "Small Groups", "Discipleship"];
 const SMALL_GROUPS = ["Young Adults", "Young Families", "Northside Cell", "Eastgate Group", "Men's Fellowship", "Women's Circle", "Marriage Ministry", "Senior Saints", "College Group", "Spanish Ministry"];
 const OCCUPATIONS = ["Teacher", "Nurse", "Engineer", "Pastor", "Accountant", "Social Worker", "Doctor", "Business Owner", "IT Specialist", "Retail Manager", "Construction Worker", "Administrative Assistant", "Counselor", "Police Officer", "Firefighter"];
-const CLASSROOMS = ["Toddlers", "Preschool", "Elementary"] as const;
+const CLASSROOMS = [
+  { name: "Toddlers", minAgeYears: 2, maxAgeYears: 3, isSpecialNeeds: false },
+  { name: "Preschool", minAgeYears: 4, maxAgeYears: 5, isSpecialNeeds: false },
+  { name: "Elementary", minAgeYears: 6, maxAgeYears: 12, isSpecialNeeds: false },
+  { name: "Special Needs", minAgeYears: null, maxAgeYears: null, isSpecialNeeds: true },
+] as const;
+const SPECIAL_NEEDS_CLASSROOM = "Special Needs";
 const ALLERGY_POOL = [null, null, null, "Peanuts", "Dairy sensitivity", "Tree nuts", "Gluten-free diet", null, null, "Latex allergy"];
 const MEDICAL_POOL = [null, null, null, null, "Inhaler in backpack", "Epipen required", null, null, null, null];
 const SUPPLEMENTAL_LAST = ["Bennett", "Carter", "Coleman", "Cooper", "Edwards", "Foster", "Gray", "Green", "Howard", "King", "Morris", "Nelson", "Parker", "Reed", "Simmons", "Stewart", "Turner", "Ward", "Watson", "Wright"];
@@ -128,6 +134,25 @@ function makeQrToken(suffix: string): string {
 
 function makePickupCode(seed = 0): string {
   return String(1000 + Math.abs(seededInt(seed + 31, 0, 8999)));
+}
+
+function daysAgoDate(days: number): Date {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d;
+}
+
+// Smallest valid one-page PDF, used as a stand-in for scanned consent forms.
+const SAMPLE_PDF = Buffer.from(
+  "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n" +
+    "3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n",
+);
+
+async function clearChildrenMinistryRecords(churchId: number) {
+  await db.delete(schema.childDocumentsTable).where(eq(schema.childDocumentsTable.churchId, churchId));
+  await db.delete(schema.childIncidentsTable).where(eq(schema.childIncidentsTable.churchId, churchId));
+  await db.delete(schema.childPermissionSlipsTable).where(eq(schema.childPermissionSlipsTable.churchId, churchId));
+  await db.delete(schema.childrenClassroomsTable).where(eq(schema.childrenClassroomsTable.churchId, churchId));
 }
 
 function dobFromAge(ageYears: number, offsetDays = 0): string {
@@ -179,7 +204,7 @@ const EXTRA_TEST_USERS: Array<{
     memberStatus: "member",
     assignedMinistry: "Executive Leadership",
     permissions: [
-      "attendance_checkin", "attendance_management", "member_directory", "member_profiles",
+      "attendance_checkin", "children_ministry_manage", "attendance_management", "member_directory", "member_profiles",
       "event_management", "followup_notes", "pastoral_notes", "giving_summary",
       "giving_details", "giving_view_own", "giving_management", "giving_reports",
       "campaign_management", "reports", "admin_management", "system_settings",
@@ -196,13 +221,26 @@ const EXTRA_TEST_USERS: Array<{
     memberStatus: "member" as MemberStatus,
     assignedMinistry: ["Operations", "Children Ministry", "Giving", "Member Care", "Services"][n - 1],
     permissions: [
-      ["attendance_checkin", "attendance_management", "member_directory", "member_profiles", "event_management"],
-      ["attendance_checkin", "member_directory", "member_profiles"],
+      ["attendance_checkin", "children_ministry_manage", "attendance_management", "member_directory", "member_profiles", "event_management"],
+      ["attendance_checkin", "children_ministry_manage", "member_directory", "member_profiles"],
       ["giving_summary", "giving_details", "giving_view_own", "giving_management", "giving_reports", "campaign_management"],
       ["member_directory", "member_profiles", "followup_notes"],
       ["event_management", "attendance_management", "member_directory"],
     ][n - 1],
   })),
+  {
+    // Children Check-In Helper: check-in/check-out only (e.g. a teen volunteer).
+    email: "helper@churchos.test",
+    password: "Helper123!",
+    firstName: "Teen",
+    lastName: "Helper",
+    role: "admin",
+    adminLevel: null,
+    accountStatus: "active",
+    memberStatus: "member",
+    assignedMinistry: "Children Ministry",
+    permissions: ["attendance_checkin"],
+  },
   {
     email: "member@churchos.test",
     password: "Member123!",
@@ -734,6 +772,8 @@ async function seedDev() {
   if (isReset) {
     console.log("\n🗑️  Resetting dev data...");
 
+    await clearChildrenMinistryRecords(church.id);
+
     // Wipe dev attendance records + sessions
     const devSessions = await db
       .select({ id: schema.attendanceSessionsTable.id })
@@ -1224,12 +1264,17 @@ async function seedDev() {
     }
   }
 
-  const createdChildren: Array<{ id: number; guardianIds: number[] }> = [];
+  const createdChildren: Array<{ id: number; guardianIds: number[]; classroom: string }> = [];
 
   for (let ci = 0; ci < childDefs.length; ci++) {
     const { child, lastName, guardianMemberIds } = childDefs[ci];
     const ageYears = child.ageYears;
-    const classroom: typeof CLASSROOMS[number] = ageYears <= 3 ? "Toddlers" : ageYears <= 5 ? "Preschool" : "Elementary";
+    // A few children are flagged as special needs (placed in that room regardless of age)
+    // and a few as recent first-time visitors.
+    const hasSpecialNeeds = ci === 3 || ci === 17;
+    const isVisitor = ci % 9 === 4;
+    const classroom: string = hasSpecialNeeds ? SPECIAL_NEEDS_CLASSROOM : ageYears <= 3 ? "Toddlers" : ageYears <= 5 ? "Preschool" : "Elementary";
+    const registeredAt = daysAgoDate(isVisitor ? 3 + ci % 10 : 120 + ci * 4);
     const allergy = ALLERGY_POOL[ci % ALLERGY_POOL.length];
     const medical = MEDICAL_POOL[ci % MEDICAL_POOL.length];
 
@@ -1244,7 +1289,10 @@ async function seedDev() {
         classroom,
         allergyInformation: allergy,
         medicalNotes: medical,
-        specialInstructions: ci === 0 ? "Release only to listed guardians" : null,
+        specialInstructions: ci === 0 ? "Release only to listed guardians" : hasSpecialNeeds ? "Needs a quiet space during transitions" : null,
+        isVisitor,
+        hasSpecialNeeds,
+        createdAt: registeredAt,
         checkinStatus: "checked_out",
       })
       .onConflictDoNothing()
@@ -1338,7 +1386,7 @@ async function seedDev() {
       }
     }
 
-    createdChildren.push({ id: createdChild.id, guardianIds });
+    createdChildren.push({ id: createdChild.id, guardianIds, classroom });
   }
 
   console.log(`   Children created: ${createdChildren.length}`);
@@ -1572,7 +1620,7 @@ async function seedDev() {
           pickedUpByGuardianId: hasCheckout ? firstGuardianId : null,
           checkinTime,
           checkoutTime,
-          classroom: "Elementary",
+          classroom: childData.classroom,
           pickupCode: makePickupCode(session.id + ci),
           status: hasCheckout ? "checked_out" : "active",
         })
@@ -1870,6 +1918,95 @@ async function seedDev() {
     }
   }
 
+  // ── Children Ministry: classrooms, incidents, permission slips, documents ──
+  console.log("\n🧸  Seeding Children Ministry classrooms, incidents, and forms...");
+  await clearChildrenMinistryRecords(church.id);
+
+  await db.insert(schema.childrenClassroomsTable).values(
+    CLASSROOMS.map((classroom, index) => ({ churchId: church.id, ...classroom, sortOrder: index })),
+  );
+
+  const ministryChildren = await db
+    .select({
+      id: schema.childrenTable.id,
+      allergyInformation: schema.childrenTable.allergyInformation,
+      classroom: schema.childrenTable.classroom,
+    })
+    .from(schema.childrenTable)
+    .where(eq(schema.childrenTable.churchId, church.id))
+    .orderBy(schema.childrenTable.id);
+  const leaderId = adminUser?.id ?? 1;
+
+  if (ministryChildren.length >= 2) {
+    await db.insert(schema.childIncidentsTable).values([
+      {
+        churchId: church.id,
+        childId: ministryChildren[0].id,
+        occurredAt: daysAgoDate(3),
+        classroom: ministryChildren[0].classroom,
+        description: "Tripped on the playground step and scraped a knee.",
+        actionTaken: "Cleaned and bandaged the scrape. Child returned to class.",
+        reportedByUserId: leaderId,
+        status: "open" as const,
+      },
+      {
+        churchId: church.id,
+        childId: ministryChildren[1].id,
+        occurredAt: daysAgoDate(17),
+        classroom: ministryChildren[1].classroom,
+        description: "Disagreement with another child over a toy; minor pushing.",
+        actionTaken: "Separated the children and talked with both.",
+        reportedByUserId: leaderId,
+        status: "resolved" as const,
+        resolutionNotes: "Spoke with the parents at pickup. No further concerns.",
+        resolvedByUserId: leaderId,
+        resolvedAt: daysAgoDate(17),
+      },
+    ]);
+  }
+
+  const [programSlip] = await db
+    .insert(schema.childPermissionSlipsTable)
+    .values({
+      churchId: church.id,
+      title: "Children's Christmas Program",
+      eventDate: daysAgoDate(-35).toISOString().slice(0, 10),
+      notes: "Rehearsals after Sunday service; costumes provided.",
+      createdByUserId: leaderId,
+    })
+    .returning();
+
+  // About half the children with allergies have a medication consent on file;
+  // the rest show as missing. A few families already returned the program slip.
+  const withAllergies = ministryChildren.filter((child) => child.allergyInformation);
+  const documentRows = [
+    ...withAllergies.filter((_, index) => index % 2 === 0).map((child) => ({
+      churchId: church.id,
+      childId: child.id,
+      category: "medication_consent" as const,
+      title: "Medication consent",
+      fileName: "medication-consent.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: SAMPLE_PDF.length,
+      fileData: SAMPLE_PDF,
+      uploadedByUserId: leaderId,
+    })),
+    ...ministryChildren.slice(0, 8).map((child) => ({
+      churchId: church.id,
+      childId: child.id,
+      category: "event_permission" as const,
+      title: programSlip.title,
+      permissionSlipId: programSlip.id,
+      fileName: "christmas-program-permission.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: SAMPLE_PDF.length,
+      fileData: SAMPLE_PDF,
+      uploadedByUserId: leaderId,
+    })),
+  ];
+  if (documentRows.length > 0) await db.insert(schema.childDocumentsTable).values(documentRows);
+  console.log(`   ${CLASSROOMS.length} classrooms, 2 incidents (1 open), 1 permission slip, ${documentRows.length} documents`);
+
   // ── Summary ────────────────────────────────────────────────────────────────
   console.log("\n✅  Dev seed complete!\n");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
@@ -1877,7 +2014,7 @@ async function seedDev() {
   console.log(`  Total fake people:     ${allMembers.length + createdChildren.length} (${allMembers.length} users + ${createdChildren.length} children)`);
   console.log(`  Household members:     ${householdMemberCount} (in 45 household groups)`);
   console.log(`  Unaffiliated members:  ${unaffiliatedCount}`);
-  console.log(`  Test accounts:         7 (superadmin@, admin1@–admin5@, member@)`);
+  console.log(`  Test accounts:         8 (superadmin@, admin1@–admin5@, helper@, member@)`);
   console.log(`  Members:               ${activeMembers.length}`);
   console.log(`  Low-attendance tests:  ${lowAttendanceMembers.length}`);
   console.log(`  Visitors:              ${visitors.length}`);
@@ -1907,6 +2044,7 @@ async function seedDev() {
   console.log("  admin3@churchos.test      Admin123!      — admin");
   console.log("  admin4@churchos.test      Admin123!      — admin");
   console.log("  admin5@churchos.test      Admin123!      — admin");
+  console.log("  helper@churchos.test      Helper123!     — children check-in helper");
   console.log("  member@churchos.test      Member123!     — member");
   console.log("\n⚠️   These credentials only work in development mode.");
 }

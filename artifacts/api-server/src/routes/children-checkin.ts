@@ -1,9 +1,11 @@
 import { randomBytes } from "node:crypto";
-import { and, desc, eq, ilike, isNull, or } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, isNull, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { Router, type IRouter } from "express";
 import {
+  childDocumentsTable,
   childGuardianRelationshipsTable,
+  childIncidentsTable,
   checkinRecordsTable,
   childrenTable,
   db,
@@ -14,7 +16,59 @@ import { ADMIN_PERMISSIONS } from "../lib/admin-permissions";
 import { requireAdminPermission } from "../middlewares/auth";
 
 const router: IRouter = Router();
+// Check-in helpers (e.g. teen volunteers) can check children in and out.
+// Leaders can also register and edit children and see history.
 const requireCheckInAccess = requireAdminPermission(ADMIN_PERMISSIONS.ATTENDANCE_CHECKIN);
+const requireLeaderAccess = requireAdminPermission(ADMIN_PERMISSIONS.CHILDREN_MINISTRY_MANAGE);
+
+function booleanFlag(value: unknown): boolean {
+  return value === true || value === "true" || value === "on";
+}
+
+type ChildFlags = {
+  openIncidents: Map<number, number>;
+  documentCategories: Map<number, Set<string>>;
+};
+
+async function loadChildFlags(churchId: number, childIds?: number[]): Promise<ChildFlags> {
+  const incidentFilters = [eq(childIncidentsTable.churchId, churchId), eq(childIncidentsTable.status, "open")];
+  const documentFilters = [eq(childDocumentsTable.churchId, churchId)];
+  if (childIds) {
+    if (childIds.length === 0) return { openIncidents: new Map(), documentCategories: new Map() };
+    incidentFilters.push(inArray(childIncidentsTable.childId, childIds));
+    documentFilters.push(inArray(childDocumentsTable.childId, childIds));
+  }
+
+  const incidentRows = await db
+    .select({ childId: childIncidentsTable.childId, total: count() })
+    .from(childIncidentsTable)
+    .where(and(...incidentFilters))
+    .groupBy(childIncidentsTable.childId);
+
+  const documentRows = await db
+    .selectDistinct({ childId: childDocumentsTable.childId, category: childDocumentsTable.category })
+    .from(childDocumentsTable)
+    .where(and(...documentFilters));
+
+  const documentCategories = new Map<number, Set<string>>();
+  for (const row of documentRows) {
+    const categories = documentCategories.get(row.childId) ?? new Set<string>();
+    categories.add(row.category);
+    documentCategories.set(row.childId, categories);
+  }
+
+  return {
+    openIncidents: new Map(incidentRows.map((row) => [row.childId, Number(row.total)])),
+    documentCategories,
+  };
+}
+
+/** Forms the ministry expects on file for this child that are not uploaded yet. */
+function missingDocuments(child: typeof childrenTable.$inferSelect, categories: Set<string> | undefined): string[] {
+  const missing: string[] = [];
+  if (child.allergyInformation && !categories?.has("medication_consent")) missing.push("medication_consent");
+  return missing;
+}
 
 function textOrNull(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -49,7 +103,8 @@ async function getRequesterChurchId(userId: number) {
   return user?.churchId ?? null;
 }
 
-async function serializeChild(child: typeof childrenTable.$inferSelect) {
+async function serializeChild(child: typeof childrenTable.$inferSelect, flags?: ChildFlags) {
+  const childFlags = flags ?? await loadChildFlags(child.churchId, [child.id]);
   const guardians = await db
     .select({
       id: parentGuardiansTable.id,
@@ -86,6 +141,11 @@ async function serializeChild(child: typeof childrenTable.$inferSelect) {
     medicalNotes: child.medicalNotes,
     specialInstructions: child.specialInstructions,
     classroom: child.classroom,
+    isVisitor: child.isVisitor,
+    hasSpecialNeeds: child.hasSpecialNeeds,
+    registeredAt: child.createdAt.toISOString(),
+    openIncidentCount: childFlags.openIncidents.get(child.id) ?? 0,
+    missingDocuments: missingDocuments(child, childFlags.documentCategories.get(child.id)),
     checkinStatus: child.checkinStatus,
     guardians,
     activeCheckIn: activeCheckIn
@@ -121,10 +181,11 @@ router.get("/admin/checkin/children", requireCheckInAccess, async (req, res): Pr
     .where(eq(childrenTable.churchId, churchId))
     .orderBy(childrenTable.lastName, childrenTable.firstName);
 
-  res.json({ children: await Promise.all(children.map(serializeChild)) });
+  const flags = await loadChildFlags(churchId);
+  res.json({ children: await Promise.all(children.map((child) => serializeChild(child, flags))) });
 });
 
-router.get("/admin/checkin/history", requireCheckInAccess, async (req, res): Promise<void> => {
+router.get("/admin/checkin/history", requireLeaderAccess, async (req, res): Promise<void> => {
   const churchId = await getRequesterChurchId(req.localUserId);
   if (!churchId) {
     res.status(401).json({ error: "User church not found." });
@@ -176,7 +237,7 @@ router.get("/admin/checkin/history", requireCheckInAccess, async (req, res): Pro
   });
 });
 
-router.get("/admin/checkin/member-contacts", requireCheckInAccess, async (req, res): Promise<void> => {
+router.get("/admin/checkin/member-contacts", requireLeaderAccess, async (req, res): Promise<void> => {
   const churchId = await getRequesterChurchId(req.localUserId);
   if (!churchId) {
     res.status(401).json({ error: "User church not found." });
@@ -222,7 +283,7 @@ router.get("/admin/checkin/member-contacts", requireCheckInAccess, async (req, r
   });
 });
 
-router.post("/admin/checkin/children", requireCheckInAccess, async (req, res): Promise<void> => {
+router.post("/admin/checkin/children", requireLeaderAccess, async (req, res): Promise<void> => {
   const churchId = await getRequesterChurchId(req.localUserId);
   if (!churchId) {
     res.status(401).json({ error: "User church not found." });
@@ -255,6 +316,8 @@ router.post("/admin/checkin/children", requireCheckInAccess, async (req, res): P
       medicalNotes: textOrNull(req.body?.medicalNotes),
       specialInstructions: textOrNull(req.body?.specialInstructions),
       classroom: textOrNull(req.body?.classroom),
+      isVisitor: booleanFlag(req.body?.isVisitor),
+      hasSpecialNeeds: booleanFlag(req.body?.hasSpecialNeeds),
       checkinStatus: "checked_out",
     })
     .returning();
@@ -280,7 +343,7 @@ router.post("/admin/checkin/children", requireCheckInAccess, async (req, res): P
   res.status(201).json({ child: await serializeChild(child) });
 });
 
-router.patch("/admin/checkin/children/:childId", requireCheckInAccess, async (req, res): Promise<void> => {
+router.patch("/admin/checkin/children/:childId", requireLeaderAccess, async (req, res): Promise<void> => {
   const childId = Number(req.params.childId);
   const churchId = await getRequesterChurchId(req.localUserId);
   if (!Number.isInteger(childId) || !churchId) {
@@ -307,6 +370,8 @@ router.patch("/admin/checkin/children/:childId", requireCheckInAccess, async (re
       medicalNotes: textOrNull(req.body?.medicalNotes),
       specialInstructions: textOrNull(req.body?.specialInstructions),
       classroom: textOrNull(req.body?.classroom),
+      isVisitor: booleanFlag(req.body?.isVisitor),
+      hasSpecialNeeds: booleanFlag(req.body?.hasSpecialNeeds),
     })
     .where(and(eq(childrenTable.id, childId), eq(childrenTable.churchId, churchId)))
     .returning();
@@ -319,7 +384,7 @@ router.patch("/admin/checkin/children/:childId", requireCheckInAccess, async (re
   res.json({ child: await serializeChild(child) });
 });
 
-router.post("/admin/checkin/children/:childId/guardians", requireCheckInAccess, async (req, res): Promise<void> => {
+router.post("/admin/checkin/children/:childId/guardians", requireLeaderAccess, async (req, res): Promise<void> => {
   const childId = Number(req.params.childId);
   const churchId = await getRequesterChurchId(req.localUserId);
   if (!Number.isInteger(childId) || !churchId) {
@@ -467,7 +532,7 @@ router.post("/admin/checkin/children/:childId/check-out", requireCheckInAccess, 
   res.json({ child: await serializeChild(updatedChild) });
 });
 
-router.delete("/admin/checkin/children/:childId/active-check-in", requireCheckInAccess, async (req, res): Promise<void> => {
+router.delete("/admin/checkin/children/:childId/active-check-in", requireLeaderAccess, async (req, res): Promise<void> => {
   const childId = Number(req.params.childId);
   const churchId = await getRequesterChurchId(req.localUserId);
   if (!Number.isInteger(childId) || !churchId) {
@@ -505,6 +570,56 @@ router.delete("/admin/checkin/children/:childId/active-check-in", requireCheckIn
     .returning();
 
   res.json({ child: await serializeChild(updatedChild) });
+});
+
+// Data for the printed child name tag and parent pickup stub.
+router.get("/admin/checkin/children/:childId/label", requireCheckInAccess, async (req, res): Promise<void> => {
+  const childId = Number(req.params.childId);
+  const churchId = await getRequesterChurchId(req.localUserId);
+  if (!Number.isInteger(childId) || !churchId) {
+    res.status(400).json({ error: "Invalid child." });
+    return;
+  }
+
+  const [record] = await db
+    .select({
+      firstName: childrenTable.firstName,
+      lastName: childrenTable.lastName,
+      allergyInformation: childrenTable.allergyInformation,
+      medicalNotes: childrenTable.medicalNotes,
+      hasSpecialNeeds: childrenTable.hasSpecialNeeds,
+      classroom: checkinRecordsTable.classroom,
+      pickupCode: checkinRecordsTable.pickupCode,
+      checkinTime: checkinRecordsTable.checkinTime,
+    })
+    .from(checkinRecordsTable)
+    .innerJoin(childrenTable, eq(checkinRecordsTable.childId, childrenTable.id))
+    .where(
+      and(
+        eq(checkinRecordsTable.childId, childId),
+        eq(childrenTable.churchId, churchId),
+        eq(checkinRecordsTable.status, "active"),
+        isNull(checkinRecordsTable.checkoutTime),
+      ),
+    )
+    .orderBy(desc(checkinRecordsTable.checkinTime));
+
+  if (!record) {
+    res.status(409).json({ error: "Child is not currently checked in." });
+    return;
+  }
+
+  res.json({
+    label: {
+      childName: `${record.firstName} ${record.lastName}`,
+      classroom: record.classroom,
+      allergyInformation: record.allergyInformation,
+      medicalNotes: record.medicalNotes,
+      hasSpecialNeeds: record.hasSpecialNeeds,
+      pickupCode: record.pickupCode,
+      checkinTime: record.checkinTime.toISOString(),
+    },
+  });
 });
 
 async function createGuardianRelationship(params: {

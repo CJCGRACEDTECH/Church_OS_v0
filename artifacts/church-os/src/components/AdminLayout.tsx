@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ADMIN_ROUTES } from "@/lib/routes";
-import { hasPermission, PERMISSIONS, type Permission } from "@/lib/permissions";
+import { hasPermission, isChildrenMinistryOnly, PERMISSIONS, type Permission } from "@/lib/permissions";
 
 const NAV_ITEMS = [
   { label: "Dashboard", icon: LayoutDashboard, href: ADMIN_ROUTES.DASHBOARD },
@@ -49,7 +49,7 @@ function SidebarNav() {
   const { user, logout } = useAuth();
   const [location] = useLocation();
   const permissions = user?.adminPermissions ?? [];
-  const isChildrenMinistryOnly = permissions.length === 1 && permissions.includes(PERMISSIONS.ATTENDANCE_CHECKIN);
+  const childrenMinistryOnly = isChildrenMinistryOnly(permissions);
 
   return (
     <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground">
@@ -68,7 +68,7 @@ function SidebarNav() {
       <div className="flex-1 overflow-y-auto py-4">
         <nav className="space-y-1 px-3">
           {NAV_ITEMS.filter((item) => {
-            if (isChildrenMinistryOnly && item.href === ADMIN_ROUTES.DASHBOARD) return false;
+            if (childrenMinistryOnly && item.href === ADMIN_ROUTES.DASHBOARD) return false;
             if (item.superAdminOnly && user?.adminLevel !== "super_admin") return false;
             if (item.memberPortal) return true;
             if (!item.permission) return true;
