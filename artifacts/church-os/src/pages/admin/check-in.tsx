@@ -27,38 +27,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { readProfilePhotoFile } from "@/lib/profile-photo";
-import { CalendarCheck, ChevronDown, CircleHelp, History, LogOut, Pencil, Plus, ShieldCheck, Trash2, UserRound, X } from "lucide-react";
-
-type Guardian = {
-  id: number;
-  name: string;
-  email: string | null;
-  phoneNumber: string | null;
-  relationship: "parent" | "guardian" | "emergency_contact";
-  authorizedPickup: boolean;
-};
-
-type Child = {
-  id: number;
-  firstName: string;
-  lastName: string;
-  dateOfBirth: string | null;
-  age: number | null;
-  gender: string | null;
-  profilePhotoUrl: string | null;
-  allergyInformation: string | null;
-  medicalNotes: string | null;
-  specialInstructions: string | null;
-  classroom: string | null;
-  checkinStatus: "checked_in" | "checked_out";
-  guardians: Guardian[];
-  activeCheckIn: {
-    id: number;
-    checkinTime: string;
-    classroom: string | null;
-    checkedInByUserId: number;
-  } | null;
-};
+import { CalendarCheck, ChevronDown, CircleHelp, History, LogOut, Pencil, Plus, Printer, ShieldCheck, Sparkles, Trash2, UserRound, X } from "lucide-react";
+import { useAuth } from "@/components/auth-context";
+import ChildFlags from "@/components/children/ChildFlags";
+import { ClassroomsDialog, CLASSROOMS_QUERY_KEY } from "@/components/children/Classrooms";
+import { ChildDocumentsSection } from "@/components/children/Documents";
+import { ChildIncidentsSection, OpenIncidentsDialog, ReportIncidentDialog } from "@/components/children/Incidents";
+import { PermissionSlipsDialog } from "@/components/children/PermissionSlips";
+import {
+  ageFromDateOfBirth,
+  childName,
+  isNewChild,
+  NEW_CHILD_DAYS,
+  suggestClassroom,
+  type Child,
+  type Classroom,
+} from "@/lib/children";
+import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { getSavedLabelSize, LABEL_SIZES, printCheckInLabels, saveLabelSize, type CheckInLabel } from "@/lib/print-labels";
 
 type MinistryCheckinHistoryRecord = {
   id: number;
@@ -86,8 +72,20 @@ function relationshipLabel(value: string) {
   return value[0].toUpperCase() + value.slice(1);
 }
 
-function childName(child: Child) {
-  return `${child.firstName} ${child.lastName}`;
+type ChildFilter = "all" | "visitors" | "new" | "special_needs" | "incidents" | "missing_forms";
+
+const CHILD_FILTERS: Array<{ value: ChildFilter; label: string; matches: (child: Child) => boolean; leaderOnly?: boolean }> = [
+  { value: "all", label: "All", matches: () => true },
+  { value: "visitors", label: "Visitors", matches: (child) => child.isVisitor },
+  { value: "new", label: `New (${NEW_CHILD_DAYS} days)`, matches: (child) => isNewChild(child) },
+  { value: "special_needs", label: "Special needs", matches: (child) => child.hasSpecialNeeds },
+  { value: "incidents", label: "Open incidents", matches: (child) => child.openIncidentCount > 0 },
+  { value: "missing_forms", label: "Missing forms", matches: (child) => child.missingDocuments.length > 0, leaderOnly: true },
+];
+
+async function printLabelsForChild(childId: number) {
+  const { label } = await apiJson<{ label: CheckInLabel }>(`/admin/checkin/children/${childId}/label`);
+  printCheckInLabels(label);
 }
 
 function formatDateTime(value: string) {
@@ -119,12 +117,17 @@ function dateGroupKey(value: string) {
 export default function AdminCheckIn() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  // Leaders manage records; check-in helpers (e.g. teens) only check in and out.
+  const isLeader = hasPermission("admin", PERMISSIONS.CHILDREN_MINISTRY_MANAGE, user?.adminPermissions);
   const [search, setSearch] = React.useState("");
+  const [filter, setFilter] = React.useState<ChildFilter>("all");
+  const [registerAsVisitor, setRegisterAsVisitor] = React.useState(false);
   const [selectedChildId, setSelectedChildId] = React.useState<number | null>(null);
   const [registerOpen, setRegisterOpen] = React.useState(false);
   const [activeExpanded, setActiveExpanded] = React.useState(false);
   const [historyOpen, setHistoryOpen] = React.useState(false);
-  const [pickupCodeDisplay, setPickupCodeDisplay] = React.useState<{ childName: string; code: string } | null>(null);
+  const [pickupCodeDisplay, setPickupCodeDisplay] = React.useState<{ childId: number; childName: string; code: string } | null>(null);
 
   const childrenQuery = useQuery({
     queryKey: ["children-checkin"],
@@ -134,26 +137,43 @@ export default function AdminCheckIn() {
   const historyQuery = useQuery({
     queryKey: ["children-checkin-history"],
     queryFn: () => apiJson<{ history: MinistryCheckinHistoryRecord[] }>("/admin/checkin/history"),
+    enabled: isLeader,
   });
 
   const memberContactsQuery = useQuery({
     queryKey: ["children-ministry-member-contacts"],
     queryFn: () => apiJson<{ members: MemberContact[] }>("/admin/checkin/member-contacts"),
+    enabled: isLeader,
   });
+
+  const classroomsQuery = useQuery({
+    queryKey: CLASSROOMS_QUERY_KEY,
+    queryFn: () => apiJson<{ classrooms: Classroom[] }>("/admin/children/classrooms"),
+  });
+  const classrooms = classroomsQuery.data?.classrooms ?? [];
 
   const children = childrenQuery.data?.children ?? [];
   const checkinHistory = historyQuery.data?.history ?? [];
+  const activeFilter = CHILD_FILTERS.find((option) => option.value === filter) ?? CHILD_FILTERS[0];
   const filteredChildren = children.filter((child) => {
+    if (!activeFilter.matches(child)) return false;
     const needle = search.trim().toLowerCase();
     if (!needle) return true;
     return `${child.firstName} ${child.lastName} ${child.classroom ?? ""}`.toLowerCase().includes(needle);
   });
+  const newChildrenCount = children.filter((child) => isNewChild(child)).length;
+  const openIncidentCount = children.reduce((sum, child) => sum + child.openIncidentCount, 0);
   const activeChildren = children.filter((child) => child.checkinStatus === "checked_in");
   const selectedChild = selectedChildId ? children.find((child) => child.id === selectedChildId) ?? null : null;
   const todayKey = dateGroupKey(new Date().toISOString());
   const todaysCheckins = checkinHistory.filter((record) => dateGroupKey(record.checkinTime) === todayKey);
   const activeClassrooms = new Set(activeChildren.map((child) => child.activeCheckIn?.classroom || child.classroom || "Unassigned"));
-  const pickupContacts = children.reduce((sum, child) => sum + child.guardians.filter((guardian) => guardian.authorizedPickup).length, 0);
+
+  const printLabels = (childId: number) => {
+    printLabelsForChild(childId).catch((error: Error) =>
+      toast({ title: "Could not print labels", description: error.message, variant: "destructive" }),
+    );
+  };
 
   React.useEffect(() => {
     if (activeChildren.length > 0) setActiveExpanded(true);
@@ -185,7 +205,7 @@ export default function AdminCheckIn() {
     }),
     onSuccess: (data, child) => {
       setSelectedChildId(data.child.id);
-      setPickupCodeDisplay({ childName: `${child.firstName} ${child.lastName}`, code: data.pickupCode });
+      setPickupCodeDisplay({ childId: child.id, childName: `${child.firstName} ${child.lastName}`, code: data.pickupCode });
       void refresh();
     },
     onError: (error) => toast({ title: "Check-in failed", description: error.message, variant: "destructive" }),
@@ -266,8 +286,13 @@ export default function AdminCheckIn() {
                 <p className="text-4xl font-mono font-bold tracking-widest text-green-800">{pickupCodeDisplay.code}</p>
               </div>
               <p className="text-xs text-muted-foreground text-center">Keep this code private. Staff will ask for it when the child is picked up.</p>
+              <LabelSizePicker />
             </div>
-            <DialogFooter>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => printLabels(pickupCodeDisplay.childId)}>
+                <Printer className="h-4 w-4" />
+                Print Labels
+              </Button>
               <Button onClick={() => setPickupCodeDisplay(null)}>Done</Button>
             </DialogFooter>
           </DialogContent>
@@ -279,7 +304,11 @@ export default function AdminCheckIn() {
           title="Children Ministry"
           description="Register children, manage pickup contacts, and track active check-ins."
           icon={<UserRound className="h-6 w-6" />}
-          actions={
+          actions={isLeader ? (
+          <div className="flex flex-wrap gap-2">
+          <OpenIncidentsDialog openCount={openIncidentCount} />
+          <PermissionSlipsDialog children={children} />
+          <ClassroomsDialog classrooms={classrooms} />
           <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
             <DialogTrigger asChild>
               <Button variant="outline">
@@ -295,14 +324,25 @@ export default function AdminCheckIn() {
               <MinistryCheckinHistory records={checkinHistory} isLoading={historyQuery.isLoading} expanded onExpandedChange={() => undefined} />
             </DialogContent>
           </Dialog>
-          }
+          </div>
+          ) : undefined}
         />
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard icon={UserRound} label="Registered Children" value={String(children.length)} tooltip="Total children currently registered in Children Ministry." />
           <MetricCard icon={CalendarCheck} label="Checked In Now" value={String(activeChildren.length)} tooltip="Children currently checked in and waiting for authorized pickup." />
-          <MetricCard icon={History} label="Today's Check-ins" value={String(todaysCheckins.length)} tooltip="Total Children Ministry check-ins recorded today, including children already checked out." />
-          <MetricCard icon={ShieldCheck} label="Pickup Contacts" value={String(pickupContacts)} tooltip="Authorized pickup contacts linked across all child profiles." />
+          <MetricCard
+            icon={Sparkles}
+            label="New Children"
+            value={String(newChildrenCount)}
+            tooltip={`Children registered in the last ${NEW_CHILD_DAYS} days, including first-time visitors. Select to show them.`}
+            onClick={() => setFilter("new")}
+          />
+          {isLeader ? (
+            <MetricCard icon={History} label="Today's Check-ins" value={String(todaysCheckins.length)} tooltip="Total Children Ministry check-ins recorded today, including children already checked out." />
+          ) : (
+            <MetricCard icon={ShieldCheck} label="Open Incidents" value={String(openIncidentCount)} tooltip="Children with an incident a leader still needs to follow up on." />
+          )}
         </div>
 
         {activeChildren.length > 0 && (
@@ -343,25 +383,28 @@ export default function AdminCheckIn() {
                     </div>
                   );
                 })()}
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {activeChildren.map((child) => (
-                    <div key={child.id} className="rounded-md border p-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex min-w-0 items-center gap-3">
-                          <ChildAvatar child={child} />
-                          <div className="min-w-0">
-                            <p className="truncate font-medium">{childName(child)}</p>
-                            <p className="truncate text-sm text-muted-foreground">
-                              {child.activeCheckIn?.classroom || child.classroom || "Unassigned"}
-                            </p>
+                    <div key={child.id} className="flex flex-col gap-3 rounded-md border p-3">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <ChildAvatar child={child} />
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <p className="truncate font-medium">{childName(child)}</p>
+                          <p className="truncate text-sm text-muted-foreground">
+                            {child.activeCheckIn?.classroom || child.classroom || "Unassigned"}
                             {child.activeCheckIn?.checkinTime && (
-                              <p className="text-xs text-muted-foreground">
-                                In at {new Date(child.activeCheckIn.checkinTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                              </p>
+                              <> · In at {new Date(child.activeCheckIn.checkinTime).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</>
                             )}
-                          </div>
+                          </p>
+                          <ChildFlags child={child} compact />
                         </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
                         <CheckoutDialog child={child} isPending={checkOut.isPending} onCheckout={(guardianId, pickupCode) => checkOut.mutate({ childId: child.id, guardianId, pickupCode })} />
+                        <Button size="sm" variant="outline" onClick={() => printLabels(child.id)}>
+                          <Printer className="h-4 w-4" />
+                          Labels
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -379,30 +422,43 @@ export default function AdminCheckIn() {
 
         <div className="grid gap-6">
           <Card>
-            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
               <div>
                 <CardTitle>Children List</CardTitle>
                 <CardDescription>Search the database, select a child, and manage their profile inline.</CardDescription>
               </div>
+              {isLeader && (
               <Dialog open={registerOpen} onOpenChange={setRegisterOpen}>
-                <DialogTrigger asChild>
-                  <Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={() => { setRegisterAsVisitor(true); setRegisterOpen(true); }}>
+                    <Sparkles />
+                    Register Visitor
+                  </Button>
+                  <Button onClick={() => { setRegisterAsVisitor(false); setRegisterOpen(true); }}>
                     <Plus />
                     Register Child
                   </Button>
-                </DialogTrigger>
+                </div>
                 <DialogContent className="max-h-[88vh] max-w-3xl overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle>Register Child</DialogTitle>
-                    <DialogDescription>Add a child profile and one parent or guardian contact.</DialogDescription>
+                    <DialogTitle>{registerAsVisitor ? "Register Visitor" : "Register Child"}</DialogTitle>
+                    <DialogDescription>
+                      {registerAsVisitor
+                        ? "Add a visiting child with their health information and a parent's phone number in case we need to reach them."
+                        : "Add a child profile and one parent or guardian contact."}
+                    </DialogDescription>
                   </DialogHeader>
                   <ChildRegistrationForm
+                    key={registerAsVisitor ? "visitor" : "child"}
+                    defaultVisitor={registerAsVisitor}
+                    classrooms={classrooms}
                     memberContacts={memberContactsQuery.data?.members ?? []}
                     isPending={registerChild.isPending}
                     onSubmit={(formData) => registerChild.mutate(formData)}
                   />
                 </DialogContent>
               </Dialog>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
               <Input
@@ -410,6 +466,24 @@ export default function AdminCheckIn() {
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search by child name or classroom"
               />
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Filter children">
+                {CHILD_FILTERS.filter((option) => isLeader || !option.leaderOnly).map((option) => {
+                  const total = children.filter(option.matches).length;
+                  return (
+                    <Button
+                      key={option.value}
+                      type="button"
+                      size="sm"
+                      variant={filter === option.value ? "default" : "outline"}
+                      aria-pressed={filter === option.value}
+                      onClick={() => setFilter(option.value)}
+                    >
+                      {option.label}
+                      <span className="ml-1 opacity-70">{total}</span>
+                    </Button>
+                  );
+                })}
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -434,6 +508,7 @@ export default function AdminCheckIn() {
                               <ChildAvatar child={child} />
                               <div>
                                 <div className="font-medium">{childName(child)}</div>
+                                <ChildFlags child={child} />
                                 <div className="text-xs text-muted-foreground">
                                   {child.allergyInformation ? `Allergies: ${child.allergyInformation}` : "No allergies listed"}
                                 </div>
@@ -472,6 +547,8 @@ export default function AdminCheckIn() {
                             <TableCell colSpan={5} className="p-4">
                               <ChildProfileDetails
                                 child={child}
+                                isLeader={isLeader}
+                                classrooms={classrooms}
                                 isUpdating={updateChild.isPending}
                                 isAddingGuardian={addGuardian.isPending}
                                 isRemovingCheckIn={removeActiveCheckIn.isPending}
@@ -490,18 +567,22 @@ export default function AdminCheckIn() {
               {filteredChildren.length === 0 && (
                 <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
                   {children.length === 0 ? (
-                    <span>
-                      No children registered yet.{" "}
-                      <button
-                        onClick={() => setRegisterOpen(true)}
-                        className="text-primary underline underline-offset-2"
-                      >
-                        Register a child
-                      </button>{" "}
-                      to start checking them in.
-                    </span>
+                    isLeader ? (
+                      <span>
+                        No children registered yet.{" "}
+                        <button
+                          onClick={() => { setRegisterAsVisitor(false); setRegisterOpen(true); }}
+                          className="text-primary underline underline-offset-2"
+                        >
+                          Register a child
+                        </button>{" "}
+                        to start checking them in.
+                      </span>
+                    ) : (
+                      "No children registered yet. Ask a Children Ministry leader to register them."
+                    )
                   ) : (
-                    "No children match that search."
+                    "No children match that search and filter."
                   )}
                 </div>
               )}
@@ -515,6 +596,8 @@ export default function AdminCheckIn() {
 
 function ChildProfileDetails({
   child,
+  isLeader,
+  classrooms,
   isUpdating,
   isAddingGuardian,
   isRemovingCheckIn,
@@ -523,6 +606,8 @@ function ChildProfileDetails({
   onRemoveActiveCheckIn,
 }: {
   child: Child;
+  isLeader: boolean;
+  classrooms: Classroom[];
   isUpdating: boolean;
   isAddingGuardian: boolean;
   isRemovingCheckIn: boolean;
@@ -541,19 +626,25 @@ function ChildProfileDetails({
               <p className="text-sm text-muted-foreground">
                 {child.age !== null ? `${child.age} years old` : "Age not listed"} · {child.classroom || "No classroom"}
               </p>
+              <ChildFlags child={child} />
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant={child.checkinStatus === "checked_in" ? "default" : "secondary"}>
               {child.checkinStatus === "checked_in" ? "Checked In" : "Checked Out"}
             </Badge>
+            {isLeader ? (
             <EditChildProfileDialog
               child={child}
+              classrooms={classrooms}
               isUpdating={isUpdating}
               isAddingGuardian={isAddingGuardian}
               onUpdate={onUpdate}
               onAddGuardian={onAddGuardian}
             />
+            ) : (
+              <ReportIncidentDialog child={child} />
+            )}
           </div>
         </div>
 
@@ -565,7 +656,7 @@ function ChildProfileDetails({
           <Info label="Special Instructions" value={child.specialInstructions || "None listed"} />
         </div>
 
-        {child.checkinStatus === "checked_in" && child.activeCheckIn && (
+        {isLeader && child.checkinStatus === "checked_in" && child.activeCheckIn && (
           <Collapsible>
             <div className="rounded-md border bg-muted/20 p-3">
               <CollapsibleTrigger asChild>
@@ -619,6 +710,12 @@ function ChildProfileDetails({
             )}
           </div>
         </div>
+        {isLeader && (
+          <>
+            <ChildIncidentsSection child={child} />
+            <ChildDocumentsSection child={child} />
+          </>
+        )}
       </div>
     </div>
   );
@@ -832,12 +929,14 @@ function MinistryCheckinHistory({
 
 function EditChildProfileDialog({
   child,
+  classrooms,
   isUpdating,
   isAddingGuardian,
   onUpdate,
   onAddGuardian,
 }: {
   child: Child;
+  classrooms: Classroom[];
   isUpdating: boolean;
   isAddingGuardian: boolean;
   onUpdate: (formData: FormData) => Promise<void>;
@@ -860,6 +959,7 @@ function EditChildProfileDialog({
         </DialogHeader>
         <EditChildProfileForm
           child={child}
+          classrooms={classrooms}
           isPending={isUpdating}
           onSubmit={async (formData) => {
             await onUpdate(formData);
@@ -885,10 +985,12 @@ function EditChildProfileDialog({
 
 function EditChildProfileForm({
   child,
+  classrooms,
   isPending,
   onSubmit,
 }: {
   child: Child;
+  classrooms: Classroom[];
   isPending: boolean;
   onSubmit: (formData: FormData) => Promise<void>;
 }) {
@@ -939,9 +1041,15 @@ function EditChildProfileForm({
           <input type="hidden" name="profilePhotoUrl" value={photoValue} />
           {photoError && <p className="text-sm text-destructive">{photoError}</p>}
         </div>
-        <Field name="dateOfBirth" label="Date of Birth" type="date" required={false} defaultValue={child.dateOfBirth ?? ""} />
         <Field name="gender" label="Gender" required={false} defaultValue={child.gender ?? ""} />
-        <Field name="classroom" label="Classroom / Group" required={false} defaultValue={child.classroom ?? ""} />
+        <ClassroomAndFlagsFields
+          classrooms={classrooms}
+          idPrefix={`edit-${child.id}`}
+          defaultDateOfBirth={child.dateOfBirth ?? ""}
+          defaultClassroom={child.classroom ?? ""}
+          defaultVisitor={child.isVisitor}
+          defaultSpecialNeeds={child.hasSpecialNeeds}
+        />
       </div>
       <TextAreaField name="allergyInformation" label="Allergy Information" defaultValue={child.allergyInformation ?? ""} />
       <TextAreaField name="medicalNotes" label="Medical Notes" defaultValue={child.medicalNotes ?? ""} />
@@ -1000,10 +1108,14 @@ function AddGuardianForm({
 }
 
 function ChildRegistrationForm({
+  classrooms,
+  defaultVisitor,
   memberContacts,
   isPending,
   onSubmit,
 }: {
+  classrooms: Classroom[];
+  defaultVisitor: boolean;
   memberContacts: MemberContact[];
   isPending: boolean;
   onSubmit: (formData: FormData) => void;
@@ -1022,7 +1134,7 @@ function ChildRegistrationForm({
   }>>([
     {
       id: 1,
-      source: "member",
+      source: defaultVisitor ? "manual" : "member",
       memberId: "",
       name: "",
       email: "",
@@ -1129,9 +1241,8 @@ function ChildRegistrationForm({
             <input type="hidden" name="profilePhotoUrl" value={photoValue} />
             {photoError && <p className="text-sm text-destructive">{photoError}</p>}
           </div>
-          <Field name="dateOfBirth" label="Date of Birth" type="date" required={false} />
           <Field name="gender" label="Gender" required={false} />
-          <Field name="classroom" label="Classroom / Group" required={false} />
+          <ClassroomAndFlagsFields classrooms={classrooms} idPrefix="register" defaultVisitor={defaultVisitor} />
         </div>
       </section>
 
@@ -1288,6 +1399,12 @@ function CheckinConfirmDialog({
               </p>
             </div>
           </div>
+          <ChildFlags child={child} />
+          {child.openIncidentCount > 0 && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+              This child has an open incident. Let a Children Ministry leader know the parent is here.
+            </div>
+          )}
           {hasAlerts && (
             <div className="rounded-md border border-amber-200 bg-white p-3 space-y-1">
               <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Health Alerts</p>
@@ -1415,9 +1532,27 @@ function CheckoutDialog({
   );
 }
 
-function MetricCard({ icon: Icon, label, value, tooltip }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; tooltip: string }) {
+function MetricCard({
+  icon: Icon,
+  label,
+  value,
+  tooltip,
+  onClick,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  tooltip: string;
+  onClick?: () => void;
+}) {
   return (
-    <Card>
+    <Card
+      className={onClick ? "cursor-pointer transition-colors hover:bg-muted/40" : undefined}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onClick(); } } : undefined}
+    >
       <CardContent className="flex items-center justify-between p-5">
         <div>
           <div className="flex items-center gap-1.5">
@@ -1438,6 +1573,98 @@ function MetricCard({ icon: Icon, label, value, tooltip }: { icon: React.Compone
         <Icon className="h-5 w-5 text-primary" />
       </CardContent>
     </Card>
+  );
+}
+
+/** Classroom picker (suggested by age and special needs) plus the visitor and special-needs checkboxes. */
+function ClassroomAndFlagsFields({
+  classrooms,
+  idPrefix,
+  defaultDateOfBirth = "",
+  defaultClassroom = "",
+  defaultVisitor = false,
+  defaultSpecialNeeds = false,
+}: {
+  classrooms: Classroom[];
+  idPrefix: string;
+  defaultDateOfBirth?: string;
+  defaultClassroom?: string;
+  defaultVisitor?: boolean;
+  defaultSpecialNeeds?: boolean;
+}) {
+  const [dateOfBirth, setDateOfBirth] = React.useState(defaultDateOfBirth);
+  const [hasSpecialNeeds, setHasSpecialNeeds] = React.useState(defaultSpecialNeeds);
+  const [classroom, setClassroom] = React.useState(defaultClassroom);
+  const [classroomTouched, setClassroomTouched] = React.useState(Boolean(defaultClassroom));
+  const suggestion = suggestClassroom(classrooms, ageFromDateOfBirth(dateOfBirth), hasSpecialNeeds);
+
+  // Follow the suggestion until someone picks a classroom by hand.
+  React.useEffect(() => {
+    if (!classroomTouched && suggestion) setClassroom(suggestion.name);
+  }, [classroomTouched, suggestion?.name]);
+
+  const options = classrooms.some((room) => room.name === classroom) || !classroom
+    ? classrooms.map((room) => room.name)
+    : [classroom, ...classrooms.map((room) => room.name)];
+
+  return (
+    <>
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}-dateOfBirth`}>Date of Birth</Label>
+        <Input id={`${idPrefix}-dateOfBirth`} name="dateOfBirth" type="date" value={dateOfBirth} onChange={(event) => setDateOfBirth(event.target.value)} />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}-classroom`}>Classroom</Label>
+        <select
+          id={`${idPrefix}-classroom`}
+          name="classroom"
+          value={classroom}
+          onChange={(event) => { setClassroom(event.target.value); setClassroomTouched(true); }}
+          className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+        >
+          <option value="">Not assigned</option>
+          {options.map((name) => <option key={name} value={name}>{name}</option>)}
+        </select>
+        {suggestion && suggestion.name !== classroom && (
+          <button type="button" className="text-xs text-primary underline underline-offset-2" onClick={() => { setClassroom(suggestion.name); setClassroomTouched(true); }}>
+            Suggested: {suggestion.name}
+          </button>
+        )}
+      </div>
+      <div className="flex flex-col gap-2 md:col-span-2 sm:flex-row sm:gap-6">
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="isVisitor" defaultChecked={defaultVisitor} className="h-4 w-4" />
+          First-time visitor
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="hasSpecialNeeds"
+            checked={hasSpecialNeeds}
+            onChange={(event) => { setHasSpecialNeeds(event.target.checked); setClassroomTouched(false); }}
+            className="h-4 w-4"
+          />
+          Confirmed special needs
+        </label>
+      </div>
+    </>
+  );
+}
+
+function LabelSizePicker() {
+  const [sizeId, setSizeId] = React.useState(() => getSavedLabelSize().id);
+  return (
+    <div className="w-full space-y-1">
+      <Label htmlFor="label-size" className="text-xs text-muted-foreground">Label size</Label>
+      <select
+        id="label-size"
+        value={sizeId}
+        onChange={(event) => { setSizeId(event.target.value); saveLabelSize(event.target.value); }}
+        className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+      >
+        {LABEL_SIZES.map((size) => <option key={size.id} value={size.id}>{size.label}</option>)}
+      </select>
+    </div>
   );
 }
 

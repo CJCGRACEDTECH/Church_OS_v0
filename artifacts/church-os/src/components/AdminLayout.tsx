@@ -139,12 +139,12 @@ function SidebarNav() {
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <aside className="hidden md:flex w-64 flex-col border-r border-border">
+      <aside className="hidden lg:flex w-64 flex-col border-r border-border">
         <SidebarNav />
       </aside>
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="md:hidden flex items-center justify-between p-4 border-b bg-card">
+        <header className="lg:hidden flex items-center justify-between p-4 border-b bg-card">
           <img src="/cjc-logo.webp" alt="CJC Church" className="h-8 w-auto" style={{ mixBlendMode: "multiply" }} />
           <Sheet>
             <SheetTrigger asChild>

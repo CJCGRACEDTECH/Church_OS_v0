@@ -235,7 +235,8 @@ function AuthPageShell({ children }: { children: React.ReactNode }) {
 
 const DEMO_ACCOUNTS = [
   { email: "superadmin@churchos.test", label: "Super Admin" },
-  { email: "admin2@churchos.test", label: "Children Ministry Admin" },
+  { email: "admin2@churchos.test", label: "Children Ministry Leader" },
+  { email: "helper@churchos.test", label: "Children Check-In Helper (teen)" },
   { email: "admin1@churchos.test", label: "Operations Admin" },
   { email: "admin3@churchos.test", label: "Giving Admin" },
   { email: "admin4@churchos.test", label: "Member Care Admin" },
