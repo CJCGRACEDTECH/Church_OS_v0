@@ -9,7 +9,7 @@ import { CalendarDays, Video } from "lucide-react";
 export default function EventsFeed({ detailBasePath }: { detailBasePath: string }) {
   const eventsQuery = useQuery({
     queryKey: ["dashboard-events-feed", detailBasePath],
-    queryFn: () => apiJson<{ events: ChurchEvent[] }>("/events?limit=5"),
+    queryFn: () => apiJson<{ events: ChurchEvent[] }>(`/events?start=${encodeURIComponent(new Date().toISOString())}&limit=5`),
   });
   const events = eventsQuery.data?.events ?? [];
   const nextEvent = events[0];
